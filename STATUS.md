@@ -26,6 +26,22 @@
   in docs/drive-setup.md. Until then the menu items show setup info and
   everything local keeps working. Stubbed-boundary e2e: test/drive-e2e.js.
 
+## 2026-07-16 evening
+
+- Cmd+Z/Cmd+Shift+Z bound (mapjs never had undo keys — Safari was
+  reopening closed tabs); clean click now selects a node (mapjs
+  dispatches nodeClicked and left acting on it to the app layer);
+  vendored doubletap patch stops two quick clicks on different nodes
+  opening an editor on the wrong node (test/click-select-e2e.js).
+- Dark mode: View > Dark mode — body.dark chrome + render-time theme
+  filter (app/js/dark-mode.js, darkenThemeJson in themes.js); defaults
+  to OS preference, persists, prints light, never alters the .mup.
+- app.philmaps.com pending: needs a Cloudflare DNS-edit token from Simon
+  (zone philmaps.com), then Firebase customDomains.create + DNS-only
+  records (grey cloud, so the apex→maps.simoncullen.org redirect rule
+  can't catch it). API key referrers + drive-setup.md already include
+  the domain.
+
 ## Original morning build notes
 
 ## Where things stand

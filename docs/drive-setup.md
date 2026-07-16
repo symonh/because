@@ -30,6 +30,7 @@ Console task (about two minutes, signed in as sc@simoncullen.org):
    - Create client → type **Web application** → name `ArgumentBase web`.
    - Authorized JavaScript origins (no redirect URIs needed):
      - `https://argumentbase.web.app`
+     - `https://app.philmaps.com` (the custom domain, once live)
      - `http://localhost:8871`
      - `http://127.0.0.1:8871`
    - Copy the client ID (`…apps.googleusercontent.com`).
