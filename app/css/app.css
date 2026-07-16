@@ -135,6 +135,21 @@ html, body {
 	cursor: pointer;
 	font-size: 13px;
 }
+.panel-actions { text-align: right; margin-top: 18px; }
+.panel-actions button {
+	border: 1px solid #ccc;
+	background: #f6f6f6;
+	border-radius: 5px;
+	padding: 6px 16px;
+	margin-left: 8px;
+	cursor: pointer;
+	font-size: 13px;
+}
+.panel-actions button[data-act='save'] {
+	background: #1a86b8;
+	border-color: #1a86b8;
+	color: #fff;
+}
 .kbd td { padding: 3px 12px 3px 0; }
 kbd {
 	background: #f3f3f3;

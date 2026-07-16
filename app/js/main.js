@@ -29,15 +29,19 @@ document.addEventListener('DOMContentLoaded', function () {
 	// dev/test handle
 	window.__argumentbase = { engine, commands, io };
 
-	// autosave on every model change (debounced)
+	// every model change marks the map unsaved (relative to its file) and
+	// refreshes the crash-recovery autosave; only File > Save clears it
 	let autosaveTimer = null;
 	engine.on('mapChanged', function () {
-		status.dirty();
+		io.markDirty();
 		if (autosaveTimer) { window.clearTimeout(autosaveTimer); }
-		autosaveTimer = window.setTimeout(function () {
-			io.autosave();
-			status.saved();
-		}, 800);
+		autosaveTimer = window.setTimeout(() => io.autosave(), 800);
+	});
+	window.addEventListener('beforeunload', function (e) {
+		if (io.isDirty()) {
+			e.preventDefault();
+			e.returnValue = '';
+		}
 	});
 
 	// open .mup by dropping it anywhere on the window
@@ -53,10 +57,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	if (src) {
 		window.fetch(src)
 			.then(r => { if (!r.ok) { throw new Error('HTTP ' + r.status); } return r.json(); })
-			.then(json => {
-				engine.loadMap(json);
-				status.setFileName(decodeURIComponent(src.replace(/.*\//, '')));
-			})
+			.then(json => io.loadJson(json, decodeURIComponent(src.replace(/.*\//, ''))))
 			.catch(() => io.restoreAutosave() || io.newMap());
 	} else if (!io.restoreAutosave()) {
 		io.newMap();

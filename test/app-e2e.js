@@ -145,6 +145,53 @@ function ok(cond, name) {
 	ok(drop.emptyGroupRemoved, 'emptied source group is removed');
 	ok(drop.undoRestores, 'single undo restores move and removed group');
 
+	// status must reflect the FILE state: after an edit it says unsaved and
+	// the autosave debounce must not flip it back to "All changes saved"
+	await page.evaluate(() => {
+		window.__argumentbase.engine.mapModel.getIdea().updateTitle(12, 'Edited claim');
+	});
+	await new Promise(r => setTimeout(r, 1200));
+	let statusText = await page.$eval('#save-status', el => el.textContent);
+	ok(statusText === 'Unsaved changes', `status stays "Unsaved changes" after autosave (got "${statusText}")`);
+
+	// File > Open with unsaved changes: the guard modal appears; Cancel keeps the map
+	const clickMenu = (menu, item) => page.evaluate((menuName, itemPrefix) => {
+		Array.from(document.querySelectorAll('.menu-title'))
+			.find(t => t.textContent === menuName).click();
+		Array.from(document.querySelectorAll('.menu-item'))
+			.find(i => i.textContent.indexOf(itemPrefix) === 0).click();
+	}, menu, item);
+	await clickMenu('File', 'New');
+	ok(await page.$('.panel-overlay .panel-actions') !== null, 'unsaved-changes modal appears on File > New');
+	await page.click('.panel-actions button[data-act=cancel]');
+	let hasEdited = await page.evaluate(() =>
+		Array.from(document.querySelectorAll('.mapjs-node')).some(n => n.textContent.indexOf('Edited claim') >= 0));
+	ok(hasEdited, 'Cancel keeps the current map');
+
+	// Don't save proceeds; then the fallback Open path (Safari has no File
+	// System Access API) must use a DOM-attached picker input that loads
+	await page.evaluate(() => { delete window.showOpenFilePicker; });
+	await clickMenu('File', 'New');
+	await page.click('.panel-actions button[data-act=discard]');
+	await new Promise(r => setTimeout(r, 400));
+	hasEdited = await page.evaluate(() =>
+		Array.from(document.querySelectorAll('.mapjs-node')).some(n => n.textContent.indexOf('Edited claim') >= 0));
+	ok(!hasEdited, 'Don\'t save proceeds to the new map');
+	await clickMenu('File', 'Open');
+	const picker = await page.$('input[type=file]');
+	ok(picker !== null, 'fallback picker input is attached to the DOM');
+	await picker.uploadFile(require('path').join(__dirname, '..', 'samples', 'death.mup'));
+	await new Promise(r => setTimeout(r, 600));
+	const openedSecond = await page.evaluate(() => ({
+		hasDeath: Array.from(document.querySelectorAll('.mapjs-node'))
+			.some(n => n.textContent.indexOf('going to die') >= 0),
+		title: document.getElementById('map-title').textContent,
+		saved: document.getElementById('save-status').textContent
+	}));
+	ok(openedSecond.hasDeath && openedSecond.title === 'death.mup',
+		`opening a second map replaces the first (title=${openedSecond.title})`);
+	ok(openedSecond.saved === 'All changes saved', 'freshly opened map reads as saved');
+
 	// screenshot the full app for visual review
 	await page.screenshot({ path: '/tmp/app_ui.png' });
 
