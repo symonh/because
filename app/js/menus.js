@@ -4,7 +4,7 @@
  * Pure DOM, no framework. Menus close on click-away or Escape.
  */
 
-export function buildMenus(el, commands, io, engine, drive) {
+export function buildMenus(el, commands, io, engine, drive, darkMode) {
 	const driveItem = run => () => {
 			if (drive && drive.isConfigured()) { run(); } else { showDriveSetup(); }
 		},
@@ -42,7 +42,8 @@ export function buildMenus(el, commands, io, engine, drive) {
 			['Reset view', commands.zoomReset],
 			['—'],
 			['Collapse / expand branch (F)', commands.toggleCollapse],
-			[(engine.getLabelsOn() ? '✓ ' : '') + 'Claim numbering', commands.toggleNumbering]
+			[(engine.getLabelsOn() ? '✓ ' : '') + 'Claim numbering', commands.toggleNumbering],
+			[(darkMode && darkMode.isDark() ? '✓ ' : '') + 'Dark mode', () => darkMode.toggle()]
 		]],
 		['Argument Visualization', () => [
 			['Toggle implicit claim (Alt+T)', commands.toggleImplicit],

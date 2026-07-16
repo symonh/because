@@ -1,5 +1,5 @@
 diff --git a/src/browser/dom-map-controller.js b/src/browser/dom-map-controller.js
-index a5cd76c..6b5f992 100644
+index a5cd76c..395e549 100644
 --- a/src/browser/dom-map-controller.js
 +++ b/src/browser/dom-map-controller.js
 @@ -271,7 +271,7 @@ module.exports = function DomMapController(mapModel, stageElement, touchEnabled,
@@ -11,6 +11,23 @@ index a5cd76c..6b5f992 100644
  		);
  		result = {
  			width: Math.ceil(textBox.outerWidth(true)),
+@@ -320,6 +320,16 @@ module.exports = function DomMapController(mapModel, stageElement, touchEnabled,
+ 					mapModel.toggleCollapse('mouse');
+ 					return;
+ 				}
++				/* LOCAL PATCH: hammer v1 calls two quick taps a doubletap even
++				   when they hit different nodes (it never measures the distance
++				   BETWEEN the taps), and editNode targets the selected node —
++				   so clicking quickly between nodes opened an editor on the
++				   previous node and swallowed the selection. Editing is only
++				   a double tap on the node that is already selected. */
++				if (mapModel.getSelectedNodeId() !== node.id) {
++					mapModel.selectNode(node.id);
++					return;
++				}
+ 				mapModel.editNode('mouse');
+ 			})
+ 			.on('attachment-click', function () {
 diff --git a/src/browser/dom-map-widget.js b/src/browser/dom-map-widget.js
 index 7dd0cdd..65ca2ee 100644
 --- a/src/browser/dom-map-widget.js

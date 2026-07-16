@@ -7,6 +7,9 @@
  *   Alt+T  toggle reason/objection (bracket) or implicit/explicit (claim)
  *   Alt+N  add sticky note
  *   z / Shift+z  zoom in / out
+ *   ⌘Z / ⌘⇧Z  undo / redo — mapjs never bound these (undo lived in the
+ *   MindMup app layer); unconsumed ⌘Z reaches Safari's own Edit > Undo,
+ *   whose top item is often "Undo Close Tab" — it reopened tabs mid-edit
  * Registered in the capture phase so they pre-empt the engine's default
  * mind-map bindings (plain Enter would otherwise add a bare child).
  * preventDefault/stopImmediatePropagation run BEFORE the command so the
@@ -21,9 +24,14 @@ export function bindShortcuts(engine, commands) {
 		const tag = (e.target && e.target.tagName) || '';
 		if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) { return; }
 		const alt = e.altKey && !e.metaKey && !e.ctrlKey,
-			bare = !e.altKey && !e.metaKey && !e.ctrlKey;
+			bare = !e.altKey && !e.metaKey && !e.ctrlKey,
+			mod = (e.metaKey || e.ctrlKey) && !e.altKey;
 		let command = null;
-		if (bare && e.key === 'Enter') {
+		if (mod && e.code === 'KeyZ') {
+			command = e.shiftKey ? commands.redo : commands.undo;
+		} else if (mod && !e.shiftKey && e.code === 'KeyY') {
+			command = commands.redo;
+		} else if (bare && e.key === 'Enter') {
 			command = commands.addReason;
 		} else if (bare && e.key === 'Tab') {
 			command = commands.addCoPremise;

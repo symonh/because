@@ -18177,6 +18177,10 @@
               mapModel.toggleCollapse("mouse");
               return;
             }
+            if (mapModel.getSelectedNodeId() !== node.id) {
+              mapModel.selectNode(node.id);
+              return;
+            }
             mapModel.editNode("mouse");
           }).on("attachment-click", function() {
             mapModel.openAttachment("mouse", node.id);

@@ -27,7 +27,7 @@ const ICONS = {
 };
 
 function iconSVG(name) {
-	return '<svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="#555" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">' + ICONS[name] + '</svg>';
+	return '<svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">' + ICONS[name] + '</svg>';
 }
 
 export function buildToolbar(el, commands, io) {

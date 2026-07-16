@@ -320,6 +320,16 @@ module.exports = function DomMapController(mapModel, stageElement, touchEnabled,
 					mapModel.toggleCollapse('mouse');
 					return;
 				}
+				/* LOCAL PATCH: hammer v1 calls two quick taps a doubletap even
+				   when they hit different nodes (it never measures the distance
+				   BETWEEN the taps), and editNode targets the selected node —
+				   so clicking quickly between nodes opened an editor on the
+				   previous node and swallowed the selection. Editing is only
+				   a double tap on the node that is already selected. */
+				if (mapModel.getSelectedNodeId() !== node.id) {
+					mapModel.selectNode(node.id);
+					return;
+				}
 				mapModel.editNode('mouse');
 			})
 			.on('attachment-click', function () {

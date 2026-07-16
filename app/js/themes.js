@@ -591,3 +591,48 @@ export function augmentThemeJson(json) {
 	}
 	return t;
 }
+
+/*
+ * Dark-mode variant of any argument-mapping theme. This is a VIEW
+ * transform: it deep-clones, never touches the map's own embedded theme,
+ * and is applied at render time only, so saved .mup files are identical
+ * in either mode.
+ *
+ * Key-aware on purpose: node paper (backgroundColor) goes dark, but the
+ * badge label's white text/ring must stay white, so bare #ffffff values
+ * outside backgroundColor are left alone.
+ */
+const DARK_COLORS = {
+	'#4f4f4f': '#e2e5e7', // claim text
+	'#707070': '#9aa0a6', // borders, implicit dashes, note links
+	'#339966': '#3fb377', // supporting green, brightened for dark paper
+	'#ff0000': '#ff5d5d'  // opposing red, softened
+};
+
+export function darkenThemeJson(json) {
+	const t = JSON.parse(JSON.stringify(json)),
+		walk = function (obj) {
+			Object.keys(obj).forEach(function (key) {
+				const value = obj[key];
+				if (typeof value === 'string') {
+					const mapped = DARK_COLORS[value.toLowerCase()];
+					if (mapped) { obj[key] = mapped; }
+					if (key === 'backgroundColor' && value.toLowerCase() === '#ffffff') {
+						obj[key] = '#26292d';
+					}
+				} else if (value && typeof value === 'object') {
+					walk(value);
+				}
+			});
+		};
+	walk(t);
+	(t.node || []).forEach(function (n) {
+		if (n.name === 'sticky_note') {
+			// stickies stay paper, just less fluorescent, with dark ink
+			n.backgroundColor = '#e3d874';
+			n.text = n.text || {};
+			n.text.color = '#2c2a1a';
+		}
+	});
+	return t;
+}

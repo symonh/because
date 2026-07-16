@@ -17,6 +17,9 @@ function ok(cond, name) {
 	await page.setViewport({ width: 1500, height: 950, deviceScaleFactor: 2 });
 	const errors = [];
 	page.on('pageerror', e => errors.push(e.message));
+	// headless Chrome reports prefers-color-scheme: dark; pin light so the
+	// suite starts deterministic and the dark-mode test flips it itself
+	await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }]);
 
 	await page.goto(BASE + '/app/index.html', { waitUntil: 'networkidle0' });
 	await page.evaluate(() => localStorage.clear());
@@ -78,6 +81,27 @@ function ok(cond, name) {
 	const hasOpposing = await page.evaluate(() =>
 		document.querySelectorAll('.mapjs-node.attr_group_opposing').length);
 	ok(hasOpposing >= 1, 'Alt+O adds an opposing (red) group');
+
+	// Cmd+Z / Cmd+Shift+Z — bound at the app layer (mapjs never bound undo,
+	// so unconsumed Cmd+Z used to reach Safari's own Edit > Undo)
+	const metaPress = async (key, shift) => {
+		await page.keyboard.down('Meta');
+		if (shift) { await page.keyboard.down('Shift'); }
+		await page.keyboard.press(key);
+		if (shift) { await page.keyboard.up('Shift'); }
+		await page.keyboard.up('Meta');
+		await new Promise(r => setTimeout(r, 300));
+	};
+	await metaPress('z'); // undo title
+	await metaPress('z'); // undo group+child
+	let opposingNow = await page.evaluate(() =>
+		document.querySelectorAll('.mapjs-node.attr_group_opposing').length);
+	ok(opposingNow === 0, `Cmd+Z undoes the objection (${opposingNow} opposing groups left)`);
+	await metaPress('z', true);
+	await metaPress('z', true);
+	opposingNow = await page.evaluate(() =>
+		document.querySelectorAll('.mapjs-node.attr_group_opposing').length);
+	ok(opposingNow >= 1, 'Cmd+Shift+Z redoes the objection');
 
 	// numbering badges present, then toggle off via View menu command
 	const badges = await page.$$eval('.mapjs-label', els => els.filter(e => e.offsetParent !== null).length);
@@ -155,11 +179,12 @@ function ok(cond, name) {
 	ok(statusText === 'Unsaved changes', `status stays "Unsaved changes" after autosave (got "${statusText}")`);
 
 	// File > Open with unsaved changes: the guard modal appears; Cancel keeps the map
-	const clickMenu = (menu, item) => page.evaluate((menuName, itemPrefix) => {
+	// substring match: checked items carry a leading "✓ "
+	const clickMenu = (menu, item) => page.evaluate((menuName, itemText) => {
 		Array.from(document.querySelectorAll('.menu-title'))
 			.find(t => t.textContent === menuName).click();
 		Array.from(document.querySelectorAll('.menu-item'))
-			.find(i => i.textContent.indexOf(itemPrefix) === 0).click();
+			.find(i => i.textContent.indexOf(itemText) >= 0).click();
 	}, menu, item);
 	await clickMenu('File', 'New');
 	ok(await page.$('.panel-overlay .panel-actions') !== null, 'unsaved-changes modal appears on File > New');
@@ -193,6 +218,23 @@ function ok(cond, name) {
 	ok(openedSecond.hasDeath && openedSecond.title === 'death.mup',
 		`opening a second map replaces the first (title=${openedSecond.title})`);
 	ok(openedSecond.saved === 'All changes saved', 'freshly opened map reads as saved');
+
+	// dark mode: flips chrome + map theme, never touches map data, persists
+	await clickMenu('View', 'Dark mode');
+	const darkState = await page.evaluate(() => ({
+		body: document.body.classList.contains('dark'),
+		themeDark: document.getElementById('themeCSS').textContent.indexOf('#26292d') >= 0,
+		fileDark: window.__argumentbase.engine.serialize().indexOf('#26292d') >= 0
+	}));
+	ok(darkState.body && darkState.themeDark, 'dark mode flips chrome and map theme');
+	ok(!darkState.fileDark, 'dark palette never enters the serialized map');
+	await page.reload({ waitUntil: 'networkidle0' });
+	await page.waitForSelector('.mapjs-node', { timeout: 8000 });
+	ok(await page.evaluate(() => document.body.classList.contains('dark')),
+		'dark mode persists across reload');
+	await clickMenu('View', 'Dark mode');
+	ok(await page.evaluate(() => !document.body.classList.contains('dark')),
+		'dark mode toggles back to light');
 
 	// screenshot the full app for visual review
 	await page.screenshot({ path: '/tmp/app_ui.png' });

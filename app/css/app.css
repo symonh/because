@@ -85,6 +85,7 @@ html, body {
 	border-radius: 5px;
 	cursor: pointer;
 	padding: 0;
+	color: #555; /* icon strokes use currentColor */
 }
 .tb-btn:hover { background: #e8f2f8; }
 .tb-btn:active { background: #d8eaf4; }
@@ -162,7 +163,63 @@ kbd {
 	white-space: nowrap;
 }
 
+/* ---- dark mode (View > Dark mode; body.dark set by dark-mode.js) ---- */
+body.dark {
+	background: #1b1d20;
+	color: #d3d7db;
+	color-scheme: dark;
+}
+body.dark #topbar {
+	background: #24272b;
+	border-bottom-color: #34383d;
+}
+body.dark #map-title { color: #e2e5e7; }
+body.dark .menu-title { color: #c3c8cd; }
+body.dark .menu-title:hover, body.dark .menu-title.open {
+	background: #31363c;
+	color: #6cc4ee;
+}
+body.dark #save-status { color: #7c8288; }
+body.dark .menu-dropdown {
+	background: #2a2e33;
+	border-color: #3d4248;
+	box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+}
+body.dark .menu-item { color: #d3d7db; }
+body.dark .menu-item:hover { background: #31363c; color: #6cc4ee; }
+body.dark .menu-sep { border-top-color: #3d4248; }
+body.dark #toolbar {
+	background: #24272b;
+	border-bottom-color: #34383d;
+}
+body.dark .tb-btn { color: #c3c8cd; }
+body.dark .tb-btn:hover { background: #32373d; }
+body.dark .tb-btn:active { background: #3b4148; }
+body.dark .tb-sep { background: #3d4248; }
+body.dark #map-container { background: #1b1d20; }
+body.dark .panel {
+	background: #2a2e33;
+	color: #d3d7db;
+}
+body.dark .panel a { color: #6cc4ee; }
+body.dark .panel-close button,
+body.dark .panel-actions button {
+	background: #34393f;
+	border-color: #4a5057;
+	color: #d3d7db;
+}
+body.dark .panel-actions button[data-act='save'] {
+	background: #1a86b8;
+	border-color: #1a86b8;
+	color: #fff;
+}
+body.dark kbd {
+	background: #34393f;
+	border-color: #4a5057;
+	color: #d3d7db;
+}
+
 @media print {
 	#topbar, #toolbar { display: none; }
-	#map-container { height: 100%; }
+	#map-container { height: 100%; background: #fff !important; }
 }

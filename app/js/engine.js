@@ -12,7 +12,9 @@ const MAPJS = window.MAPJS,
 	jQuery = window.jQuery;
 
 export function initEngine(container) {
-	let theme = new MAPJS.Theme(augmentThemeJson(resolveThemeJson(null))),
+	let baseThemeJson = augmentThemeJson(resolveThemeJson(null)),
+		themeFilter = null, // view-time transform (dark mode); never saved
+		theme = new MAPJS.Theme(baseThemeJson),
 		currentMapJson = null,
 		labelsOn = true;
 	const mapModel = new MAPJS.MapModel([]),
@@ -42,7 +44,23 @@ export function initEngine(container) {
 			} else {
 				mapModel.setLabelGenerator(false, 'argument-mapping');
 			}
+		},
+		applyTheme = function (rebuild) {
+			const themeJson = themeFilter ? themeFilter(baseThemeJson) : baseThemeJson;
+			// the DomMapController reads the replaced closure via its
+			// themeSource callback; rebuildRequired makes it re-render
+			theme = new MAPJS.Theme(themeJson);
+			refreshThemeCSS(themeJson);
+			if (rebuild && mapModel.getIdea()) {
+				mapModel.rebuildRequired();
+			}
 		};
+
+	// mapjs dispatches nodeClicked for a plain left-button tap and leaves
+	// acting on it to the application layer (MindMup's app did the
+	// selecting) — without this, only drags and arrow keys move the
+	// selection and clean clicks silently do nothing
+	mapModel.addEventListener('nodeClicked', id => mapModel.selectNode(id));
 
 	installDropPolicy(mapModel);
 	jQuery(container).domMapWidget(console, mapModel, false);
@@ -59,9 +77,8 @@ export function initEngine(container) {
 		mapModel,
 		on(name, fn) { listeners[name].push(fn); },
 		loadMap(mapJson) {
-			const themeJson = augmentThemeJson(resolveThemeJson(mapJson));
-			theme = new MAPJS.Theme(themeJson);
-			refreshThemeCSS(themeJson);
+			baseThemeJson = augmentThemeJson(resolveThemeJson(mapJson));
+			applyTheme(false);
 			applyLabels();
 			currentMapJson = mapJson;
 			const idea = MAPJS.content(mapJson);
@@ -82,11 +99,13 @@ export function initEngine(container) {
 			if (!idea) { return; }
 			idea.updateAttr(idea.id, 'theme', name);
 			if (currentMapJson && currentMapJson.theme) { delete currentMapJson.theme; }
-			const themeJson = augmentThemeJson(resolveThemeJson({ attr: { theme: name } }));
-			theme = new MAPJS.Theme(themeJson);
-			refreshThemeCSS(themeJson);
-			mapModel.setTheme(theme);
-			mapModel.rebuildRequired();
+			baseThemeJson = augmentThemeJson(resolveThemeJson({ attr: { theme: name } }));
+			applyTheme(true);
+		},
+		// view-time theme transform (dark mode); pass null to clear
+		setThemeFilter(fn) {
+			themeFilter = fn || null;
+			applyTheme(true);
 		},
 		getThemeName() {
 			const idea = mapModel.getIdea();
