@@ -10,3 +10,4 @@ test/artifacts/
 test/node_modules/
 test/screenshots/
 deploy/
+.firebase/
