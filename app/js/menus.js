@@ -56,7 +56,10 @@ export function buildMenus(el, commands, io, engine, drive, darkMode, labelEdit)
 		]],
 		['Help', () => [
 			['Keyboard shortcuts', showShortcuts],
-			['About Because', showAbout]
+			['About Because', showAbout],
+			['—'],
+			['Privacy policy', () => window.open('https://app.philmaps.com/privacy', '_blank')],
+			['Terms of service', () => window.open('https://app.philmaps.com/terms', '_blank')]
 		]]
 	];
 
@@ -113,7 +116,9 @@ export function buildMenus(el, commands, io, engine, drive, darkMode, labelEdit)
 			'built on the MIT-licensed <a href="https://github.com/mindmup/mapjs">mindmup/mapjs</a> engine — ' +
 			'the same renderer MindMup used, so existing maps open unchanged.</p>' +
 			'<p>Co-premises share one bracket (joint support); independent reasons get separate brackets. ' +
-			'Green = supporting, red = objection, dashed = implicit claim.</p>'
+			'Green = supporting, red = objection, dashed = implicit claim.</p>' +
+			'<p><a href="https://app.philmaps.com/privacy" target="_blank">Privacy policy</a> · ' +
+			'<a href="https://app.philmaps.com/terms" target="_blank">Terms of service</a></p>'
 		);
 	}
 

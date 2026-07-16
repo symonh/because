@@ -3,6 +3,7 @@
 		"site": "argumentbase",
 		"public": "deploy",
 		"ignore": ["**/.*"],
+		"cleanUrls": true,
 		"redirects": [
 			{ "source": "/", "destination": "/app/", "type": 302 }
 		],

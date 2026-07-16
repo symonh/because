@@ -27,9 +27,10 @@ Console task (about two minutes, signed in as sc@simoncullen.org):
    - App name `Because`; user support email sc@simoncullen.org.
    - Logo: leave empty — uploading one triggers Google's
      brand-verification review.
-   - Application home page `https://app.philmaps.com`; clear the privacy
-     policy and terms links (optional for non-sensitive scopes; the old
-     simoncullen.org ones are dead).
+   - Application home page `https://app.philmaps.com`; privacy policy
+     `https://app.philmaps.com/privacy`; terms of service
+     `https://app.philmaps.com/terms` (both served from site/ in this
+     repo).
    - Authorized domains: `philmaps.com`. Before deleting
      `simoncullen.org`, check the Clients tab for any old DriveShare
      client that might still use it; adding philmaps.com alongside is

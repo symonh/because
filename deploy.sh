@@ -1,9 +1,11 @@
 #!/bin/bash
-# Deploy ArgumentBase to Firebase Hosting (https://argumentbase.web.app).
+# Deploy Because to Firebase Hosting (https://app.philmaps.com,
+# also argumentbase.web.app — the site keeps its legacy id).
 #
-# Stages exactly app/ and samples/ into deploy/ before uploading, so the
-# gitignored course content (samples-local/, refs-local/) can never ship.
-# Auth comes from gcloud application-default credentials (sc@simoncullen.org).
+# Stages exactly app/, samples/, and site/ into deploy/ before uploading,
+# so the gitignored course content (samples-local/, refs-local/) can never
+# ship. Auth comes from gcloud application-default credentials
+# (sc@simoncullen.org).
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -11,6 +13,7 @@ rm -rf deploy
 mkdir -p deploy
 rsync -a app deploy/
 rsync -a samples deploy/
+rsync -a site/ deploy/   # root-level pages: /privacy, /terms (cleanUrls)
 
 GOOGLE_CLOUD_QUOTA_PROJECT=driveshare-446802 \
 	npx --yes firebase-tools deploy --only hosting:argumentbase --project driveshare-446802
