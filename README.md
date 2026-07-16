@@ -1,17 +1,19 @@
 # Because
 
 A standalone editor and renderer for MindMup argument visualizations (`.mup`
-files). MindMup discontinued free argument-visualization access through Google Drive in June 2026;
+files). MindMup discontinued free argument-visualization access in June 2026;
 Because runs the same MIT-licensed rendering engine
 ([mindmup/mapjs](https://github.com/mindmup/mapjs)) with the product's own
 argument-mapping theme, so existing course maps open unchanged and render the
-way they did in MindMup.
+way they did in MindMup. (Briefly named ArgumentBase — legacy infrastructure
+IDs such as the Firebase site `argumentbase` keep the old name.)
 
 ![the app](docs/app-ui.png)
 
 ## Run it
 
-Hosted: **https://argumentbase.web.app** (deployed from this repo with
+Hosted: **https://app.philmaps.com** (also at argumentbase.web.app, the
+underlying Firebase site; deployed from this repo with
 `./deploy.sh`). Locally, no build step is needed — the engine bundles are
 committed:
 

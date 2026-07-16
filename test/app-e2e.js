@@ -1,4 +1,4 @@
-// End-to-end smoke test for the ArgumentBase app shell.
+// End-to-end smoke test for the Because app shell.
 // Serves nothing itself — expects `python3 -m http.server 8871` at repo root.
 const puppeteer = require('puppeteer-core');
 
@@ -109,11 +109,11 @@ function ok(cond, name) {
 
 	// serialize through File > Save (intercept: read engine serialization)
 	const saved = await page.evaluate(() => {
-		const idea = window.__argumentbase && window.__argumentbase.engine.mapModel.getIdea();
+		const idea = window.__because && window.__because.engine.mapModel.getIdea();
 		return JSON.stringify(idea);
 	}).catch(() => null);
-	// __argumentbase may not be exposed; fall back to localStorage autosave
-	const autosaved = await page.evaluate(() => localStorage.getItem('argumentbase.autosave'));
+	// __because may not be exposed; fall back to localStorage autosave
+	const autosaved = await page.evaluate(() => localStorage.getItem('because.autosave'));
 	const doc = JSON.parse(saved || autosaved);
 	const roots = Object.values(doc.ideas || {});
 	ok(doc.formatVersion === 3 || doc.id, 'serialized map parses as JSON');
@@ -130,7 +130,7 @@ function ok(cond, name) {
 	// drag-and-drop grammar: dropNode is what the drag controller calls on
 	// mm:stop-dragging, so drive it directly with a known map
 	const drop = await page.evaluate(() => {
-		const eng = window.__argumentbase.engine,
+		const eng = window.__because.engine,
 			results = {};
 		eng.loadMap({ formatVersion: 3, id: 1, title: 'C', ideas: {
 			1: { id: 11, title: 'group', attr: { group: 'supporting', contentLocked: true }, ideas: {
@@ -172,7 +172,7 @@ function ok(cond, name) {
 	// status must reflect the FILE state: after an edit it says unsaved and
 	// the autosave debounce must not flip it back to "All changes saved"
 	await page.evaluate(() => {
-		window.__argumentbase.engine.mapModel.getIdea().updateTitle(12, 'Edited claim');
+		window.__because.engine.mapModel.getIdea().updateTitle(12, 'Edited claim');
 	});
 	await new Promise(r => setTimeout(r, 1200));
 	let statusText = await page.$eval('#save-status', el => el.textContent);
@@ -224,7 +224,7 @@ function ok(cond, name) {
 	const darkState = await page.evaluate(() => ({
 		body: document.body.classList.contains('dark'),
 		themeDark: document.getElementById('themeCSS').textContent.indexOf('#26292d') >= 0,
-		fileDark: window.__argumentbase.engine.serialize().indexOf('#26292d') >= 0
+		fileDark: window.__because.engine.serialize().indexOf('#26292d') >= 0
 	}));
 	ok(darkState.body && darkState.themeDark, 'dark mode flips chrome and map theme');
 	ok(!darkState.fileDark, 'dark palette never enters the serialized map');

@@ -1,4 +1,4 @@
-/* ArgumentBase chrome (topbar, menus, toolbar, panels) — the map canvas
+/* Because chrome (topbar, menus, toolbar, panels) — the map canvas
  * itself is styled by argmap.css + the generated theme CSS. */
 * { box-sizing: border-box; }
 html, body {

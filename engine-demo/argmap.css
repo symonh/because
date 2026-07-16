@@ -1,5 +1,5 @@
 /*
- * ArgumentBase presentation layer, loaded after mapjs-default-styles.css.
+ * Because presentation layer, loaded after mapjs-default-styles.css.
  * The map's own MindMup theme JSON drives colors/borders/spacing; the
  * generated theme CSS hardcodes the family "NotoSans" (no space), so the
  * font faces below intercept that name — exactly how classic MindMup shipped

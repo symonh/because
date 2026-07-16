@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build the ArgumentBase engine bundles from the vendored mapjs source.
+# Build the Because engine bundles from the vendored mapjs source.
 #   ../app/bundle.js         — globals bundle for the app shell (window.MAPJS)
 #   ../engine-demo/bundle.js — self-contained raw engine demo
 # The underscore alias is required: mapjs uses the callable `_(...)` form,

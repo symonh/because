@@ -1,5 +1,5 @@
 {
-  "name": "argumentbase-engine",
+  "name": "because-engine",
   "private": true,
   "description": "Build wrapper for the vendored mindmup/mapjs engine (see vendor/mapjs)",
   "scripts": {

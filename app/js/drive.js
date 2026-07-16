@@ -144,7 +144,7 @@ export function makeDrive(engine, io, status) {
 				io.markSaved(currentDriveFile.name);
 				return true;
 			}
-			const boundary = 'argumentbase-' + String(Math.random()).slice(2),
+			const boundary = 'because-' + String(Math.random()).slice(2),
 				body = '--' + boundary + '\r\n' +
 					'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
 					JSON.stringify({ name: name, mimeType: MUP_MIME }) + '\r\n' +

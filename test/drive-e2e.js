@@ -126,7 +126,7 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 
 	// plain Save on a Drive map updates the SAME Drive file (save override)
 	await page.evaluate(() => {
-		const content = window.__argumentbase.engine.mapModel.getIdea(),
+		const content = window.__because.engine.mapModel.getIdea(),
 			anyId = Object.values(content.ideas)[0].id;
 		content.updateTitle(anyId, 'Edited on Drive');
 	});
@@ -139,7 +139,7 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 
 	// the unsaved-changes modal's Save also goes to Drive, then proceeds
 	await page.evaluate(() => {
-		const content = window.__argumentbase.engine.mapModel.getIdea(),
+		const content = window.__because.engine.mapModel.getIdea(),
 			anyId = Object.values(content.ideas)[0].id;
 		content.updateTitle(anyId, 'Second Drive edit');
 	});

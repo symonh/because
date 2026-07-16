@@ -8,7 +8,8 @@
  */
 import { darkenThemeJson } from './themes.js';
 
-const KEY = 'argumentbase.darkmode';
+const KEY = 'because.darkmode',
+	LEGACY_KEY = 'argumentbase.darkmode';
 
 export function makeDarkMode(engine) {
 	let dark = false;
@@ -23,7 +24,10 @@ export function makeDarkMode(engine) {
 		};
 
 	let stored = null;
-	try { stored = localStorage.getItem(KEY); } catch (e) { /* private mode */ }
+	try {
+		stored = localStorage.getItem(KEY);
+		if (stored === null) { stored = localStorage.getItem(LEGACY_KEY); }
+	} catch (e) { /* private mode */ }
 	dark = stored === null ?
 		!!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) :
 		stored === '1';

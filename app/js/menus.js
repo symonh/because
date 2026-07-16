@@ -55,7 +55,7 @@ export function buildMenus(el, commands, io, engine, drive, darkMode) {
 		]],
 		['Help', () => [
 			['Keyboard shortcuts', showShortcuts],
-			['About ArgumentBase', showAbout]
+			['About Because', showAbout]
 		]]
 	];
 
@@ -107,7 +107,7 @@ export function buildMenus(el, commands, io, engine, drive, darkMode) {
 
 	function showAbout() {
 		showPanel(
-			'<h2>ArgumentBase</h2>' +
+			'<h2>Because</h2>' +
 			'<p>A standalone editor for MindMup argument visualizations (.mup files), ' +
 			'built on the MIT-licensed <a href="https://github.com/mindmup/mapjs">mindmup/mapjs</a> engine — ' +
 			'the same renderer MindMup used, so existing maps open unchanged.</p>' +

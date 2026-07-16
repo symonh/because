@@ -1,4 +1,11 @@
-# ArgumentBase — status (2026-07-16)
+# Because (formerly ArgumentBase) — status (2026-07-16)
+
+Renamed ArgumentBase → Because late on 2026-07-16 (repo is now
+github.com/symonh/because, local dir ~/Documents/GitHub/because). Legacy
+infrastructure ids keep the old name: Firebase site `argumentbase`, GCS
+bucket `argumentbase-app`, localStorage keys migrate on first load.
+Canonical URL: **https://app.philmaps.com** (custom domain on the same
+Firebase site; argumentbase.web.app serves identically).
 
 ## 2026-07-16 afternoon
 
@@ -6,7 +13,7 @@
   `argumentbase`, project driveshare-446802; `./deploy.sh` stages app/ +
   samples/ into deploy/ and pushes to Firebase plus the legacy GCS mirror
   at storage.googleapis.com/argumentbase-app). Firebase gives a real
-  origin, which Google OAuth requires; argumentbase.com can attach later.
+  origin, which Google OAuth requires.
 - Drag-and-drop now follows the argument grammar (app/js/drop-policy.js):
   a claim dropped onto another claim becomes a supporting reason in a fresh
   green group instead of a naked child; dropping onto a group joins it as a
@@ -79,8 +86,8 @@ underscore aliased to its UMD file — see engine/build.sh for why.
 
 - Drive OAuth client ID (Simon, Console, ~2 min — docs/drive-setup.md),
   then a live end-to-end Drive test with a real Google account.
-- argumentbase.com custom domain on the Firebase site (needs a DNS record
-  at Cloudflare).
+- app.philmaps.com cert: DNS + custom domain done 2026-07-16 evening;
+  confirm CERT_ACTIVE and that https://app.philmaps.com serves.
 - PNG export (Print → PDF works); node-level notes side panel (`n` key);
   explicit link-drawing UI; the real argMappingHighImpact spec if a .mup
   embedding it turns up — check any old high-impact map before trusting the

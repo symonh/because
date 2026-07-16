@@ -18,7 +18,7 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 	await page.waitForSelector('.mapjs-node');
 
 	await page.evaluate(() => {
-		window.__argumentbase.engine.loadMap({ formatVersion: 3, id: 1, title: 'root', ideas: {
+		window.__because.engine.loadMap({ formatVersion: 3, id: 1, title: 'root', ideas: {
 			1: { id: 11, title: 'group', attr: { group: 'supporting', contentLocked: true }, ideas: {
 				1: { id: 12, title: 'Claim A' },
 				2: { id: 13, title: 'Claim B' },
@@ -33,7 +33,7 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 			r = el.getBoundingClientRect();
 		return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
 	}, txt);
-	const selected = () => page.evaluate(() => window.__argumentbase.engine.mapModel.getSelectedNodeId());
+	const selected = () => page.evaluate(() => window.__because.engine.mapModel.getSelectedNodeId());
 	const cleanClick = async txt => {
 		const c = await centerOf(txt);
 		await page.mouse.move(c.x, c.y);       // move first,
@@ -68,9 +68,9 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 		await dragTo('Claim C', { x: c.x + 120, y: c.y + 140 });
 		// drag C onto A (grammar wrap), then undo it
 		await dragTo('Claim C', await centerOf('Claim A'));
-		await page.evaluate(() => window.__argumentbase.engine.mapModel.undo('test'));
+		await page.evaluate(() => window.__because.engine.mapModel.undo('test'));
 		await new Promise(r => setTimeout(r, 200));
-		await page.evaluate(() => window.__argumentbase.engine.mapModel.undo('test'));
+		await page.evaluate(() => window.__because.engine.mapModel.undo('test'));
 		await new Promise(r => setTimeout(r, 200));
 		// interrupted drag: press on B, wiggle, release over the toolbar
 		const b = await centerOf('Claim B');
@@ -80,7 +80,7 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 		await page.mouse.move(700, 60); // over the toolbar
 		await page.mouse.up();
 		await new Promise(r => setTimeout(r, 250));
-		await page.evaluate(() => window.__argumentbase.engine.mapModel.undo('test'));
+		await page.evaluate(() => window.__because.engine.mapModel.undo('test'));
 		await new Promise(r => setTimeout(r, 200));
 		// clean-click check must still work
 		await cleanClick('Claim A');

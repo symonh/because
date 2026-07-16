@@ -4,11 +4,12 @@ Everything scriptable is already done (project `driveshare-446802`):
 
 - Drive API and Picker API are enabled.
 - A browser API key exists, restricted to those two APIs and to the
-  `argumentbase.web.app` / localhost referrers. It is in `app/js/config.js`
-  and is safe in public code.
-- The app is hosted at https://argumentbase.web.app (Firebase Hosting) —
-  a real origin, which OAuth requires; `storage.googleapis.com` can never
-  be one.
+  `app.philmaps.com` / `argumentbase.web.app` / localhost referrers. It is
+  in `app/js/config.js` and is safe in public code.
+- The app is hosted at https://app.philmaps.com (Firebase Hosting; the
+  underlying site keeps the legacy id `argumentbase`, so
+  argumentbase.web.app serves the same content) — a real origin, which
+  OAuth requires; `storage.googleapis.com` can never be one.
 - The client code (`app/js/drive.js`) is written, wired into the File
   menu, and tested with a stubbed token. It uses the `drive.file` scope
   only: the app can read and write just the files the user picks in the
@@ -20,14 +21,14 @@ Google offers no API for creating OAuth clients, so this part is a
 Console task (about two minutes, signed in as sc@simoncullen.org):
 
 1. **Branding** — https://console.cloud.google.com/auth/branding?project=driveshare-446802
-   - App name `ArgumentBase`, user support email sc@simoncullen.org,
+   - App name `Because`, user support email sc@simoncullen.org,
      developer contact sc@simoncullen.org. Save.
 2. **Audience** — https://console.cloud.google.com/auth/audience?project=driveshare-446802
    - Choose **External**, then **Publish** the app. (In Testing mode only
      allow-listed test users can sign in; published + non-sensitive scope
      means no verification and no user cap.)
 3. **Create the client** — https://console.cloud.google.com/auth/clients?project=driveshare-446802
-   - Create client → type **Web application** → name `ArgumentBase web`.
+   - Create client → type **Web application** → name `Because web`.
    - Authorized JavaScript origins (no redirect URIs needed):
      - `https://argumentbase.web.app`
      - `https://app.philmaps.com` (the custom domain, once live)

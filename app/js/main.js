@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	bindShortcuts(engine, commands);
 
 	// dev/test handle
-	window.__argumentbase = { engine, commands, io, drive, darkMode };
+	window.__because = { engine, commands, io, drive, darkMode };
 
 	// every model change marks the map unsaved (relative to its file) and
 	// refreshes the crash-recovery autosave; only File > Save clears it

@@ -7,9 +7,19 @@
  * dirty flag (and the status text) track the map relative to its file.
  */
 
-const AUTOSAVE_KEY = 'argumentbase.autosave',
-	NAME_KEY = 'argumentbase.autosave.name',
-	DIRTY_KEY = 'argumentbase.autosave.dirty';
+const AUTOSAVE_KEY = 'because.autosave',
+	NAME_KEY = 'because.autosave.name',
+	DIRTY_KEY = 'because.autosave.dirty',
+	// pre-rename keys (the app shipped briefly as ArgumentBase)
+	LEGACY_KEYS = {
+		'because.autosave': 'argumentbase.autosave',
+		'because.autosave.name': 'argumentbase.autosave.name',
+		'because.autosave.dirty': 'argumentbase.autosave.dirty'
+	},
+	getStored = function (key) {
+		const value = localStorage.getItem(key);
+		return value !== null ? value : localStorage.getItem(LEGACY_KEYS[key]);
+	};
 
 export function makeFileIO(engine, status) {
 	let fileHandle = null,
@@ -20,7 +30,7 @@ export function makeFileIO(engine, status) {
 
 	const setName = function (name) {
 			fileName = name;
-			document.title = name.replace(/\.mup$/i, '') + ' — ArgumentBase';
+			document.title = name.replace(/\.mup$/i, '') + ' — Because';
 			status.setFileName(name);
 		},
 		setDirty = function (value) {
@@ -206,13 +216,13 @@ export function makeFileIO(engine, status) {
 		},
 		restoreAutosave() {
 			try {
-				const text = localStorage.getItem(AUTOSAVE_KEY);
+				const text = getStored(AUTOSAVE_KEY);
 				if (text) {
 					// a dirty autosave holds edits never saved to the file,
 					// so the restored map must stay marked unsaved
 					parseAndLoad(text,
-						localStorage.getItem(NAME_KEY) || 'untitled.mup',
-						localStorage.getItem(DIRTY_KEY) === '1');
+						getStored(NAME_KEY) || 'untitled.mup',
+						getStored(DIRTY_KEY) === '1');
 					return true;
 				}
 			} catch (e) { /* corrupted autosave — start fresh */ }
