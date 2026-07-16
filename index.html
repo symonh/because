@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
 <title>ArgumentBase</title>
 <style>
 	:root { --bar: #2b3a4a; --accent: #22AAE0; }
@@ -248,9 +249,13 @@
 	}
 	editbox.addEventListener('blur', commitEdit);
 	editbox.addEventListener('keydown', e => {
+		// keep editing keystrokes inside the textarea — never let Enter/Tab/Delete
+		// bubble to the canvas keyboard handler (which adds/deletes nodes)
+		e.stopPropagation();
 		if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit(); }
-		else if (e.key === 'Escape') { editingId = null; editbox.style.display = 'none'; }
+		else if (e.key === 'Escape') { cancelEdit(); }
 	});
+	function cancelEdit() { editingId = null; editbox.style.display = 'none'; }
 	function cssEsc(v) { return String(v).replace(/"/g, '\\"'); }
 
 	// ---- pan / zoom ----
@@ -364,6 +369,25 @@
 			.catch(err => flash('Load failed: ' + err.message));
 	}
 	window.addEventListener('resize', () => applyView());
+
+	// Public hook — for automated testing now, and Drive/embedding integration later.
+	window.ArgumentBase = {
+		get doc() { return doc; },
+		load: loadDoc,
+		newMap: newMap,
+		serialize: () => JSON.stringify(doc),
+		select: id => controller.select(id),
+		startEdit: startEdit,
+		cancelEdit: cancelEdit,
+		findNode: id => A.findNode(doc, id),
+		addReason: addReason,
+		addObjection: () => addReason(A.OPPOSING),
+		addCoPremise: addCoPremise,
+		toggleImplicit: toggleImplicit,
+		deleteNode: deleteNode,
+		undo: undo, redo: redo,
+		state: () => ({ selectedId, nodes: countNodes(), undo: undoStack.length, redo: redoStack.length })
+	};
 })();
 </script>
 </body>
