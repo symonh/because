@@ -3,6 +3,9 @@ const _ = require('underscore'),
 	Theme = require ('./theme'),
 	calcChildPosition = require('./calc-child-position'),
 	lineTypes = require('./line-types'),
+	/* LOCAL PATCH: theme-driven arrowheads on connectors (key `arrow` on a
+	   connector style) — upstream only links had arrows */
+	arrowPath = require('./arrow-path'),
 	nodeConnectionPointX = require('./node-connection-point-x'),
 	appendUnderLine = function (connectorCurve, calculatedConnector, position) {
 		'use strict';
@@ -117,6 +120,16 @@ const _ = require('underscore'),
 		result.color = calculatedConnector.connectorTheme.line.color;
 		result.width = calculatedConnector.connectorTheme.line.width;
 		result.theme = calculatedConnector.connectorTheme;
+		/* LOCAL PATCH: arrowhead at the `to` end, pointing straight down
+		   into the child — the top-down S-curves land vertically on the
+		   child's top edge, so a vertical head matches the incoming line */
+		if (calculatedConnector.connectorTheme.arrow && calculatedConnector.connectorTheme.type !== 'no-connector') {
+			result.arrows = [arrowPath(
+				{x: calculatedConnector.to.x, y: calculatedConnector.to.y - 20},
+				calculatedConnector.to,
+				position
+			)];
+		}
 		return result;
 	};
 

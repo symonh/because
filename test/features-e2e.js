@@ -330,6 +330,64 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 	await page.keyboard.press('Escape');
 	await sleep(200);
 
+	// ---- themes from the View menu ----
+	const clickMenu = (menu, item) => page.evaluate(([menuName, itemText]) => {
+		Array.from(document.querySelectorAll('.menu-title'))
+			.find(t => t.textContent === menuName).click();
+		Array.from(document.querySelectorAll('.menu-item'))
+			.find(i => i.textContent.indexOf(itemText) >= 0).click();
+	}, [menu, item]);
+	await page.evaluate(() => {
+		window.__because.engine.loadMap({ formatVersion: 3, id: 'root', ideas: {
+			1: { id: 2, title: 'Conclusion', ideas: {
+				1: { id: 11, title: 'group', attr: { group: 'supporting', contentLocked: true }, ideas: {
+					1: { id: 12, title: 'A reason' }
+				} },
+				2: { id: 21, title: 'group', attr: { group: 'opposing', contentLocked: true }, ideas: {
+					1: { id: 22, title: 'An objection' }
+				} }
+			} }
+		} });
+	});
+	await sleep(800);
+	const simpleState = await page.evaluate(() => ({
+		width: document.querySelector('#connector_2_11 path.mapjs-connector').getAttribute('stroke-width'),
+		arrows: Array.from(document.querySelectorAll('[data-mapjs-role=connector] path.mapjs-arrow'))
+			.filter(a => a.style.display !== 'none').length,
+		labels: document.querySelectorAll('[data-mapjs-role=connector] .mapjs-connector-text text').length
+	}));
+	ok(simpleState.width === '3' && simpleState.arrows === 0 && simpleState.labels === 0,
+		`Simple theme: width 3, no arrows, no auto labels (${JSON.stringify(simpleState)})`);
+	await clickMenu('View', 'Theme: High impact');
+	await sleep(800);
+	const impactState = await page.evaluate(() => {
+		const labelFor = id => {
+			const t = document.querySelector('#' + id + ' .mapjs-connector-text text');
+			return t ? t.textContent : null;
+		};
+		return {
+			width: document.querySelector('#connector_2_11 path.mapjs-connector').getAttribute('stroke-width'),
+			arrows: Array.from(document.querySelectorAll('[data-mapjs-role=connector] path.mapjs-arrow'))
+				.filter(a => a.style.display !== 'none').length,
+			arrowFill: (document.querySelector('#connector_2_11 path.mapjs-arrow') || {getAttribute: () => null}).getAttribute('fill'),
+			reasonLabel: labelFor('connector_2_11'),
+			objectionLabel: labelFor('connector_2_21'),
+			themeAttr: window.__because.engine.mapModel.getIdea().attr.theme
+		};
+	});
+	ok(impactState.width === '4', `High impact: thicker connector/bracket stroke (${impactState.width})`);
+	ok(impactState.arrows === 2, `High impact: arrows on both group connectors (${impactState.arrows})`);
+	ok(impactState.arrowFill === '#339966', `arrow fill matches the supporting line (${impactState.arrowFill})`);
+	ok(impactState.reasonLabel === 'Because' && impactState.objectionLabel === 'But',
+		`reasons say Because, objections say But (${impactState.reasonLabel}/${impactState.objectionLabel})`);
+	ok(impactState.themeAttr === 'argMappingHighImpact', 'theme choice is recorded in the map');
+	await clickMenu('View', 'Theme: Simple');
+	await sleep(800);
+	ok(await page.evaluate(() =>
+		Array.from(document.querySelectorAll('[data-mapjs-role=connector] path.mapjs-arrow'))
+			.filter(a => a.style.display !== 'none').length) === 0,
+		'switching back to Simple removes the arrows');
+
 	// ---- loading overlay on big maps ----
 	const overlayShown = await page.evaluate(() => {
 		const ideas = {};

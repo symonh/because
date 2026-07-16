@@ -395,3 +395,114 @@ index af1e687..1145f08 100644
 +	richText: require('./core/content/rich-text'),
  	version: 4
  };
+
+# ---- 2026-07-16 night: connector arrowheads ----
+# arrowPath extracted from theme/link.js into theme/arrow-path.js (new
+# file, LOCAL ADDITION); connectors gain theme-driven arrowheads via an
+# `arrow` key on a connector style — the head sits at the curve's `to`
+# point aiming straight down into the child, drawn by update-connector
+# exactly like update-link's showArrows.
+diff --git a/src/browser/update-connector.js b/src/browser/update-connector.js
+index b34e5a3..37a3729 100644
+--- a/src/browser/update-connector.js
++++ b/src/browser/update-connector.js
+@@ -81,6 +81,26 @@ jQuery.fn.updateConnector = function (optional) {
+ 				hitElement.remove();
+ 			}
+ 		}
++		/* LOCAL PATCH: theme-driven connector arrowheads (same rendering
++		   as update-link's showArrows; connection.arrows comes from the
++		   connector theme's `arrow` key) */
++		const arrowElements = element.find('path.mapjs-arrow');
++		if (connection.arrows && connection.arrows.length) {
++			connection.arrows.forEach(function (arrow, index) {
++				let arrowElement = arrowElements.eq(index);
++				if (arrowElement.length === 0) {
++					arrowElement = createSVG('path').attr('class', 'mapjs-arrow').appendTo(element);
++				}
++				arrowElement.attr({
++					d: arrow,
++					fill: connection.color,
++					'stroke-width': 1
++				}).show();
++			});
++			arrowElements.slice(connection.arrows.length).hide();
++		} else {
++			arrowElements.hide();
++		}
+ 		applyLabel();
+ 	});
+ };
+diff --git a/src/core/theme/connector.js b/src/core/theme/connector.js
+index 8334a9f..6481bad 100644
+--- a/src/core/theme/connector.js
++++ b/src/core/theme/connector.js
+@@ -3,6 +3,9 @@ const _ = require('underscore'),
+ 	Theme = require ('./theme'),
+ 	calcChildPosition = require('./calc-child-position'),
+ 	lineTypes = require('./line-types'),
++	/* LOCAL PATCH: theme-driven arrowheads on connectors (key `arrow` on a
++	   connector style) — upstream only links had arrows */
++	arrowPath = require('./arrow-path'),
+ 	nodeConnectionPointX = require('./node-connection-point-x'),
+ 	appendUnderLine = function (connectorCurve, calculatedConnector, position) {
+ 		'use strict';
+@@ -117,6 +120,16 @@ const _ = require('underscore'),
+ 		result.color = calculatedConnector.connectorTheme.line.color;
+ 		result.width = calculatedConnector.connectorTheme.line.width;
+ 		result.theme = calculatedConnector.connectorTheme;
++		/* LOCAL PATCH: arrowhead at the `to` end, pointing straight down
++		   into the child — the top-down S-curves land vertically on the
++		   child's top edge, so a vertical head matches the incoming line */
++		if (calculatedConnector.connectorTheme.arrow && calculatedConnector.connectorTheme.type !== 'no-connector') {
++			result.arrows = [arrowPath(
++				{x: calculatedConnector.to.x, y: calculatedConnector.to.y - 20},
++				calculatedConnector.to,
++				position
++			)];
++		}
+ 		return result;
+ 	};
+ 
+diff --git a/src/core/theme/link.js b/src/core/theme/link.js
+index a7baded..3784c5f 100644
+--- a/src/core/theme/link.js
++++ b/src/core/theme/link.js
+@@ -1,34 +1,8 @@
+ /*global require, module */
+ const Theme = require ('./theme'),
+-	arrowPath = function (lineFrom, lineTo, offset) {
+-		'use strict';
+-		const n = Math.tan(Math.PI / 9),
+-			dx = lineTo.x - lineFrom.x,
+-			dy = lineTo.y - lineFrom.y;
+-
+-		let len = 14, iy, a1x, a2x, a1y, a2y, m;
+-
+-		if (dx === 0) {
+-			iy = dy < 0 ? -1 : 1;
+-			a1x = lineTo.x + len * Math.sin(n) * iy;
+-			a2x = lineTo.x - len * Math.sin(n) * iy;
+-			a1y = lineTo.y - len * Math.cos(n) * iy;
+-			a2y = lineTo.y - len * Math.cos(n) * iy;
+-		} else {
+-			m = dy / dx;
+-			if (lineFrom.x < lineTo.x) {
+-				len = -len;
+-			}
+-			a1x = lineTo.x + (1 - m * n) * len / Math.sqrt((1 + m * m) * (1 + n * n));
+-			a1y = lineTo.y + (m + n) * len / Math.sqrt((1 + m * m) * (1 + n * n));
+-			a2x = lineTo.x + (1 + m * n) * len / Math.sqrt((1 + m * m) * (1 + n * n));
+-			a2y = lineTo.y + (m - n) * len / Math.sqrt((1 + m * m) * (1 + n * n));
+-		}
+-		return 'M' + Math.round(a1x - offset.left) + ',' + Math.round(a1y - offset.top) +
+-			'L' + Math.round(lineTo.x - offset.left) + ',' + Math.round(lineTo.y - offset.top) +
+-			'L' + Math.round(a2x - offset.left) + ',' + Math.round(a2y - offset.top) +
+-			'Z';
+-	},
++	/* LOCAL PATCH: arrowPath extracted to its own module so connectors
++	   can draw arrowheads too */
++	arrowPath = require('./arrow-path'),
+ 	lineStyles = require('./line-styles'),
+ 	linkPath = function (parent, child, linkAttrArg, themeArg) {
+ 		'use strict';

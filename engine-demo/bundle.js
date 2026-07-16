@@ -16687,6 +16687,34 @@
     }
   });
 
+  // vendor/mapjs/src/core/theme/arrow-path.js
+  var require_arrow_path = __commonJS({
+    "vendor/mapjs/src/core/theme/arrow-path.js"(exports, module) {
+      module.exports = function arrowPath(lineFrom, lineTo, offset) {
+        "use strict";
+        const n = Math.tan(Math.PI / 9), dx = lineTo.x - lineFrom.x, dy = lineTo.y - lineFrom.y;
+        let len = 14, iy, a1x, a2x, a1y, a2y, m;
+        if (dx === 0) {
+          iy = dy < 0 ? -1 : 1;
+          a1x = lineTo.x + len * Math.sin(n) * iy;
+          a2x = lineTo.x - len * Math.sin(n) * iy;
+          a1y = lineTo.y - len * Math.cos(n) * iy;
+          a2y = lineTo.y - len * Math.cos(n) * iy;
+        } else {
+          m = dy / dx;
+          if (lineFrom.x < lineTo.x) {
+            len = -len;
+          }
+          a1x = lineTo.x + (1 - m * n) * len / Math.sqrt((1 + m * m) * (1 + n * n));
+          a1y = lineTo.y + (m + n) * len / Math.sqrt((1 + m * m) * (1 + n * n));
+          a2x = lineTo.x + (1 + m * n) * len / Math.sqrt((1 + m * m) * (1 + n * n));
+          a2y = lineTo.y + (m - n) * len / Math.sqrt((1 + m * m) * (1 + n * n));
+        }
+        return "M" + Math.round(a1x - offset.left) + "," + Math.round(a1y - offset.top) + "L" + Math.round(lineTo.x - offset.left) + "," + Math.round(lineTo.y - offset.top) + "L" + Math.round(a2x - offset.left) + "," + Math.round(a2y - offset.top) + "Z";
+      };
+    }
+  });
+
   // vendor/mapjs/src/core/theme/node-connection-point-x.js
   var require_node_connection_point_x = __commonJS({
     "vendor/mapjs/src/core/theme/node-connection-point-x.js"(exports, module) {
@@ -16733,6 +16761,7 @@
       var Theme = require_theme();
       var calcChildPosition = require_calc_child_position();
       var lineTypes = require_line_types();
+      var arrowPath = require_arrow_path();
       var nodeConnectionPointX = require_node_connection_point_x();
       var appendUnderLine = function(connectorCurve, calculatedConnector, position) {
         "use strict";
@@ -16824,6 +16853,13 @@
         result.color = calculatedConnector.connectorTheme.line.color;
         result.width = calculatedConnector.connectorTheme.line.width;
         result.theme = calculatedConnector.connectorTheme;
+        if (calculatedConnector.connectorTheme.arrow && calculatedConnector.connectorTheme.type !== "no-connector") {
+          result.arrows = [arrowPath(
+            { x: calculatedConnector.to.x, y: calculatedConnector.to.y - 20 },
+            calculatedConnector.to,
+            position
+          )];
+        }
         return result;
       };
       module.exports = themePath;
@@ -16971,6 +17007,23 @@
               hitElement.remove();
             }
           }
+          const arrowElements = element.find("path.mapjs-arrow");
+          if (connection.arrows && connection.arrows.length) {
+            connection.arrows.forEach(function(arrow, index) {
+              let arrowElement = arrowElements.eq(index);
+              if (arrowElement.length === 0) {
+                arrowElement = createSVG("path").attr("class", "mapjs-arrow").appendTo(element);
+              }
+              arrowElement.attr({
+                d: arrow,
+                fill: connection.color,
+                "stroke-width": 1
+              }).show();
+            });
+            arrowElements.slice(connection.arrows.length).hide();
+          } else {
+            arrowElements.hide();
+          }
           applyLabel();
         });
       };
@@ -16981,28 +17034,7 @@
   var require_link = __commonJS({
     "vendor/mapjs/src/core/theme/link.js"(exports, module) {
       var Theme = require_theme();
-      var arrowPath = function(lineFrom, lineTo, offset) {
-        "use strict";
-        const n = Math.tan(Math.PI / 9), dx = lineTo.x - lineFrom.x, dy = lineTo.y - lineFrom.y;
-        let len = 14, iy, a1x, a2x, a1y, a2y, m;
-        if (dx === 0) {
-          iy = dy < 0 ? -1 : 1;
-          a1x = lineTo.x + len * Math.sin(n) * iy;
-          a2x = lineTo.x - len * Math.sin(n) * iy;
-          a1y = lineTo.y - len * Math.cos(n) * iy;
-          a2y = lineTo.y - len * Math.cos(n) * iy;
-        } else {
-          m = dy / dx;
-          if (lineFrom.x < lineTo.x) {
-            len = -len;
-          }
-          a1x = lineTo.x + (1 - m * n) * len / Math.sqrt((1 + m * m) * (1 + n * n));
-          a1y = lineTo.y + (m + n) * len / Math.sqrt((1 + m * m) * (1 + n * n));
-          a2x = lineTo.x + (1 + m * n) * len / Math.sqrt((1 + m * m) * (1 + n * n));
-          a2y = lineTo.y + (m - n) * len / Math.sqrt((1 + m * m) * (1 + n * n));
-        }
-        return "M" + Math.round(a1x - offset.left) + "," + Math.round(a1y - offset.top) + "L" + Math.round(lineTo.x - offset.left) + "," + Math.round(lineTo.y - offset.top) + "L" + Math.round(a2x - offset.left) + "," + Math.round(a2y - offset.top) + "Z";
-      };
+      var arrowPath = require_arrow_path();
       var lineStyles = require_line_styles();
       var linkPath = function(parent, child, linkAttrArg, themeArg) {
         "use strict";

@@ -33,6 +33,27 @@ Firebase site; argumentbase.web.app serves identically).
   in docs/drive-setup.md. Until then the menu items show setup info and
   everything local keeps working. Stubbed-boundary e2e: test/drive-e2e.js.
 
+## 2026-07-16 night
+
+- FREEZE FIX (deployed immediately): the rich-text editNode rewrite had
+  dropped reject() from cancelEditing, so an edit abandoned unchanged
+  (Escape, or Enter-created node then click-away — Simon's Mini-0 repro)
+  left the promise unsettled: input never re-enabled, new node never
+  rolled back, all keys dead. Regression tests cover both paths.
+- Themes now switch from the View menu (moved out of Argument
+  Visualization). High-impact theme: group connectors/brackets width 4
+  (bracket is part of the connector path so it thickens too), every
+  reason auto-labelled "Because" / objection "But", and arrowheads
+  pointing down into each group. Arrow support is a vendor patch:
+  theme/arrow-path.js (extracted from link.js), `arrow` key on connector
+  styles, rendered by update-connector like update-link's showArrows.
+- setThemeByName ordering fix: the new theme must install BEFORE
+  idea.updateAttr fires the rebuild — the old order re-rendered against
+  the outgoing theme and menu theme switches only changed the CSS layer
+  (visible as stale connector widths/labels).
+- Stronger/Weaker now steps from the connector's actually rendered
+  stroke width, so it works under either theme default (3 vs 4).
+
 ## 2026-07-16 late evening
 
 - Topbar light/dark switcher (sun/moon button right of the save status);

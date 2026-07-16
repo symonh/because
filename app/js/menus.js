@@ -51,16 +51,16 @@ export function buildMenus(el, commands, io, engine, drive, darkMode, labelEdit,
 			['—'],
 			['Collapse / expand branch (F)', commands.toggleCollapse],
 			[(engine.getLabelsOn() ? '✓ ' : '') + 'Claim numbering', commands.toggleNumbering],
-			[(darkMode && darkMode.isDark() ? '✓ ' : '') + 'Dark mode', () => darkMode.toggle()]
+			[(darkMode && darkMode.isDark() ? '✓ ' : '') + 'Dark mode', () => darkMode.toggle()],
+			['—'],
+			[(engine.getThemeName() === 'argMappingSimple' ? '✓ ' : '') + 'Theme: Simple', () => engine.setThemeByName('argMappingSimple')],
+			[(engine.getThemeName() === 'argMappingHighImpact' ? '✓ ' : '') + 'Theme: High impact (Because / But, arrows)', () => engine.setThemeByName('argMappingHighImpact')]
 		]],
 		['Argument Visualization', () => [
 			['Toggle implicit claim (T)', commands.toggleImplicit],
 			['Toggle reason ⇄ objection (T on a bracket)', commands.toggleReasonObjection],
 			['Edit connector label…', () => labelEdit.editSelectedConnectorLabel()],
-			['Mark claim false / true / clear', commands.cycleEvaluation],
-			['—'],
-			[(engine.getThemeName() === 'argMappingSimple' ? '✓ ' : '') + 'Theme: Simple', () => engine.setThemeByName('argMappingSimple')],
-			[(engine.getThemeName() === 'argMappingHighImpact' ? '✓ ' : '') + 'Theme: High impact ("because…")', () => engine.setThemeByName('argMappingHighImpact')]
+			['Mark claim false / true / clear', commands.cycleEvaluation]
 		]],
 		['Help', () => [
 			['Welcome to Because', () => intro.show()],

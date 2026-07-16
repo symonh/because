@@ -81,6 +81,26 @@ jQuery.fn.updateConnector = function (optional) {
 				hitElement.remove();
 			}
 		}
+		/* LOCAL PATCH: theme-driven connector arrowheads (same rendering
+		   as update-link's showArrows; connection.arrows comes from the
+		   connector theme's `arrow` key) */
+		const arrowElements = element.find('path.mapjs-arrow');
+		if (connection.arrows && connection.arrows.length) {
+			connection.arrows.forEach(function (arrow, index) {
+				let arrowElement = arrowElements.eq(index);
+				if (arrowElement.length === 0) {
+					arrowElement = createSVG('path').attr('class', 'mapjs-arrow').appendTo(element);
+				}
+				arrowElement.attr({
+					d: arrow,
+					fill: connection.color,
+					'stroke-width': 1
+				}).show();
+			});
+			arrowElements.slice(connection.arrows.length).hide();
+		} else {
+			arrowElements.hide();
+		}
 		applyLabel();
 	});
 };

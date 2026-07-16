@@ -97,7 +97,12 @@ export function makeLabelEdit(engine) {
 			const content = mapModel.getIdea(),
 				pc = (content && content.getAttrById &&
 					content.getAttrById(connector.to, 'parentConnector')) || {},
-				current = pc.width || DEFAULT_CONNECTOR_WIDTH,
+				// no explicit override yet: step from the width the theme is
+				// actually drawing (3 in Simple, 4 in High impact)
+				g = document.getElementById(connectorDomId(connector)),
+				path = g && g.querySelector('path.mapjs-connector'),
+				rendered = path && parseFloat(path.getAttribute('stroke-width')),
+				current = pc.width || rendered || DEFAULT_CONNECTOR_WIDTH,
 				next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, current + delta));
 			if (next !== current) {
 				content.mergeAttrProperty(connector.to, 'parentConnector', 'width', next);

@@ -130,14 +130,19 @@ export function initEngine(container) {
 				heavy();
 			}
 		},
-		// re-resolve and apply a named theme, recording it on the map
+		// re-resolve and apply a named theme, recording it on the map.
+		// The new theme must be installed BEFORE updateAttr: the attr change
+		// fires the rebuild (themeChanged=true → every node re-renders and
+		// re-draws its connectors), and that rebuild must already see the
+		// new theme — the old order re-rendered everything against the old
+		// theme and the follow-up rebuild found nothing left to change.
 		setThemeByName(name) {
 			const idea = mapModel.getIdea();
 			if (!idea) { return; }
-			idea.updateAttr(idea.id, 'theme', name);
 			if (currentMapJson && currentMapJson.theme) { delete currentMapJson.theme; }
 			baseThemeJson = augmentThemeJson(resolveThemeJson({ attr: { theme: name } }));
-			applyTheme(true);
+			applyTheme(false);
+			idea.updateAttr(idea.id, 'theme', name);
 		},
 		// view-time theme transform (dark mode); pass null to clear.
 		// colorFn additionally transforms per-node author colours

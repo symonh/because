@@ -534,8 +534,16 @@ export const argMappingSimple = {
 export const argMappingHighImpact = (() => {
 	const t = JSON.parse(JSON.stringify(argMappingSimple));
 	t.name = 'MindMup Top Down Argument Mapping (high impact)';
-	t.connector['supporting-group'].label.defaultText = 'because...';
-	t.connector['opposing-group'].label.defaultText = 'but...';
+	// every reason/objection is auto-labelled; slightly thicker lines (the
+	// bracket is drawn as part of the connector path, so it thickens too);
+	// arrowheads point down into the reason/objection group
+	t.connector['supporting-group'].label.defaultText = 'Because';
+	t.connector['opposing-group'].label.defaultText = 'But';
+	t.connector['supporting-group'].line.width = 4;
+	t.connector['opposing-group'].line.width = 4;
+	t.connector['supporting-group'].arrow = 'to';
+	t.connector['opposing-group'].arrow = 'to';
+	t.connectorEditingContext.defaults.width = 4;
 	return t;
 })();
 
