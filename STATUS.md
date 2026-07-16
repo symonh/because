@@ -1,4 +1,17 @@
-# ArgumentBase — status (2026-07-16, morning build)
+# ArgumentBase — status (2026-07-16)
+
+## 2026-07-16 afternoon
+
+- Drag-and-drop now follows the argument grammar (app/js/drop-policy.js):
+  a claim dropped onto another claim becomes a supporting reason in a fresh
+  green group instead of a naked child; dropping onto a group joins it as a
+  co-premise; a source group emptied by the move is removed; one undo
+  reverts the whole thing. Verified with a real mouse drag in Puppeteer.
+- Deployed: https://storage.googleapis.com/argumentbase-app/app/index.html
+  (bucket argumentbase-app, project driveshare-446802). App objects are
+  uploaded with Cache-Control: no-cache so fixes appear on plain reload.
+
+## Original morning build notes
 
 ## Where things stand
 

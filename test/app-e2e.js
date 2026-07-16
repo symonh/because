@@ -103,6 +103,48 @@ function ok(cond, name) {
 	ok(all.some(n => n.attr && n.attr.group === 'opposing'), 'saved .mup contains opposing group');
 	ok(all.some(n => n.attr && (n.attr.styleNames || []).includes('attr_implicit_claim')), 'saved .mup keeps implicit styleName');
 
+	// drag-and-drop grammar: dropNode is what the drag controller calls on
+	// mm:stop-dragging, so drive it directly with a known map
+	const drop = await page.evaluate(() => {
+		const eng = window.__argumentbase.engine,
+			results = {};
+		eng.loadMap({ formatVersion: 3, id: 1, title: 'C', ideas: {
+			1: { id: 11, title: 'group', attr: { group: 'supporting', contentLocked: true }, ideas: {
+				1: { id: 12, title: 'P1' },
+				2: { id: 13, title: 'P2' }
+			} },
+			2: { id: 21, title: 'group', attr: { group: 'supporting', contentLocked: true }, ideas: {
+				1: { id: 22, title: 'Q1' }
+			} }
+		} });
+		const mm = eng.mapModel,
+			content = mm.getIdea();
+		// claim onto claim: wrapped in a fresh supporting group, not naked
+		results.dropOntoClaim = mm.dropNode(13, 12, false);
+		const p1 = content.findSubIdeaById(12),
+			p1Kids = Object.values(p1.ideas || {});
+		results.wrappedInGroup = p1Kids.length === 1 && !!p1Kids[0].attr &&
+			p1Kids[0].attr.group === 'supporting' && p1Kids[0].attr.contentLocked === true;
+		const groupKids = Object.values((p1Kids[0] && p1Kids[0].ideas) || {});
+		results.premiseInsideGroup = groupKids.length === 1 && groupKids[0].id === 13;
+		// claim onto group: joins as co-premise; emptied source group removed
+		results.dropOntoGroup = mm.dropNode(22, 11, false);
+		results.coPremiseJoined = Object.values(content.findSubIdeaById(11).ideas || {})
+			.some(n => n.id === 22);
+		results.emptyGroupRemoved = !content.findSubIdeaById(21);
+		// one undo restores both the move and the removed group
+		mm.undo('test');
+		const oldGroup = content.findSubIdeaById(21);
+		results.undoRestores = !!oldGroup &&
+			Object.values(oldGroup.ideas || {}).some(n => n.id === 22);
+		return results;
+	});
+	ok(drop.dropOntoClaim && drop.wrappedInGroup, 'drop claim onto claim wraps it in a supporting group');
+	ok(drop.premiseInsideGroup, 'dropped claim sits inside the new group');
+	ok(drop.dropOntoGroup && drop.coPremiseJoined, 'drop claim onto group joins as co-premise');
+	ok(drop.emptyGroupRemoved, 'emptied source group is removed');
+	ok(drop.undoRestores, 'single undo restores move and removed group');
+
 	// screenshot the full app for visual review
 	await page.screenshot({ path: '/tmp/app_ui.png' });
 

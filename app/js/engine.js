@@ -6,6 +6,7 @@
  */
 import { resolveThemeJson, augmentThemeJson } from './themes.js';
 import { argLabelGenerator } from './numbering.js';
+import { installDropPolicy } from './drop-policy.js';
 
 const MAPJS = window.MAPJS,
 	jQuery = window.jQuery;
@@ -43,6 +44,7 @@ export function initEngine(container) {
 			}
 		};
 
+	installDropPolicy(mapModel);
 	jQuery(container).domMapWidget(console, mapModel, false);
 	// eslint-disable-next-line no-new
 	new MAPJS.DomMapController(
