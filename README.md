@@ -37,7 +37,7 @@ open http://127.0.0.1:8871/app/
 | Enter | add reason under selected claim |
 | Tab | add co-premise to selected claim |
 | Alt+O | add objection |
-| Alt+T | toggle reason/objection (on a bracket) or implicit/explicit (on a claim) |
+| T (or Alt+T) | toggle reason/objection (on a bracket) or implicit/explicit (on a claim) |
 | Alt+N | add sticky note |
 | arrows | navigate; F2/Space edit; Delete remove; ⌘Z/⌘⇧Z undo/redo |
 | Z / Shift+Z | zoom |

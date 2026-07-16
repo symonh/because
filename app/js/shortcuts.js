@@ -4,7 +4,7 @@
  *   Enter  add reason under selected claim
  *   Tab    add co-premise to selected claim
  *   Alt+O  add objection
- *   Alt+T  toggle reason/objection (bracket) or implicit/explicit (claim)
+ *   T (or Alt+T)  toggle reason/objection (bracket) or implicit/explicit (claim)
  *   Alt+N  add sticky note
  *   z / Shift+z  zoom in / out
  *   ⌘Z / ⌘⇧Z  undo / redo — mapjs never bound these (undo lived in the
@@ -37,7 +37,9 @@ export function bindShortcuts(engine, commands) {
 			command = commands.addCoPremise;
 		} else if (alt && e.code === 'KeyO') {
 			command = commands.addObjection;
-		} else if (alt && e.code === 'KeyT') {
+		} else if ((bare && e.key === 't') || (alt && e.code === 'KeyT')) {
+			// T toggles whatever is selected: a bracket flips
+			// reason ⇄ objection, a claim flips implicit ⇄ explicit
 			const idea = mapModel.findIdeaById(mapModel.getSelectedNodeId());
 			command = (idea && idea.attr && idea.attr.group) ?
 				commands.toggleReasonObjection : commands.toggleImplicit;

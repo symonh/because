@@ -46,8 +46,8 @@ export function buildMenus(el, commands, io, engine, drive, darkMode) {
 			[(darkMode && darkMode.isDark() ? '✓ ' : '') + 'Dark mode', () => darkMode.toggle()]
 		]],
 		['Argument Visualization', () => [
-			['Toggle implicit claim (Alt+T)', commands.toggleImplicit],
-			['Toggle reason ⇄ objection', commands.toggleReasonObjection],
+			['Toggle implicit claim (T)', commands.toggleImplicit],
+			['Toggle reason ⇄ objection (T on a bracket)', commands.toggleReasonObjection],
 			['Mark claim false / true / clear', commands.cycleEvaluation],
 			['—'],
 			[(engine.getThemeName() === 'argMappingSimple' ? '✓ ' : '') + 'Theme: Simple', () => engine.setThemeByName('argMappingSimple')],
@@ -81,7 +81,7 @@ export function buildMenus(el, commands, io, engine, drive, darkMode) {
 			[['Enter', 'add reason under selected claim'],
 				['Tab', 'add co-premise to selected claim'],
 				['Alt + O', 'add objection'],
-				['Alt + T', 'toggle reason/objection (on a bracket) or implicit/explicit (on a claim)'],
+				['T or Alt + T', 'toggle reason/objection (on a bracket) or implicit/explicit (on a claim)'],
 				['Alt + N', 'add sticky note'],
 				['Arrows', 'navigate the tree'],
 				['Z / Shift+Z', 'zoom in / out'],

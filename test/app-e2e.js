@@ -17,15 +17,16 @@ function ok(cond, name) {
 	await page.setViewport({ width: 1500, height: 950, deviceScaleFactor: 2 });
 	const errors = [];
 	page.on('pageerror', e => errors.push(e.message));
-	// headless Chrome reports prefers-color-scheme: dark; pin light so the
-	// suite starts deterministic and the dark-mode test flips it itself
-	await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }]);
+	// pin the OS preference to dark: first visit must STILL open light
+	await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }]);
 
 	await page.goto(BASE + '/app/index.html', { waitUntil: 'networkidle0' });
 	await page.evaluate(() => localStorage.clear());
 	await page.goto(BASE + '/app/index.html', { waitUntil: 'networkidle0' });
 	await page.waitForSelector('.mapjs-node', { timeout: 8000 });
 
+	ok(await page.evaluate(() => !document.body.classList.contains('dark')),
+		'first visit opens light even when the OS prefers dark');
 	ok(await page.$('#toolbar .tb-btn') !== null, 'toolbar renders');
 	ok(await page.$$eval('.menu-title', els => els.length) === 6, 'six menus render');
 	ok(await page.$$eval('.mapjs-node', els => els.length) === 1, 'new map has a single conclusion');
@@ -61,6 +62,51 @@ function ok(cond, name) {
 	await page.keyboard.up('Alt');
 	await new Promise(r => setTimeout(r, 300));
 	ok(await page.$('.mapjs-node.attr_implicit_claim') !== null, 'Alt+T marks claim implicit (dashed)');
+
+	// bare T toggles the same way: back to explicit, then implicit again
+	await page.keyboard.press('t');
+	await new Promise(r => setTimeout(r, 300));
+	ok(await page.$('.mapjs-node.attr_implicit_claim') === null, 'T toggles the claim back to explicit');
+	await page.keyboard.press('t');
+	await new Promise(r => setTimeout(r, 300));
+	ok(await page.$('.mapjs-node.attr_implicit_claim') !== null, 'T toggles implicit again');
+
+	// bare T on a bracket flips reason to objection and back
+	const groupFlip = await page.evaluate(() => {
+		const mm = window.__because.engine.mapModel,
+			content = mm.getIdea(),
+			walk = (n, acc) => {
+				(Object.values(n.ideas || {})).forEach(k => walk(k, acc));
+				if (n.attr && n.attr.group) { acc.push(n); }
+				return acc;
+			},
+			group = walk(content, [])[0];
+		mm.selectNode(group.id);
+		return group.id;
+	});
+	await page.keyboard.press('t');
+	await new Promise(r => setTimeout(r, 300));
+	let flipped = await page.evaluate(id =>
+		window.__because.engine.mapModel.getIdea().findSubIdeaById(id).attr.group, groupFlip);
+	ok(flipped === 'opposing', `T flips the bracket to an objection (${flipped})`);
+	await page.keyboard.press('t');
+	await new Promise(r => setTimeout(r, 300));
+	flipped = await page.evaluate(id =>
+		window.__because.engine.mapModel.getIdea().findSubIdeaById(id).attr.group, groupFlip);
+	ok(flipped === 'supporting', 'T flips the bracket back to a reason');
+	// restore selection to a claim for the tests that follow
+	await page.evaluate(() => {
+		const mm = window.__because.engine.mapModel,
+			content = mm.getIdea(),
+			claims = [];
+		(function walk(n) {
+			if (n.attr === undefined || !n.attr || !n.attr.group) {
+				if (n.title && n.title !== 'group') { claims.push(n); }
+			}
+			Object.values(n.ideas || {}).forEach(walk);
+		}(content));
+		mm.selectNode(claims[claims.length - 1].id);
+	});
 
 	// objection on the conclusion
 	await page.evaluate(() => window.jQuery('.mapjs-node').first().click());
