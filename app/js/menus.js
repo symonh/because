@@ -4,7 +4,7 @@
  * Pure DOM, no framework. Menus close on click-away or Escape.
  */
 
-export function buildMenus(el, commands, io, engine, drive, darkMode) {
+export function buildMenus(el, commands, io, engine, drive, darkMode, labelEdit) {
 	const driveItem = run => () => {
 			if (drive && drive.isConfigured()) { run(); } else { showDriveSetup(); }
 		},
@@ -48,6 +48,7 @@ export function buildMenus(el, commands, io, engine, drive, darkMode) {
 		['Argument Visualization', () => [
 			['Toggle implicit claim (T)', commands.toggleImplicit],
 			['Toggle reason ⇄ objection (T on a bracket)', commands.toggleReasonObjection],
+			['Edit connector label…', () => labelEdit.editSelectedConnectorLabel()],
 			['Mark claim false / true / clear', commands.cycleEvaluation],
 			['—'],
 			[(engine.getThemeName() === 'argMappingSimple' ? '✓ ' : '') + 'Theme: Simple', () => engine.setThemeByName('argMappingSimple')],

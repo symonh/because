@@ -4,6 +4,7 @@ import { makeCommands } from './commands.js';
 import { makeFileIO } from './file-io.js';
 import { makeDrive } from './drive.js';
 import { makeDarkMode } from './dark-mode.js';
+import { makeLabelEdit } from './label-edit.js';
 import { buildToolbar } from './toolbar.js';
 import { buildMenus } from './menus.js';
 import { bindShortcuts } from './shortcuts.js';
@@ -24,14 +25,15 @@ document.addEventListener('DOMContentLoaded', function () {
 		commands = makeCommands(engine),
 		io = makeFileIO(engine, status),
 		drive = makeDrive(engine, io, status),
-		darkMode = makeDarkMode(engine);
+		darkMode = makeDarkMode(engine),
+		labelEdit = makeLabelEdit(engine);
 
 	buildToolbar(document.getElementById('toolbar'), commands, io);
-	buildMenus(document.getElementById('menubar'), commands, io, engine, drive, darkMode);
+	buildMenus(document.getElementById('menubar'), commands, io, engine, drive, darkMode, labelEdit);
 	bindShortcuts(engine, commands);
 
 	// dev/test handle
-	window.__because = { engine, commands, io, drive, darkMode };
+	window.__because = { engine, commands, io, drive, darkMode, labelEdit };
 
 	// every model change marks the map unsaved (relative to its file) and
 	// refreshes the crash-recovery autosave; only File > Save clears it

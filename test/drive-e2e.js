@@ -100,12 +100,18 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 	}, [menu, item]);
 
 	// unconfigured deployment: Drive items exist but show the setup panel
+	// (the shipped config now has a real clientId, so blank it first —
+	// the config module is a singleton and isConfigured() reads it live)
+	await page.evaluate(async () => {
+		const mod = await import('./js/config.js');
+		mod.driveConfig.clientId = '';
+	});
 	await clickMenu('File', 'Open from Google Drive');
 	ok(await page.$eval('.panel', el => el.textContent.indexOf('not connected') >= 0).catch(() => false),
 		'unconfigured Drive shows the setup panel');
 	await page.click('.panel-close button');
 
-	// configure (the config module is a singleton — mutate it in place)
+	// re-configure with a test client
 	await page.evaluate(async () => {
 		const mod = await import('./js/config.js');
 		mod.driveConfig.clientId = 'test-client.apps.googleusercontent.com';

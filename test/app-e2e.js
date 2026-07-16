@@ -17,6 +17,8 @@ function ok(cond, name) {
 	await page.setViewport({ width: 1500, height: 950, deviceScaleFactor: 2 });
 	const errors = [];
 	page.on('pageerror', e => errors.push(e.message));
+	// the beforeunload guard fires on reload when the map is dirty — accept it
+	page.on('dialog', d => d.accept());
 	// pin the OS preference to dark: first visit must STILL open light
 	await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }]);
 
@@ -264,6 +266,53 @@ function ok(cond, name) {
 	ok(openedSecond.hasDeath && openedSecond.title === 'death.mup',
 		`opening a second map replaces the first (title=${openedSecond.title})`);
 	ok(openedSecond.saved === 'All changes saved', 'freshly opened map reads as saved');
+
+	// connector labels: click the label text to edit inline (mapjs only
+	// dispatches lineLabelClicked; the app implements the editing)
+	await page.evaluate(() => {
+		window.__because.engine.loadMap({ formatVersion: 3, id: 'root', ideas: {
+			1: { id: 2, title: 'Conclusion', ideas: {
+				1: { id: 11, title: 'group',
+					attr: { group: 'supporting', contentLocked: true,
+						parentConnector: { label: 'Original label' } },
+					ideas: { 1: { id: 12, title: 'Premise' } } }
+			} }
+		} });
+	});
+	await page.waitForFunction(() =>
+		Array.from(document.querySelectorAll('[data-mapjs-role=connector] text'))
+			.some(t => t.textContent.indexOf('Original label') >= 0), { timeout: 5000 });
+	const labelRect = await page.evaluate(() => {
+		const t = Array.from(document.querySelectorAll('[data-mapjs-role=connector] text'))
+			.find(el => el.textContent.indexOf('Original label') >= 0),
+			r = t.getBoundingClientRect();
+		return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+	});
+	await page.mouse.click(labelRect.x, labelRect.y);
+	await page.waitForSelector('.connector-label-editor', { timeout: 5000 });
+	ok(await page.$eval('.connector-label-editor', el => el.value) === 'Original label',
+		'clicking the label opens an editor with the current text');
+	await page.evaluate(() => { document.querySelector('.connector-label-editor').value = ''; });
+	await page.keyboard.type('Rachels\' central argument');
+	await page.keyboard.press('Enter');
+	await page.waitForFunction(() =>
+		Array.from(document.querySelectorAll('[data-mapjs-role=connector] text'))
+			.some(t => t.textContent.indexOf('Rachels') >= 0), { timeout: 5000 });
+	const labelState = await page.evaluate(() => ({
+		attr: window.__because.engine.mapModel.getIdea().findSubIdeaById(11).attr.parentConnector.label,
+		saved: window.__because.engine.serialize().indexOf('Rachels') >= 0
+	}));
+	ok(labelState.attr === 'Rachels\' central argument', 'edited label lands in parentConnector.label');
+	ok(labelState.saved, 'edited label serializes into the .mup');
+
+	// menu path opens the same editor for the selected bracket; Escape cancels
+	await page.evaluate(() => window.__because.engine.mapModel.selectNode(12));
+	await clickMenu('Argument Visualization', 'Edit connector label');
+	await page.waitForSelector('.connector-label-editor', { timeout: 5000 });
+	ok(await page.$eval('.connector-label-editor', el => el.value) === 'Rachels\' central argument',
+		'menu opens the label editor for the premise\'s bracket');
+	await page.keyboard.press('Escape');
+	ok(await page.$('.connector-label-editor') === null, 'Escape closes the editor without saving');
 
 	// dark mode: flips chrome + map theme, never touches map data, persists
 	await clickMenu('View', 'Dark mode');
