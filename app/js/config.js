@@ -23,5 +23,6 @@ export const driveConfig = {
  * steps and the event vocabulary are in docs/analytics.md.
  */
 export const gaConfig = {
-	measurementId: ''
+	// "Because" web stream (stream id 15271314841) on app.philmaps.com
+	measurementId: 'G-HZZYZYH512'
 };
