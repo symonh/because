@@ -33,6 +33,34 @@ Firebase site; argumentbase.web.app serves identically).
   in docs/drive-setup.md. Until then the menu items show setup info and
   everything local keeps working. Stubbed-boundary e2e: test/drive-e2e.js.
 
+## 2026-07-16 late night — GA4 analytics
+
+- Google Analytics integrated (app/js/analytics.js owns all gtag contact;
+  measurement id in config.js gaConfig). Event vocabulary + GA setup steps
+  + custom-dimension list in docs/analytics.md. Highlights: every command
+  tagged by UI surface (menu/toolbar/shortcut/style popover), one map_open
+  taxonomy across all load paths (picker/drop/Drive/url/autosave/new) with
+  node-count buckets, map_save by destination+mode, connector/node-style/
+  theme/dark-mode/intro/help events, edit intensity batched into
+  edit_batch (never per keystroke), deduplicated exception reporting,
+  dark_mode as a user property. deploy.sh stamps the git hash into GA's
+  app_version (repo copy stays 'dev').
+- Privacy contract: events carry feature names/enums/counts only — never
+  map content, titles, file names, or Drive ids (features-e2e asserts no
+  leak). Global Privacy Control disables analytics entirely; localhost
+  never sends (e2e traffic can't pollute the property) but events land in
+  a local buffer: window.__because.analytics.events(). Debug/DebugView:
+  localStorage because.ga.debug = '1'.
+- The intro modal, landing page, and privacy policy claimed "no
+  analytics" — all three updated to disclose the usage statistics
+  honestly (privacy policy gained a full Usage analytics section; GA also
+  added to the three site pages via the same module).
+- **BLOCKED on Simon**: Simon's UA-106489762-1 is Universal Analytics,
+  dead since Google's July 2023 UA shutdown — it cannot receive data. A
+  GA4 web stream id (G-…) for app.philmaps.com must be pasted into
+  gaConfig.measurementId (steps in docs/analytics.md), then redeploy.
+  Until then analytics is a silent no-op and the app is unaffected.
+
 ## 2026-07-16 night
 
 - FREEZE FIX (deployed immediately): the rich-text editNode rewrite had
@@ -153,6 +181,9 @@ underscore aliased to its UMD file — see engine/build.sh for why.
 
 ## Not done yet
 
+- GA4 measurement id (Simon, analytics.google.com, ~5 min —
+  docs/analytics.md) into gaConfig.measurementId, then redeploy; register
+  the custom dimensions listed there so event params show in reports.
 - Drive OAuth client ID (Simon, Console, ~2 min — docs/drive-setup.md),
   then a live end-to-end Drive test with a real Google account.
 - app.philmaps.com cert: DNS + custom domain done 2026-07-16 evening;

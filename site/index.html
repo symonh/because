@@ -88,7 +88,9 @@
 	tradition of the argument-visualization materials at
 	<a href="https://philmaps.com">philmaps.com</a>, after the retirement of
 	the MindMup argument-visualization service. It is free to use and has no
-	accounts, no ads, and no analytics.</p>
+	accounts and no ads. Anonymous usage statistics help us improve it — your
+	map content is never collected (see the <a href="/privacy">privacy
+	policy</a>).</p>
 
 	<footer>
 		<a href="/app/">Open the editor</a>
@@ -97,5 +99,11 @@
 		<span>© 2026 <a href="https://www.disagreewisely.org">Disagree Wisely, Inc.</a> · <a href="mailto:info@disagreewisely.org">info@disagreewisely.org</a></span>
 	</footer>
 </main>
+<script type="module">
+	// same GA4 stream as the editor (measurement id lives in one place);
+	// on this static page it only sends the page_view
+	import { initAnalytics } from '/app/js/analytics.js';
+	initAnalytics({ page: 'landing' });
+</script>
 </body>
 </html>

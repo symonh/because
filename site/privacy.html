@@ -34,9 +34,11 @@
 
 	<div class="summary">
 		<strong>In short:</strong> Because runs entirely in your browser. It has
-		no user accounts, no analytics, and no servers of its own that receive
-		your data. Your argument maps stay on your device and, if you choose to
-		use the Google Drive integration, in your own Google Drive.
+		no user accounts and no servers of its own that receive your data. Your
+		argument maps stay on your device and, if you choose to use the Google
+		Drive integration, in your own Google Drive. We collect anonymous usage
+		statistics through Google Analytics; your map content is never part of
+		them.
 	</div>
 
 	<h2>Who we are</h2>
@@ -46,9 +48,8 @@
 	<a href="mailto:info@disagreewisely.org">info@disagreewisely.org</a>.</p>
 
 	<h2>What information the app handles</h2>
-	<p>Because does not ask you to create an account and does not collect
-	personal information. The app handles two kinds of data, both of which
-	stay under your control:</p>
+	<p>Because does not ask you to create an account. The app handles two
+	kinds of data, both of which stay under your control:</p>
 	<ul>
 		<li><strong>Your argument maps.</strong> Maps you create or open are
 		processed in your browser. When you save, the file is written to your
@@ -84,30 +85,59 @@
 	API Services User Data Policy</a>, including the Limited Use
 	requirements.</p>
 
+	<h2>Usage analytics</h2>
+	<p>To understand how many people use Because and which features they
+	use, the app sends anonymous usage statistics to Google Analytics.
+	These consist of:</p>
+	<ul>
+		<li><strong>Feature-usage events</strong> — for example, that a
+		reason was added, a map was opened from a file, or dark mode was
+		turned on. Events carry only feature names, fixed category values,
+		and counts (such as the number of nodes in an opened map).</li>
+		<li><strong>Standard web measurements</strong> collected by Google
+		Analytics: pages viewed, approximate location derived from your IP
+		address (Google Analytics does not log or store the address itself),
+		browser and device type, and a cookie (<code>_ga</code>) that lets
+		returning visits be counted as the same browser.</li>
+	</ul>
+	<p>What analytics never includes: the content of your maps, claim text,
+	file names, Google Drive identifiers, or anything else you type. We have
+	disabled Google's advertising and cross-site "signals" features; the
+	data is used for aggregate statistics only and is not used for
+	advertising.</p>
+	<p>If your browser sends the
+	<a href="https://globalprivacycontrol.org">Global Privacy Control</a>
+	signal, the app disables analytics entirely. Blocking
+	<code>googletagmanager.com</code> with a content blocker has the same
+	effect; the app works identically either way.</p>
+
 	<h2>Hosting</h2>
 	<p>The app is served as static files by Google Firebase Hosting. As with
 	any web host, Google processes the technical details of each request
 	(such as IP addresses) in order to deliver the site; that processing is
 	described in <a href="https://policies.google.com/privacy">Google's
-	privacy policy</a>. We do not add any analytics, advertising, or
-	tracking of our own, and the app sets no tracking cookies.</p>
+	privacy policy</a>. Beyond the usage analytics described above, we add
+	no advertising or tracking of any kind.</p>
 
 	<h2>Data sharing and sale</h2>
-	<p>We do not sell, share, or transfer user data to anyone. We could not
-	do so even in principle for your map content, since it never reaches
-	us.</p>
+	<p>We do not sell, share, or transfer user data to anyone. Google
+	processes the usage statistics described above on our behalf as our
+	analytics provider. For your map content, sharing is impossible even in
+	principle, since it never reaches us.</p>
 
 	<h2>Children</h2>
 	<p>The app is intended for use in college and university courses and is
 	not directed at children under 13. It collects no personal information
-	from any user.</p>
+	from any user beyond the anonymous usage statistics described above.</p>
 
 	<h2>Data deletion</h2>
-	<p>Because we store nothing about you, there is no server-side data to
-	delete. To remove everything associated with the app: clear your
-	browser's site data for app.philmaps.com, revoke the app's Drive access
-	at the link above, and delete any map files you no longer want from
-	your own Drive or device.</p>
+	<p>We hold no account data about you, so there is nothing of yours to
+	request from us by name; the usage statistics we keep are aggregate and
+	not tied to your identity. To remove everything associated with the app:
+	clear your browser's site data for app.philmaps.com (this also removes
+	the analytics cookie), revoke the app's Drive access at the link above,
+	and delete any map files you no longer want from your own Drive or
+	device.</p>
 
 	<h2>Changes to this policy</h2>
 	<p>If the app's data practices change — for example, if a future version
@@ -118,5 +148,9 @@
 	<p>Questions about this policy:
 	<a href="mailto:info@disagreewisely.org">info@disagreewisely.org</a>.</p>
 </main>
+<script type="module">
+	import { initAnalytics } from '/app/js/analytics.js';
+	initAnalytics({ page: 'privacy' });
+</script>
 </body>
 </html>

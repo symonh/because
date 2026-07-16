@@ -14,6 +14,8 @@
  * nothing in the simple one).
  */
 
+import { track } from './analytics.js';
+
 const DEFAULT_CONNECTOR_WIDTH = 3, // connectorEditingContext.defaults.width in the argmap themes
 	MIN_WIDTH = 1,
 	MAX_WIDTH = 10;
@@ -65,6 +67,7 @@ export function makeLabelEdit(engine) {
 		mapModel.setInputEnabled(false, true); // engine hotkeys off while typing
 		input.focus();
 		input.select();
+		track('connector_action', { action: 'label_edit', has_label: current ? 'yes' : 'no' });
 
 		const finish = function (commit) {
 			if (!activeInput) { return; }
@@ -74,6 +77,7 @@ export function makeLabelEdit(engine) {
 			mapModel.setInputEnabled(true);
 			if (commit && value !== current) {
 				content.mergeAttrProperty(connector.to, 'parentConnector', 'label', value || false);
+				track('connector_action', { action: value ? 'label_set' : 'label_cleared' });
 			}
 		};
 		input.addEventListener('keydown', function (e) {
@@ -106,6 +110,7 @@ export function makeLabelEdit(engine) {
 				next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, current + delta));
 			if (next !== current) {
 				content.mergeAttrProperty(connector.to, 'parentConnector', 'width', next);
+				track('connector_action', { action: delta > 0 ? 'stronger' : 'weaker' });
 			}
 		},
 		showPopover = function (connector, x, y) {

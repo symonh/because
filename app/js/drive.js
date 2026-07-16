@@ -14,6 +14,7 @@
  * fully offline/local until a Drive menu item is clicked.
  */
 import { driveConfig } from './config.js';
+import { track, noteMapSource } from './analytics.js';
 
 const GSI_SRC = 'https://accounts.google.com/gsi/client',
 	GAPI_SRC = 'https://apis.google.com/js/api.js',
@@ -96,6 +97,7 @@ export function makeDrive(engine, io, status) {
 			// popup dismissed / permission declined are normal cancellations
 			const benign = /popup_closed|access_denied|user_cancel/i.test(String(e && e.message));
 			if (!benign) {
+				track('drive_error', { description: String((e && e.message) || e) });
 				window.alert(String((e && e.message) || e));
 			}
 		},
@@ -141,6 +143,7 @@ export function makeDrive(engine, io, status) {
 					headers: { 'Content-Type': MUP_MIME },
 					body: text
 				});
+				track('map_save', { destination: 'drive', mode: 'save' });
 				io.markSaved(currentDriveFile.name);
 				return true;
 			}
@@ -158,6 +161,7 @@ export function makeDrive(engine, io, status) {
 					body: body
 				}),
 				meta = await resp.json();
+			track('map_save', { destination: 'drive', mode: asCopy ? 'save_copy' : 'save_as' });
 			currentDriveFile = { id: meta.id, name: meta.name };
 			io.setSaveOverride(() => drive.save(false));
 			io.markSaved(meta.name);
@@ -195,6 +199,7 @@ export function makeDrive(engine, io, status) {
 					const resp = await driveFetch('https://www.googleapis.com/drive/v3/files/' +
 							encodeURIComponent(doc.id) + '?alt=media'),
 						text = await resp.text();
+					noteMapSource('drive');
 					io.loadJson(JSON.parse(text), doc.name); // clears currentDriveFile via mapLoaded
 					currentDriveFile = { id: doc.id, name: doc.name };
 					io.setSaveOverride(() => drive.save(false));

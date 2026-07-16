@@ -15,6 +15,11 @@ rsync -a app deploy/
 rsync -a samples deploy/
 rsync -a site/ deploy/   # root-level pages: /privacy, /terms (cleanUrls)
 
+# stamp the deployed analytics module with the commit it came from, so GA's
+# app_version dimension identifies exactly what was live (repo copy stays 'dev')
+COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
+sed -i '' "s/APP_VERSION = 'dev'/APP_VERSION = '${COMMIT}'/" deploy/app/js/analytics.js
+
 GOOGLE_CLOUD_QUOTA_PROJECT=driveshare-446802 \
 	npx --yes firebase-tools deploy --only hosting:argumentbase --project driveshare-446802
 

@@ -14,3 +14,14 @@ export const driveConfig = {
 	appId: '839787428721',
 	scope: 'https://www.googleapis.com/auth/drive.file'
 };
+
+/*
+ * Google Analytics 4. An empty measurementId disables analytics entirely
+ * (the app works identically). The philmaps UA property (UA-106489762-1)
+ * is Universal Analytics, which Google shut down in July 2023, so it
+ * CANNOT be used here — a GA4 web stream's "G-" id is required. Setup
+ * steps and the event vocabulary are in docs/analytics.md.
+ */
+export const gaConfig = {
+	measurementId: ''
+};

@@ -404,6 +404,46 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 	ok(await page.evaluate(() => document.querySelectorAll('.mapjs-node').length > 50),
 		'big map finishes rendering and the overlay goes away');
 
+	// ---- analytics: local buffer, surface tagging, privacy ----
+	// on localhost analytics must never send (and with no measurement id it
+	// couldn't anyway), but every event still lands in the inspectable
+	// buffer, so the whole pipeline is assertable offline
+	const ga = await page.evaluate(() => {
+		window.dispatchEvent(new Event('pagehide')); // flush the edit batch
+		return {
+			enabled: window.__because.analytics.isEnabled(),
+			gtagScript: !!document.querySelector('script[src*="googletagmanager"]'),
+			events: window.__because.analytics.events()
+		};
+	});
+	const findEv = (name, pred) => ga.events.find(e => e.name === name && (!pred || pred(e.params)));
+	ok(ga.enabled === false && ga.gtagScript === false,
+		'analytics stays disabled on localhost (no gtag script injected)');
+	ok(!!findEv('app_open'), 'app_open tracked at boot');
+	ok(!!findEv('intro_shown', p => p.trigger === 'first_visit') &&
+		!!findEv('intro_dismissed', p => p.dont_show_again === 'yes'),
+		'welcome modal tracks its show and dismissal');
+	ok(!!findEv('command', p => p.command_name === 'toggleBold' && p.method === 'shortcut'),
+		'commands are tracked with their UI surface (⌘B → shortcut)');
+	ok(!!findEv('dark_mode_toggle', p => p.enabled === 'on'), 'dark mode toggles are tracked');
+	ok(!!findEv('theme_select', p => p.theme === 'high_impact'), 'View-menu theme choice is tracked');
+	ok(!!findEv('connector_action', p => p.action === 'stronger') &&
+		!!findEv('connector_action', p => p.action === 'label_set'),
+		'connector strengthening and labelling are tracked');
+	ok(!!findEv('node_style', p => p.action === 'background_swatch' && p.swatch === 'Coral'),
+		'node styling tracks the swatch by name');
+	ok(!!findEv('map_open', p => p.node_count === 122 && p.node_bucket === '101-250'),
+		'map_open carries the node count and bucket');
+	const batch = findEv('edit_batch');
+	ok(!!batch && batch.params.changes > 0,
+		`edit batch flushes on pagehide (${batch && batch.params.changes} changes)`);
+	// the privacy contract: nothing the user typed may appear in any event —
+	// these three strings were all typed or rendered as map content above
+	const gaPayload = JSON.stringify(ga.events);
+	ok(gaPayload.indexOf('Premise') < 0 && gaPayload.indexOf('dblclick') < 0 &&
+		gaPayload.indexOf('Claim number') < 0,
+		'no map text or typed labels leak into any analytics event');
+
 	if (errors.length) { console.log('PAGE ERRORS:', errors.join(' | ')); failures += 1; }
 	await browser.close();
 	console.log(failures === 0 ? 'ALL PASS' : failures + ' FAILURES');

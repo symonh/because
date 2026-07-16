@@ -12,6 +12,8 @@
  * menu. This module is the listener MindMup's closed app layer used to be.
  */
 
+import { track } from './analytics.js';
+
 const SWATCHES = [
 	['None', false],
 	['White', '#ffffff'],
@@ -80,6 +82,8 @@ export function makeNodeStyle(engine, commands) {
 				const b = addButton(swatchRow, 'ns-swatch' + (color ? '' : ' ns-none'), name, '', function () {
 					setBackground(color);
 					refreshSwatches();
+					// the swatch NAME is app chrome, not user data
+					track('node_style', { action: color ? 'background_swatch' : 'background_clear', swatch: name });
 				});
 				if (color) {
 					b.style.background = color;
@@ -95,6 +99,9 @@ export function makeNodeStyle(engine, commands) {
 				setBackground(customInput.value);
 				refreshSwatches();
 			});
+			// 'change' fires once when the picker closes; 'input' fires on
+			// every drag step and would spray events
+			customInput.addEventListener('change', () => track('node_style', { action: 'background_custom' }));
 			swatchRow.appendChild(customInput);
 
 			const textRow = document.createElement('div');
@@ -118,6 +125,7 @@ export function makeNodeStyle(engine, commands) {
 		};
 
 	mapModel.addEventListener('contextMenuRequested', function (nodeId, x, y) {
+		track('node_style', { action: 'popover_open', method: 'right_click' });
 		show(x, y);
 	});
 	document.addEventListener('mousedown', function (e) {

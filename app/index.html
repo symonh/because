@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <title>Because</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- analytics (js/analytics.js) loads gtag.js lazily; warming the
+     connection keeps that off the critical path entirely -->
+<link rel="preconnect" href="https://www.googletagmanager.com">
+<link rel="dns-prefetch" href="https://www.google-analytics.com">
 <link rel="stylesheet" href="css/mapjs-default-styles.css">
 <link rel="stylesheet" href="css/argmap.css">
 <link rel="stylesheet" href="css/app.css">

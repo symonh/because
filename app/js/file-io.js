@@ -7,6 +7,8 @@
  * dirty flag (and the status text) track the map relative to its file.
  */
 
+import { track, noteMapSource } from './analytics.js';
+
 const AUTOSAVE_KEY = 'because.autosave',
 	NAME_KEY = 'because.autosave.name',
 	DIRTY_KEY = 'because.autosave.dirty',
@@ -68,7 +70,7 @@ export function makeFileIO(engine, status) {
 				pickerInput.style.display = 'none';
 				pickerInput.addEventListener('change', function () {
 					const f = pickerInput.files[0];
-					if (f) { loadFile(f); }
+					if (f) { noteMapSource('file_picker'); loadFile(f); }
 					pickerInput.value = ''; // re-picking the same file must fire again
 				});
 				document.body.appendChild(pickerInput);
@@ -88,6 +90,7 @@ export function makeFileIO(engine, status) {
 			} else {
 				downloadCopy(text);
 			}
+			track('map_save', { destination: fileHandle ? 'file' : 'download', mode: 'guard' });
 			setDirty(false);
 			io.autosave();
 			return true;
@@ -139,6 +142,7 @@ export function makeFileIO(engine, status) {
 		newMap() {
 			io.guardUnsaved(function () {
 				fileHandle = null;
+				noteMapSource('new');
 				engine.loadMap({
 					formatVersion: 3,
 					id: 'root',
@@ -158,6 +162,7 @@ export function makeFileIO(engine, status) {
 							types: [{ description: 'Argument maps', accept: { 'application/json': ['.mup'] } }]
 						});
 						const file = await handle.getFile();
+						noteMapSource('file_picker');
 						parseAndLoad(await file.text(), file.name, false);
 						fileHandle = handle;
 					} catch (e) {
@@ -172,7 +177,10 @@ export function makeFileIO(engine, status) {
 		// drag-and-drop entry: the file is already chosen, but replacing
 		// the current map still needs the guard
 		openFile(file) {
-			io.guardUnsaved(() => loadFile(file));
+			io.guardUnsaved(function () {
+				noteMapSource('drag_drop');
+				loadFile(file);
+			});
 		},
 		// ?src= loader entry — parsed JSON straight in, no file handle
 		loadJson(json, name) {
@@ -203,6 +211,10 @@ export function makeFileIO(engine, status) {
 			} else {
 				downloadCopy(text);
 			}
+			track('map_save', {
+				destination: fileHandle ? 'file' : 'download',
+				mode: as ? 'save_as' : 'save'
+			});
 			setDirty(false);
 			io.autosave();
 			return true;
@@ -220,6 +232,7 @@ export function makeFileIO(engine, status) {
 				if (text) {
 					// a dirty autosave holds edits never saved to the file,
 					// so the restored map must stay marked unsaved
+					noteMapSource('autosave_restore');
 					parseAndLoad(text,
 						getStored(NAME_KEY) || 'untitled.mup',
 						getStored(DIRTY_KEY) === '1');

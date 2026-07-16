@@ -4,6 +4,8 @@
  * Pure DOM, no framework. Menus close on click-away or Escape.
  */
 
+import { track } from './analytics.js';
+
 export function buildMenus(el, commands, io, engine, drive, darkMode, labelEdit, nodeStyle, intro) {
 	const driveItem = run => () => {
 			if (drive && drive.isConfigured()) { run(); } else { showDriveSetup(); }
@@ -53,8 +55,14 @@ export function buildMenus(el, commands, io, engine, drive, darkMode, labelEdit,
 			[(engine.getLabelsOn() ? '✓ ' : '') + 'Claim numbering', commands.toggleNumbering],
 			[(darkMode && darkMode.isDark() ? '✓ ' : '') + 'Dark mode', () => darkMode.toggle()],
 			['—'],
-			[(engine.getThemeName() === 'argMappingSimple' ? '✓ ' : '') + 'Theme: Simple', () => engine.setThemeByName('argMappingSimple')],
-			[(engine.getThemeName() === 'argMappingHighImpact' ? '✓ ' : '') + 'Theme: High impact (Because / But, arrows)', () => engine.setThemeByName('argMappingHighImpact')]
+			[(engine.getThemeName() === 'argMappingSimple' ? '✓ ' : '') + 'Theme: Simple', () => {
+				track('theme_select', { theme: 'simple' });
+				engine.setThemeByName('argMappingSimple');
+			}],
+			[(engine.getThemeName() === 'argMappingHighImpact' ? '✓ ' : '') + 'Theme: High impact (Because / But, arrows)', () => {
+				track('theme_select', { theme: 'high_impact' });
+				engine.setThemeByName('argMappingHighImpact');
+			}]
 		]],
 		['Argument Visualization', () => [
 			['Toggle implicit claim (T)', commands.toggleImplicit],
@@ -89,6 +97,7 @@ export function buildMenus(el, commands, io, engine, drive, darkMode, labelEdit,
 	}
 
 	function showShortcuts() {
+		track('help_open', { panel: 'shortcuts' });
 		showPanel(
 			'<h2>Keyboard shortcuts</h2><table class="kbd">' +
 			[['Enter', 'add reason under selected claim'],
@@ -113,6 +122,7 @@ export function buildMenus(el, commands, io, engine, drive, darkMode, labelEdit,
 	}
 
 	function showDriveSetup() {
+		track('help_open', { panel: 'drive_setup' });
 		showPanel(
 			'<h2>Google Drive is not connected yet</h2>' +
 			'<p>This deployment has no OAuth client configured, so Drive open/save is switched off. ' +
@@ -124,6 +134,7 @@ export function buildMenus(el, commands, io, engine, drive, darkMode, labelEdit,
 	}
 
 	function showAbout() {
+		track('help_open', { panel: 'about' });
 		showPanel(
 			'<h2>Because</h2>' +
 			'<p>A standalone editor for MindMup argument visualizations (.mup files), ' +

@@ -8,6 +8,8 @@
  * purpose to first-time users.
  */
 
+import { track } from './analytics.js';
+
 const KEY = 'because.intro.dismissed';
 
 export function makeIntro() {
@@ -20,12 +22,14 @@ export function makeIntro() {
 				try {
 					localStorage.setItem(KEY, box && box.checked ? '1' : '0');
 				} catch (e) { /* private mode */ }
+				track('intro_dismissed', { dont_show_again: box && box.checked ? 'yes' : 'no' });
 			}
 			overlay.remove();
 			overlay = null;
 		},
-		show = function () {
+		show = function (trigger) {
 			if (overlay) { return; }
+			track('intro_shown', { trigger: trigger || 'menu' });
 			overlay = document.createElement('div');
 			overlay.className = 'panel-overlay';
 			overlay.innerHTML =
@@ -42,8 +46,11 @@ export function makeIntro() {
 				'reason, <kbd>Tab</kbd> to add a co-premise, or <kbd>Alt+O</kbd> ' +
 				'to raise an objection. The full list is under ' +
 				'<b>Help&nbsp;&gt;&nbsp;Keyboard shortcuts</b>. Your maps stay on ' +
-				'your device or in your own Google Drive — there are no accounts ' +
-				'and no analytics. Learn more about argument visualization at ' +
+				'your device or in your own Google Drive — there are no accounts, ' +
+				'and your map content is never sent to us. The app collects ' +
+				'anonymous usage statistics to help improve it (see the ' +
+				'<a href="https://app.philmaps.com/privacy" target="_blank" rel="noopener">privacy policy</a>). ' +
+				'Learn more about argument visualization at ' +
 				'<a href="https://philmaps.com" target="_blank" rel="noopener">philmaps.com</a>.</p>' +
 				'<div class="intro-footer">' +
 				'<label><input type="checkbox" id="intro-dont-show"> Don’t show this again</label>' +
@@ -59,7 +66,7 @@ export function makeIntro() {
 
 	let dismissed = null;
 	try { dismissed = localStorage.getItem(KEY); } catch (e) { /* private mode */ }
-	if (dismissed !== '1') { show(); }
+	if (dismissed !== '1') { show('first_visit'); }
 
-	return { show };
+	return { show: () => show('menu') };
 }
