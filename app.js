@@ -22,7 +22,8 @@
 	const FONT_SIZE = 16, LINE_H = 22;
 	const FONT_FAMILY = '"Helvetica Neue", Arial, sans-serif';
 	const STICKY_FAMILY = '"Segoe Print","Bradley Hand","Comic Sans MS",cursive';
-	const MIN_W = 74, MAX_W = 176;         // auto content-width clamp (px)
+	const MIN_W = 84, MAX_W = 210;         // auto content-width clamp (px)
+	const STICKY_MAX = 180;
 	const V_GAP = 84;                      // parent bottom -> child top
 	const BRACKET_RISE = 26;               // premise top -> bracket bar
 	const CHILD_GAP = 22;                  // gap between co-premises within a group
