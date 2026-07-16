@@ -12,5 +12,6 @@ module.exports = {
 	Theme: require('./core/theme/theme'),
 	defaultTheme: require('./core/theme/default-theme'),
 	formatNoteToHtml: require('./core/content/format-note-to-html'),
+	richText: require('./core/content/rich-text'),
 	version: 4
 };

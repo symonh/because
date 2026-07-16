@@ -4,7 +4,7 @@
  * Pure DOM, no framework. Menus close on click-away or Escape.
  */
 
-export function buildMenus(el, commands, io, engine, drive, darkMode, labelEdit) {
+export function buildMenus(el, commands, io, engine, drive, darkMode, labelEdit, nodeStyle, intro) {
 	const driveItem = run => () => {
 			if (drive && drive.isConfigured()) { run(); } else { showDriveSetup(); }
 		},
@@ -34,7 +34,15 @@ export function buildMenus(el, commands, io, engine, drive, darkMode, labelEdit)
 			['Redo (⌘⇧Z)', commands.redo],
 			['—'],
 			['Edit text (F2)', commands.editNode],
-			['Delete (⌫)', commands.deleteNode]
+			['Delete (⌫)', commands.deleteNode],
+			['—'],
+			['Bold (⌘B)', commands.toggleBold],
+			['Italic (⌘I)', commands.toggleItalic],
+			['Underline (⌘U)', commands.toggleUnderline],
+			['—'],
+			['Bigger text (⌘⇧.)', commands.fontBigger],
+			['Smaller text (⌘⇧,)', commands.fontSmaller],
+			['Node colour & style… (right-click a node)', () => nodeStyle.openForSelection()]
 		]],
 		['View', () => [
 			['Zoom in (Z)', commands.zoomIn],
@@ -55,6 +63,7 @@ export function buildMenus(el, commands, io, engine, drive, darkMode, labelEdit)
 			[(engine.getThemeName() === 'argMappingHighImpact' ? '✓ ' : '') + 'Theme: High impact ("because…")', () => engine.setThemeByName('argMappingHighImpact')]
 		]],
 		['Help', () => [
+			['Welcome to Because', () => intro.show()],
 			['Keyboard shortcuts', showShortcuts],
 			['About Because', showAbout],
 			['—'],
@@ -92,7 +101,12 @@ export function buildMenus(el, commands, io, engine, drive, darkMode, labelEdit)
 				['F2 or Space', 'edit the selected claim'],
 				['F', 'collapse / expand branch'],
 				['Delete', 'remove selection'],
-				['⌘Z / ⌘⇧Z', 'undo / redo']
+				['⌘Z / ⌘⇧Z', 'undo / redo'],
+				['⌘B / ⌘I / ⌘U', 'bold / italic / underline (whole claim, or the selection while editing)'],
+				['⌘⇧. / ⌘⇧,', 'bigger / smaller claim text'],
+				['Right-click', 'node colour &amp; text style'],
+				['Click a connector', 'stronger / weaker line, edit its label'],
+				['Double-click a connector', 'edit its label']
 			].map(r => '<tr><td><kbd>' + r[0] + '</kbd></td><td>' + r[1] + '</td></tr>').join('') +
 			'</table>'
 		);

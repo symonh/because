@@ -134,3 +134,264 @@ index 0f3af3f..b34e5a3 100644
  			fill: 'transparent'
  		});
  		if (allowParentConnectorOverride) {
+
+# ---- 2026-07-16 evening batch: rich text, author colours, event dispatch,
+# ---- label centering ----
+# New file src/core/content/rich-text.js (LOCAL ADDITION, exported via
+# npm-main as MAPJS.richText) is not included in this diff — see the file
+# itself. The hunks below: wire rich titles into rendering and editing;
+# honour author-set node colours (style.background / legacy
+# style.backgroundColor / style.text.color) through an optional render-time
+# colour filter (dark mode); stop the stats recorder from swallowing
+# events for later listeners; and centre aboveEnd connector labels on the
+# actual curve instead of a fixed-ratio interpolation that drifted on
+# wide fans.
+diff --git a/src/browser/calc-label-center-point.js b/src/browser/calc-label-center-point.js
+index 63663aa..419077f 100644
+--- a/src/browser/calc-label-center-point.js
++++ b/src/browser/calc-label-center-point.js
+@@ -11,10 +11,34 @@ module.exports = function calcLabelCenterPoint(connectionPosition, fromBox, toBo
+ 	if (labelPosition.aboveEnd) {
+ 		const middleToBox = toBox.left + (toBox.width / 2) - connectionPosition.left,
+ 			middleFromBox = fromBox.left + (fromBox.width / 2) - connectionPosition.left,
+-			multiplier = labelPosition.ratio || 1;
++			multiplier = labelPosition.ratio || 1,
++			y = toBox.top - connectionPosition.top - labelPosition.aboveEnd,
++			path = pathElement[0],
++			total = path.getTotalLength ? path.getTotalLength() : 0;
++		/* LOCAL PATCH: the linear interpolation between the two node centres
++		   drifts away from the curve when nodes fan far horizontally (a
++		   busy level put "but…" labels well left of their connectors), so
++		   place the label on the actual curve at the label's height. The
++		   S-curve is monotonic in y for top-down layouts; anything else
++		   falls back to the historical interpolation. */
++		if (total > 0) {
++			const start = path.getPointAtLength(0),
++				end = path.getPointAtLength(total);
++			if (start.y < end.y && y > start.y && y < end.y) {
++				let lo = 0, hi = total;
++				for (let i = 0; i < 20; i++) {
++					const mid = (lo + hi) / 2;
++					if (path.getPointAtLength(mid).y < y) { lo = mid; } else { hi = mid; }
++				}
++				return {
++					x: Math.round(path.getPointAtLength((lo + hi) / 2).x),
++					y: y
++				};
++			}
++		}
+ 		return {
+ 			x: Math.round(middleFromBox + multiplier * (middleToBox - middleFromBox)),
+-			y: toBox.top - connectionPosition.top - labelPosition.aboveEnd
++			y: y
+ 		};
+ 	} else if (labelPosition.ratio) {
+ 		return pathElement[0].getPointAtLength(pathElement[0].getTotalLength() * labelTheme.position.ratio);
+diff --git a/src/browser/dom-map-controller.js b/src/browser/dom-map-controller.js
+index 395e549..277d9db 100644
+--- a/src/browser/dom-map-controller.js
++++ b/src/browser/dom-map-controller.js
+@@ -589,7 +589,11 @@ module.exports = function DomMapController(mapModel, stageElement, touchEnabled,
+ 		});
+ 	});
+ 	['nodeTitleChanged', 'nodeAttrChanged', 'nodeLabelChanged', 'nodeMoved', 'nodeRemoved', 'nodeCreated', 'connectorCreated', 'connectorRemoved', 'linkCreated', 'linkRemoved', 'linkAttrChanged', 'connectorAttrChanged'].forEach(evt => {
+-		mapModel.addEventListener(evt, () => record(evt));
++		/* LOCAL PATCH: record() returns false when stats are off, and the
++		   observable treats a false return as "stop dispatching" — so every
++		   listener registered after this recorder (i.e. anything in the app
++		   layer) silently never received these twelve event types */
++		mapModel.addEventListener(evt, () => { record(evt); });
+ 	});
+ };
+ 
+diff --git a/src/browser/edit-node.js b/src/browser/edit-node.js
+index 8352517..ab7eda7 100644
+--- a/src/browser/edit-node.js
++++ b/src/browser/edit-node.js
+@@ -1,5 +1,6 @@
+ /*global require */
+-const jQuery = require('jquery');
++const jQuery = require('jquery'),
++	richText = require('../core/content/rich-text');
+ 
+ require('./inner-text');
+ require('./place-caret-at-end');
+@@ -12,12 +13,21 @@ jQuery.fn.editNode = function (shouldSelectAll) {
+ 	const node = this,
+ 		textBox = this.find('[data-mapjs-role=title]'),
+ 		unformattedText = this.data('title'),
+-		originalText = textBox.text();
++		/* LOCAL PATCH (rich text): compare and restore against the plain
++		   projection / rendered DOM, not the raw markup */
++		plainUnformatted = richText.plainText(unformattedText),
++		originalText = textBox.text(),
++		originalHtml = textBox.html();
+ 
+-	if (unformattedText !== originalText) { /* links or some other potential formatting issues */
++	if (plainUnformatted !== originalText) { /* links or some other potential formatting issues */
+ 		textBox.css('word-break', 'break-all');
+ 	}
+-	textBox.text(unformattedText).attr('contenteditable', true).focus();
++	if (richText.isRich(unformattedText)) {
++		richText.renderInto(textBox[0], unformattedText);
++	} else {
++		textBox.text(unformattedText);
++	}
++	textBox.attr('contenteditable', true).focus();
+ 	if (shouldSelectAll) {
+ 		textBox.selectAll();
+ 	} else if (unformattedText) {
+@@ -33,7 +43,12 @@ jQuery.fn.editNode = function (shouldSelectAll) {
+ 				node.shadowDraggable();
+ 			},
+ 			finishEditing = function () {
+-				const content = textBox.innerText();
++				/* LOCAL PATCH (rich text): serialize the edited DOM to the
++				   canonical markup when formatting is present, otherwise keep
++				   the historical plain-text extraction byte for byte */
++				const runs = richText.trimRuns(richText.runsFromDom(textBox[0])),
++					content = richText.hasFormatting(runs) ?
++						richText.runsToTitle(runs) : textBox.innerText();
+ 				if (content === unformattedText) {
+ 					return cancelEditing(); //eslint-disable-line no-use-before-define
+ 				}
+@@ -42,15 +57,17 @@ jQuery.fn.editNode = function (shouldSelectAll) {
+ 			},
+ 			cancelEditing = function () {
+ 				clear();
+-				textBox.text(originalText);
+-				reject();
++				textBox.html(originalHtml);
+ 			},
+ 			keyboardEvents = function (e) {
+ 				const ENTER_KEY_CODE = 13,
+ 					ESC_KEY_CODE = 27,
+ 					TAB_KEY_CODE = 9,
+ 					S_KEY_CODE = 83,
+-					Z_KEY_CODE = 90;
++					Z_KEY_CODE = 90,
++					/* LOCAL PATCH: deterministic inline formatting — Safari,
++					   Chrome and Firefox differ in what they apply natively */
++					FORMAT_COMMANDS = {66: 'bold', 73: 'italic', 85: 'underline'};
+ 				if (e.which === ENTER_KEY_CODE && !e.shiftKey) { // allow shift+enter to break lines
+ 					finishEditing();
+ 					e.stopPropagation();
+@@ -58,11 +75,15 @@ jQuery.fn.editNode = function (shouldSelectAll) {
+ 					cancelEditing();
+ 					e.preventDefault();
+ 					e.stopPropagation();
++				} else if (FORMAT_COMMANDS[e.which] && (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey) {
++					textBox[0].ownerDocument.execCommand(FORMAT_COMMANDS[e.which], false, null);
++					e.preventDefault();
++					e.stopPropagation();
+ 				} else if (e.which === TAB_KEY_CODE || (e.which === S_KEY_CODE && (e.metaKey || e.ctrlKey) && !e.altKey)) {
+ 					finishEditing();
+ 					e.preventDefault(); /* stop focus on another object */
+ 				} else if (!e.shiftKey && e.which === Z_KEY_CODE && (e.metaKey || e.ctrlKey) && !e.altKey) { /* undo node edit on ctrl+z if text was not changed */
+-					if (textBox.text() === unformattedText) {
++					if (textBox.text() === plainUnformatted) {
+ 						cancelEditing();
+ 					}
+ 					e.stopPropagation();
+@@ -78,4 +99,3 @@ jQuery.fn.editNode = function (shouldSelectAll) {
+ 		attachListeners();
+ 	});
+ };
+-
+diff --git a/src/browser/update-node-content.js b/src/browser/update-node-content.js
+index 4c790a9..5251431 100644
+--- a/src/browser/update-node-content.js
++++ b/src/browser/update-node-content.js
+@@ -3,6 +3,7 @@ const jQuery = require('jquery'),
+ 	_ = require('underscore'),
+ 	URLHelper = require('../core/util/url-helper'),
+ 	formattedNodeTitle = require('../core/content/formatted-node-title'),
++	richText = require('../core/content/rich-text'),
+ 	nodeCacheMark = require('./node-cache-mark'),
+ 	applyIdeaAttributesToNodeTheme = require('../core/content/apply-idea-attributes-to-node-theme'),
+ 	calcMaxWidth = require('../core/util/calc-max-width');
+@@ -90,7 +91,9 @@ jQuery.fn.updateNodeContent = function (nodeContent, theme, optional) {
+ 		},
+ 		level = forcedLevel || 1,
+ 		styles = nodeContent.styles || (theme && theme.nodeStyles(level, nodeContent.attr)) || [],
+-		nodeTheme = theme && theme.nodeTheme && applyIdeaAttributesToNodeTheme(nodeContent, theme.nodeTheme(styles)),
++		/* LOCAL PATCH: theme.attributeColorFilter (set by the app's dark
++		   mode) darkens author-set node colours at render time */
++		nodeTheme = theme && theme.nodeTheme && applyIdeaAttributesToNodeTheme(nodeContent, theme.nodeTheme(styles), theme.attributeColorFilter),
+ 		updateTextStyle = function () {
+ 			if (nodeTheme && nodeTheme.hasFontMultiplier) {
+ 				self.css({
+@@ -112,7 +115,14 @@ jQuery.fn.updateNodeContent = function (nodeContent, theme, optional) {
+ 				preferredWidth = nodeContent.attr && nodeContent.attr.style && nodeContent.attr.style.width;
+ 			let height;
+ 
+-			element.text(text.trim());
++			/* LOCAL PATCH: titles carrying the canonical rich-text subset
++			   render through the whitelist parser (b/i/u elements and text
++			   nodes only); everything else keeps the plain-text path */
++			if (richText.isRich(text)) {
++				richText.renderInto(element[0], text.trim());
++			} else {
++				element.text(text.trim());
++			}
+ 			self.data('title', title);
+ 			element.css({'max-width': '', 'min-width': ''});
+ 			if (preferredWidth) {
+diff --git a/src/core/content/apply-idea-attributes-to-node-theme.js b/src/core/content/apply-idea-attributes-to-node-theme.js
+index b06d687..1e129a1 100644
+--- a/src/core/content/apply-idea-attributes-to-node-theme.js
++++ b/src/core/content/apply-idea-attributes-to-node-theme.js
+@@ -1,19 +1,27 @@
+ /*global module, require*/
+ 
+ const foregroundStyle = require('../theme/foreground-style');
+-module.exports = function applyIdeaAttributesToNodeTheme(idea, nodeTheme) {
++/* LOCAL PATCH: the optional colorFilter (the app's dark mode) transforms
++   author-set colours at render time, keeping the map data untouched */
++module.exports = function applyIdeaAttributesToNodeTheme(idea, nodeTheme, colorFilter) {
+ 	'use strict';
+ 	if (!nodeTheme  || !idea || !idea.attr || !idea.attr.style) {
+ 		return nodeTheme;
+ 	}
+-	const isColorSetByUser = () => {
+-			const setByUser = idea.attr && idea.attr.style && idea.attr.style.background;
++	const filtered = color => (colorFilter ? colorFilter(color) : color),
++		isColorSetByUser = () => {
++			/* LOCAL PATCH: older MindMup saves wrote style.backgroundColor
++			   where newer ones write style.background — honour both */
++			const style = idea.attr.style,
++				setByUser = style.background || style.backgroundColor;
+ 			if (setByUser === 'false' || setByUser === 'transparent') {
+ 				return false;
+ 			}
+-			return setByUser;
++			return setByUser && filtered(setByUser);
+ 
+ 		},
++		/* LOCAL PATCH: honour an author-set text colour (style.text.color) */
++		userTextColor = idea.attr.style.text && idea.attr.style.text.color,
+ 		fontMultiplier = idea.attr.style.fontMultiplier,
+ 		textAlign = idea.attr.style.textAlign,
+ 		colorSetByUser = isColorSetByUser(),
+@@ -28,6 +36,10 @@ module.exports = function applyIdeaAttributesToNodeTheme(idea, nodeTheme) {
+ 		}
+ 	}
+ 
++	if (userTextColor) {
++		nodeTheme.text = Object.assign({}, nodeTheme.text, {color: filtered(userTextColor)});
++	}
++
+ 	if (textAlign) {
+ 		nodeTheme.text = Object.assign({}, nodeTheme.text, {alignment: textAlign});
+ 	}
+diff --git a/src/npm-main.js b/src/npm-main.js
+index af1e687..1145f08 100644
+--- a/src/npm-main.js
++++ b/src/npm-main.js
+@@ -12,5 +12,6 @@ module.exports = {
+ 	Theme: require('./core/theme/theme'),
+ 	defaultTheme: require('./core/theme/default-theme'),
+ 	formatNoteToHtml: require('./core/content/format-note-to-html'),
++	richText: require('./core/content/rich-text'),
+ 	version: 4
+ };

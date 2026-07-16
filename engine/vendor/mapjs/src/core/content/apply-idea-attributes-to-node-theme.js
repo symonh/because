@@ -1,19 +1,27 @@
 /*global module, require*/
 
 const foregroundStyle = require('../theme/foreground-style');
-module.exports = function applyIdeaAttributesToNodeTheme(idea, nodeTheme) {
+/* LOCAL PATCH: the optional colorFilter (the app's dark mode) transforms
+   author-set colours at render time, keeping the map data untouched */
+module.exports = function applyIdeaAttributesToNodeTheme(idea, nodeTheme, colorFilter) {
 	'use strict';
 	if (!nodeTheme  || !idea || !idea.attr || !idea.attr.style) {
 		return nodeTheme;
 	}
-	const isColorSetByUser = () => {
-			const setByUser = idea.attr && idea.attr.style && idea.attr.style.background;
+	const filtered = color => (colorFilter ? colorFilter(color) : color),
+		isColorSetByUser = () => {
+			/* LOCAL PATCH: older MindMup saves wrote style.backgroundColor
+			   where newer ones write style.background — honour both */
+			const style = idea.attr.style,
+				setByUser = style.background || style.backgroundColor;
 			if (setByUser === 'false' || setByUser === 'transparent') {
 				return false;
 			}
-			return setByUser;
+			return setByUser && filtered(setByUser);
 
 		},
+		/* LOCAL PATCH: honour an author-set text colour (style.text.color) */
+		userTextColor = idea.attr.style.text && idea.attr.style.text.color,
 		fontMultiplier = idea.attr.style.fontMultiplier,
 		textAlign = idea.attr.style.textAlign,
 		colorSetByUser = isColorSetByUser(),
@@ -26,6 +34,10 @@ module.exports = function applyIdeaAttributesToNodeTheme(idea, nodeTheme) {
 			nodeTheme.text.color = nodeTheme.text[foregroundStyle(colorSetByUser)];
 			nodeTheme.backgroundColor = colorSetByUser;
 		}
+	}
+
+	if (userTextColor) {
+		nodeTheme.text = Object.assign({}, nodeTheme.text, {color: filtered(userTextColor)});
 	}
 
 	if (textAlign) {

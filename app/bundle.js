@@ -16531,10 +16531,28 @@
         const labelPosition = labelTheme.position || {};
         pathElement.attr("d", d);
         if (labelPosition.aboveEnd) {
-          const middleToBox = toBox.left + toBox.width / 2 - connectionPosition.left, middleFromBox = fromBox.left + fromBox.width / 2 - connectionPosition.left, multiplier = labelPosition.ratio || 1;
+          const middleToBox = toBox.left + toBox.width / 2 - connectionPosition.left, middleFromBox = fromBox.left + fromBox.width / 2 - connectionPosition.left, multiplier = labelPosition.ratio || 1, y = toBox.top - connectionPosition.top - labelPosition.aboveEnd, path = pathElement[0], total = path.getTotalLength ? path.getTotalLength() : 0;
+          if (total > 0) {
+            const start = path.getPointAtLength(0), end = path.getPointAtLength(total);
+            if (start.y < end.y && y > start.y && y < end.y) {
+              let lo = 0, hi = total;
+              for (let i = 0; i < 20; i++) {
+                const mid = (lo + hi) / 2;
+                if (path.getPointAtLength(mid).y < y) {
+                  lo = mid;
+                } else {
+                  hi = mid;
+                }
+              }
+              return {
+                x: Math.round(path.getPointAtLength((lo + hi) / 2).x),
+                y
+              };
+            }
+          }
           return {
             x: Math.round(middleFromBox + multiplier * (middleToBox - middleFromBox)),
-            y: toBox.top - connectionPosition.top - labelPosition.aboveEnd
+            y
           };
         } else if (labelPosition.ratio) {
           return pathElement[0].getPointAtLength(pathElement[0].getTotalLength() * labelTheme.position.ratio);
@@ -17256,6 +17274,166 @@
     }
   });
 
+  // vendor/mapjs/src/core/content/rich-text.js
+  var require_rich_text = __commonJS({
+    "vendor/mapjs/src/core/content/rich-text.js"(exports, module) {
+      var TAG_TOKEN = /<\/?[biu]>/i;
+      var SPLIT_TOKEN = /(<\/?[biu]>)/gi;
+      var FLAGS = ["b", "i", "u"];
+      var isRich = function(title) {
+        return typeof title === "string" && TAG_TOKEN.test(title);
+      };
+      var decodeEntities = function(text) {
+        return text.replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').replace(/&#39;/g, "'").replace(/&amp;/gi, "&");
+      };
+      var escapeText = function(text) {
+        return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      };
+      var parseRuns = function(title) {
+        const runs = [], state = { b: false, i: false, u: false }, stack = [];
+        String(title || "").split(SPLIT_TOKEN).forEach(function(token) {
+          const m = /^<(\/?)([biu])>$/i.exec(token);
+          if (m) {
+            const tag = m[2].toLowerCase();
+            if (!m[1]) {
+              stack.push(tag);
+              state[tag] = true;
+            } else {
+              const at = stack.lastIndexOf(tag);
+              if (at >= 0) {
+                stack.splice(at, 1);
+              }
+              state[tag] = stack.indexOf(tag) >= 0;
+            }
+          } else if (token) {
+            runs.push({ text: decodeEntities(token), b: state.b, i: state.i, u: state.u });
+          }
+        });
+        return runs;
+      };
+      var mergeRuns = function(runs) {
+        const merged = [];
+        runs.forEach(function(run) {
+          const last = merged[merged.length - 1];
+          if (last && FLAGS.every((f) => last[f] === run[f])) {
+            last.text += run.text;
+          } else {
+            merged.push({ text: run.text, b: run.b, i: run.i, u: run.u });
+          }
+        });
+        return merged.filter((run) => run.text !== "");
+      };
+      var trimRuns = function(runs) {
+        const trimmed = runs.slice();
+        if (trimmed.length) {
+          trimmed[0] = Object.assign({}, trimmed[0], { text: trimmed[0].text.replace(/^\s+/, "") });
+          const lastAt = trimmed.length - 1;
+          trimmed[lastAt] = Object.assign({}, trimmed[lastAt], { text: trimmed[lastAt].text.replace(/\s+$/, "") });
+        }
+        return trimmed.filter((run) => run.text !== "");
+      };
+      var hasFormatting = function(runs) {
+        return runs.some((run) => (run.b || run.i || run.u) && run.text.trim() !== "");
+      };
+      var runsToTitle = function(runs) {
+        return mergeRuns(runs).map(function(run) {
+          let out = escapeText(run.text);
+          ["u", "i", "b"].forEach(function(tag) {
+            if (run[tag]) {
+              out = "<" + tag + ">" + out + "</" + tag + ">";
+            }
+          });
+          return out;
+        }).join("");
+      };
+      var plainText = function(title) {
+        return isRich(title) ? parseRuns(title).map((run) => run.text).join("") : String(title || "");
+      };
+      var renderInto = function(domElement, title) {
+        const doc = domElement.ownerDocument;
+        domElement.textContent = "";
+        mergeRuns(parseRuns(title)).forEach(function(run) {
+          let node = doc.createTextNode(run.text);
+          FLAGS.forEach(function(tag) {
+            if (run[tag]) {
+              const el = doc.createElement(tag);
+              el.appendChild(node);
+              node = el;
+            }
+          });
+          domElement.appendChild(node);
+        });
+      };
+      var boldish = function(style) {
+        if (!style) {
+          return false;
+        }
+        const weight = style.fontWeight || "";
+        return /^(bold|bolder)$/i.test(weight) || parseInt(weight, 10) >= 600;
+      };
+      var runsFromDom = function(rootElement) {
+        const runs = [], push = function(text, state) {
+          runs.push({ text, b: state.b, i: state.i, u: state.u });
+        }, lastChar = function() {
+          return runs.length ? runs[runs.length - 1].text.slice(-1) : "\n";
+        }, walk = function(node, state) {
+          if (node.nodeType === 3) {
+            push(node.nodeValue, state);
+            return;
+          }
+          if (node.nodeType !== 1) {
+            return;
+          }
+          const tag = node.tagName;
+          if (tag === "BR") {
+            push("\n", state);
+            return;
+          }
+          if ((tag === "DIV" || tag === "P" || tag === "LI") && lastChar() !== "\n") {
+            push("\n", state);
+          }
+          const style = node.style, next = {
+            b: state.b || tag === "B" || tag === "STRONG" || boldish(style),
+            i: state.i || tag === "I" || tag === "EM" || /italic|oblique/i.test(style && style.fontStyle || ""),
+            u: state.u || tag === "U" || /underline/i.test(style && (style.textDecorationLine || style.textDecoration) || "")
+          };
+          Array.prototype.forEach.call(node.childNodes, (child) => walk(child, next));
+        };
+        Array.prototype.forEach.call(
+          rootElement.childNodes,
+          (child) => walk(child, { b: false, i: false, u: false })
+        );
+        return runs;
+      };
+      var toggleFormat = function(title, tag) {
+        const runs = mergeRuns(parseRuns(title));
+        if (!runs.length) {
+          return title;
+        }
+        const allOn = runs.every((run) => run[tag] || run.text.trim() === "");
+        runs.forEach(function(run) {
+          run[tag] = !allOn;
+        });
+        if (runs.some((run) => run.b || run.i || run.u)) {
+          return runsToTitle(runs);
+        }
+        return runs.map((run) => run.text).join("");
+      };
+      module.exports = {
+        isRich,
+        plainText,
+        parseRuns,
+        mergeRuns,
+        trimRuns,
+        hasFormatting,
+        runsToTitle,
+        runsFromDom,
+        renderInto,
+        toggleFormat
+      };
+    }
+  });
+
   // vendor/mapjs/src/core/theme/foreground-style.js
   var require_foreground_style = __commonJS({
     "vendor/mapjs/src/core/theme/foreground-style.js"(exports, module) {
@@ -17291,18 +17469,18 @@
   var require_apply_idea_attributes_to_node_theme = __commonJS({
     "vendor/mapjs/src/core/content/apply-idea-attributes-to-node-theme.js"(exports, module) {
       var foregroundStyle = require_foreground_style();
-      module.exports = function applyIdeaAttributesToNodeTheme(idea, nodeTheme) {
+      module.exports = function applyIdeaAttributesToNodeTheme(idea, nodeTheme, colorFilter) {
         "use strict";
         if (!nodeTheme || !idea || !idea.attr || !idea.attr.style) {
           return nodeTheme;
         }
-        const isColorSetByUser = () => {
-          const setByUser = idea.attr && idea.attr.style && idea.attr.style.background;
+        const filtered = (color) => colorFilter ? colorFilter(color) : color, isColorSetByUser = () => {
+          const style = idea.attr.style, setByUser = style.background || style.backgroundColor;
           if (setByUser === "false" || setByUser === "transparent") {
             return false;
           }
-          return setByUser;
-        }, fontMultiplier = idea.attr.style.fontMultiplier, textAlign = idea.attr.style.textAlign, colorSetByUser = isColorSetByUser(), colorText = nodeTheme.borderType !== "surround";
+          return setByUser && filtered(setByUser);
+        }, userTextColor = idea.attr.style.text && idea.attr.style.text.color, fontMultiplier = idea.attr.style.fontMultiplier, textAlign = idea.attr.style.textAlign, colorSetByUser = isColorSetByUser(), colorText = nodeTheme.borderType !== "surround";
         if (colorSetByUser) {
           if (colorText) {
             nodeTheme.text.color = colorSetByUser;
@@ -17310,6 +17488,9 @@
             nodeTheme.text.color = nodeTheme.text[foregroundStyle(colorSetByUser)];
             nodeTheme.backgroundColor = colorSetByUser;
           }
+        }
+        if (userTextColor) {
+          nodeTheme.text = Object.assign({}, nodeTheme.text, { color: filtered(userTextColor) });
         }
         if (textAlign) {
           nodeTheme.text = Object.assign({}, nodeTheme.text, { alignment: textAlign });
@@ -17376,6 +17557,7 @@
       var _ = require_underscore_umd();
       var URLHelper = require_url_helper();
       var formattedNodeTitle = require_formatted_node_title();
+      var richText = require_rich_text();
       var nodeCacheMark = require_node_cache_mark();
       var applyIdeaAttributesToNodeTheme = require_apply_idea_attributes_to_node_theme();
       var calcMaxWidth = require_calc_max_width();
@@ -17445,7 +17627,7 @@
             });
           }
           element.show();
-        }, level = forcedLevel || 1, styles = nodeContent.styles || theme && theme.nodeStyles(level, nodeContent.attr) || [], nodeTheme = theme && theme.nodeTheme && applyIdeaAttributesToNodeTheme(nodeContent, theme.nodeTheme(styles)), updateTextStyle = function() {
+        }, level = forcedLevel || 1, styles = nodeContent.styles || theme && theme.nodeStyles(level, nodeContent.attr) || [], nodeTheme = theme && theme.nodeTheme && applyIdeaAttributesToNodeTheme(nodeContent, theme.nodeTheme(styles), theme.attributeColorFilter), updateTextStyle = function() {
           if (nodeTheme && nodeTheme.hasFontMultiplier) {
             self2.css({
               "font-size": nodeTheme.font.size + "pt"
@@ -17461,7 +17643,11 @@
         }, updateText = function(title) {
           const text = formattedNodeTitle(title, 25), element = textSpan(), domElement = element[0], preferredWidth = nodeContent.attr && nodeContent.attr.style && nodeContent.attr.style.width;
           let height;
-          element.text(text.trim());
+          if (richText.isRich(text)) {
+            richText.renderInto(element[0], text.trim());
+          } else {
+            element.text(text.trim());
+          }
           self2.data("title", title);
           element.css({ "max-width": "", "min-width": "" });
           if (preferredWidth) {
@@ -17729,17 +17915,23 @@
   var require_edit_node = __commonJS({
     "vendor/mapjs/src/browser/edit-node.js"() {
       var jQuery2 = require_jquery();
+      var richText = require_rich_text();
       require_inner_text();
       require_place_caret_at_end();
       require_select_all();
       require_hammer_draggable();
       jQuery2.fn.editNode = function(shouldSelectAll) {
         "use strict";
-        const node = this, textBox = this.find("[data-mapjs-role=title]"), unformattedText = this.data("title"), originalText = textBox.text();
-        if (unformattedText !== originalText) {
+        const node = this, textBox = this.find("[data-mapjs-role=title]"), unformattedText = this.data("title"), plainUnformatted = richText.plainText(unformattedText), originalText = textBox.text(), originalHtml = textBox.html();
+        if (plainUnformatted !== originalText) {
           textBox.css("word-break", "break-all");
         }
-        textBox.text(unformattedText).attr("contenteditable", true).focus();
+        if (richText.isRich(unformattedText)) {
+          richText.renderInto(textBox[0], unformattedText);
+        } else {
+          textBox.text(unformattedText);
+        }
+        textBox.attr("contenteditable", true).focus();
         if (shouldSelectAll) {
           textBox.selectAll();
         } else if (unformattedText) {
@@ -17753,7 +17945,7 @@
             textBox.removeAttr("contenteditable");
             node.shadowDraggable();
           }, finishEditing = function() {
-            const content = textBox.innerText();
+            const runs = richText.trimRuns(richText.runsFromDom(textBox[0])), content = richText.hasFormatting(runs) ? richText.runsToTitle(runs) : textBox.innerText();
             if (content === unformattedText) {
               return cancelEditing();
             }
@@ -17761,10 +17953,9 @@
             resolve(content);
           }, cancelEditing = function() {
             clear();
-            textBox.text(originalText);
-            reject();
+            textBox.html(originalHtml);
           }, keyboardEvents = function(e) {
-            const ENTER_KEY_CODE = 13, ESC_KEY_CODE = 27, TAB_KEY_CODE = 9, S_KEY_CODE = 83, Z_KEY_CODE = 90;
+            const ENTER_KEY_CODE = 13, ESC_KEY_CODE = 27, TAB_KEY_CODE = 9, S_KEY_CODE = 83, Z_KEY_CODE = 90, FORMAT_COMMANDS = { 66: "bold", 73: "italic", 85: "underline" };
             if (e.which === ENTER_KEY_CODE && !e.shiftKey) {
               finishEditing();
               e.stopPropagation();
@@ -17772,11 +17963,15 @@
               cancelEditing();
               e.preventDefault();
               e.stopPropagation();
+            } else if (FORMAT_COMMANDS[e.which] && (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey) {
+              textBox[0].ownerDocument.execCommand(FORMAT_COMMANDS[e.which], false, null);
+              e.preventDefault();
+              e.stopPropagation();
             } else if (e.which === TAB_KEY_CODE || e.which === S_KEY_CODE && (e.metaKey || e.ctrlKey) && !e.altKey) {
               finishEditing();
               e.preventDefault();
             } else if (!e.shiftKey && e.which === Z_KEY_CODE && (e.metaKey || e.ctrlKey) && !e.altKey) {
-              if (textBox.text() === unformattedText) {
+              if (textBox.text() === plainUnformatted) {
                 cancelEditing();
               }
               e.stopPropagation();
@@ -18406,7 +18601,9 @@
           });
         });
         ["nodeTitleChanged", "nodeAttrChanged", "nodeLabelChanged", "nodeMoved", "nodeRemoved", "nodeCreated", "connectorCreated", "connectorRemoved", "linkCreated", "linkRemoved", "linkAttrChanged", "connectorAttrChanged"].forEach((evt) => {
-          mapModel.addEventListener(evt, () => record(evt));
+          mapModel.addEventListener(evt, () => {
+            record(evt);
+          });
         });
       };
     }
@@ -18595,6 +18792,7 @@
         Theme: require_theme(),
         defaultTheme: require_default_theme(),
         formatNoteToHtml: require_format_note_to_html(),
+        richText: require_rich_text(),
         version: 4
       };
     }

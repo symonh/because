@@ -589,7 +589,11 @@ module.exports = function DomMapController(mapModel, stageElement, touchEnabled,
 		});
 	});
 	['nodeTitleChanged', 'nodeAttrChanged', 'nodeLabelChanged', 'nodeMoved', 'nodeRemoved', 'nodeCreated', 'connectorCreated', 'connectorRemoved', 'linkCreated', 'linkRemoved', 'linkAttrChanged', 'connectorAttrChanged'].forEach(evt => {
-		mapModel.addEventListener(evt, () => record(evt));
+		/* LOCAL PATCH: record() returns false when stats are off, and the
+		   observable treats a false return as "stop dispatching" — so every
+		   listener registered after this recorder (i.e. anything in the app
+		   layer) silently never received these twelve event types */
+		mapModel.addEventListener(evt, () => { record(evt); });
 	});
 };
 

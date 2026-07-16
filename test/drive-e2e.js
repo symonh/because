@@ -91,6 +91,12 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 	await page.goto(BASE + '/app/index.html', { waitUntil: 'networkidle0' });
 	await page.waitForSelector('.mapjs-node', { timeout: 8000 });
 
+	// dismiss the first-visit welcome modal so it never blocks clicks
+	await page.evaluate(() => {
+		const box = document.getElementById('intro-dont-show');
+		if (box) { box.checked = true; document.querySelector('.intro-start').click(); }
+	});
+
 	const clickMenu = (menu, item) => page.evaluate(([menuName, itemPrefix]) => {
 		Array.from(document.querySelectorAll('.menu-title'))
 			.find(t => t.textContent === menuName).click();

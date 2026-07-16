@@ -610,22 +610,26 @@ const DARK_COLORS = {
 };
 
 export function darkenThemeJson(json) {
-	const t = JSON.parse(JSON.stringify(json)),
-		walk = function (obj) {
+	const isWhite = v => v === '#ffffff' || v === '#fff' || v === 'white',
+		t = JSON.parse(JSON.stringify(json)),
+		// connector labels spec white boxes so they mask the line on white
+		// paper; in dark mode they must mask it in the canvas colour instead
+		walk = function (obj, inLabel) {
 			Object.keys(obj).forEach(function (key) {
-				const value = obj[key];
+				const value = obj[key],
+					nowLabel = inLabel || key === 'label';
 				if (typeof value === 'string') {
 					const mapped = DARK_COLORS[value.toLowerCase()];
 					if (mapped) { obj[key] = mapped; }
-					if (key === 'backgroundColor' && value.toLowerCase() === '#ffffff') {
-						obj[key] = '#26292d';
+					if ((key === 'backgroundColor' || key === 'borderColor') && isWhite(value.toLowerCase())) {
+						obj[key] = nowLabel ? '#1b1d20' : '#26292d';
 					}
 				} else if (value && typeof value === 'object') {
-					walk(value);
+					walk(value, nowLabel);
 				}
 			});
 		};
-	walk(t);
+	walk(t, false);
 	(t.node || []).forEach(function (n) {
 		if (n.name === 'sticky_note') {
 			// stickies stay paper, just less fluorescent, with dark ink
@@ -635,4 +639,43 @@ export function darkenThemeJson(json) {
 		}
 	});
 	return t;
+}
+
+/*
+ * Dark-mode transform for AUTHOR-set node colours (attr.style.background /
+ * .backgroundColor / .text.color), which bypass the theme JSON entirely.
+ * Same contract as darkenThemeJson: render-time only, map data untouched.
+ * Lightness is roughly inverted (light paper goes dark, dark ink goes
+ * light) with the hue kept, so a lightcoral node reads as a muted dark
+ * red rather than staying a white-on-dark sore thumb. Non-hex values are
+ * returned unchanged.
+ */
+export function darkenUserColor(color) {
+	const m = typeof color === 'string' &&
+		/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color.trim());
+	if (!m) { return color; }
+	let hex = m[1];
+	if (hex.length === 3) { hex = hex.replace(/./g, c => c + c); }
+	const r = parseInt(hex.slice(0, 2), 16) / 255,
+		g = parseInt(hex.slice(2, 4), 16) / 255,
+		b = parseInt(hex.slice(4, 6), 16) / 255,
+		max = Math.max(r, g, b),
+		min = Math.min(r, g, b),
+		l = (max + min) / 2,
+		d = max - min;
+	let h = 0, s = 0;
+	if (d > 0) {
+		s = d / (1 - Math.abs(2 * l - 1));
+		if (max === r) { h = ((g - b) / d) % 6; } else if (max === g) { h = (b - r) / d + 2; } else { h = (r - g) / d + 4; }
+		h = (h * 60 + 360) % 360;
+	}
+	const newL = 0.84 - 0.68 * l,
+		newS = Math.min(s * 0.6, 0.5),
+		c = (1 - Math.abs(2 * newL - 1)) * newS,
+		x = c * (1 - Math.abs(((h / 60) % 2) - 1)),
+		base = newL - c / 2,
+		[r2, g2, b2] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] :
+			h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x],
+		toHex = v => Math.round((v + base) * 255).toString(16).padStart(2, '0');
+	return '#' + toHex(r2) + toHex(g2) + toHex(b2);
 }

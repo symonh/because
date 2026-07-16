@@ -3,6 +3,7 @@ const jQuery = require('jquery'),
 	_ = require('underscore'),
 	URLHelper = require('../core/util/url-helper'),
 	formattedNodeTitle = require('../core/content/formatted-node-title'),
+	richText = require('../core/content/rich-text'),
 	nodeCacheMark = require('./node-cache-mark'),
 	applyIdeaAttributesToNodeTheme = require('../core/content/apply-idea-attributes-to-node-theme'),
 	calcMaxWidth = require('../core/util/calc-max-width');
@@ -90,7 +91,9 @@ jQuery.fn.updateNodeContent = function (nodeContent, theme, optional) {
 		},
 		level = forcedLevel || 1,
 		styles = nodeContent.styles || (theme && theme.nodeStyles(level, nodeContent.attr)) || [],
-		nodeTheme = theme && theme.nodeTheme && applyIdeaAttributesToNodeTheme(nodeContent, theme.nodeTheme(styles)),
+		/* LOCAL PATCH: theme.attributeColorFilter (set by the app's dark
+		   mode) darkens author-set node colours at render time */
+		nodeTheme = theme && theme.nodeTheme && applyIdeaAttributesToNodeTheme(nodeContent, theme.nodeTheme(styles), theme.attributeColorFilter),
 		updateTextStyle = function () {
 			if (nodeTheme && nodeTheme.hasFontMultiplier) {
 				self.css({
@@ -112,7 +115,14 @@ jQuery.fn.updateNodeContent = function (nodeContent, theme, optional) {
 				preferredWidth = nodeContent.attr && nodeContent.attr.style && nodeContent.attr.style.width;
 			let height;
 
-			element.text(text.trim());
+			/* LOCAL PATCH: titles carrying the canonical rich-text subset
+			   render through the whitelist parser (b/i/u elements and text
+			   nodes only); everything else keeps the plain-text path */
+			if (richText.isRich(text)) {
+				richText.renderInto(element[0], text.trim());
+			} else {
+				element.text(text.trim());
+			}
 			self.data('title', title);
 			element.css({'max-width': '', 'min-width': ''});
 			if (preferredWidth) {

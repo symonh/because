@@ -7,6 +7,9 @@
  *   T (or Alt+T)  toggle reason/objection (bracket) or implicit/explicit (claim)
  *   Alt+N  add sticky note
  *   z / Shift+z  zoom in / out
+ *   ⌘B / ⌘I / ⌘U  bold / italic / underline the selected claim's title
+ *   (inside the text editor the same keys format the text selection)
+ *   ⌘⇧. / ⌘⇧,  bigger / smaller claim text (attr.style.fontMultiplier)
  *   ⌘Z / ⌘⇧Z  undo / redo — mapjs never bound these (undo lived in the
  *   MindMup app layer); unconsumed ⌘Z reaches Safari's own Edit > Undo,
  *   whose top item is often "Undo Close Tab" — it reopened tabs mid-edit
@@ -31,6 +34,19 @@ export function bindShortcuts(engine, commands) {
 			command = e.shiftKey ? commands.redo : commands.undo;
 		} else if (mod && !e.shiftKey && e.code === 'KeyY') {
 			command = commands.redo;
+		} else if (mod && !e.shiftKey && e.code === 'KeyB') {
+			// on a selected node these format the whole title; while editing
+			// they never reach here (contenteditable guard above) and the
+			// text editor applies them to the selection instead
+			command = commands.toggleBold;
+		} else if (mod && !e.shiftKey && e.code === 'KeyI') {
+			command = commands.toggleItalic;
+		} else if (mod && !e.shiftKey && e.code === 'KeyU') {
+			command = commands.toggleUnderline;
+		} else if (mod && e.shiftKey && e.code === 'Period') {
+			command = commands.fontBigger;
+		} else if (mod && e.shiftKey && e.code === 'Comma') {
+			command = commands.fontSmaller;
 		} else if (bare && e.key === 'Enter') {
 			command = commands.addReason;
 		} else if (bare && e.key === 'Tab') {

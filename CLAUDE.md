@@ -31,8 +31,9 @@ OAuth setup.
   legacy id from the old app name — plus a GCS mirror). Public URL:
   https://app.philmaps.com.
 - Tests: serve the repo root on port 8871, then run `node app-e2e.js`,
-  `node click-select-e2e.js`, `node drive-e2e.js` from `test/`. All must
-  pass before deploying.
+  `node click-select-e2e.js`, `node drive-e2e.js`, `node features-e2e.js`,
+  and `node webkit-e2e.js` (Playwright WebKit — the Safari rule) from
+  `test/`. All must pass before deploying.
 
 ## Engine background
 

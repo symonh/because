@@ -56,6 +56,31 @@ Console task (about two minutes, signed in as sc@simoncullen.org):
 4. Paste the client ID into `clientId` in `app/js/config.js` and run
    `./deploy.sh` — or just give the ID to Claude.
 
+## Branding verification retry (2026-07-16)
+
+Google's first branding verification failed with three findings; all
+three traced to `https://app.philmaps.com/` answering with a **302
+redirect to /app/**, whose HTML is a JavaScript shell with no crawlable
+text — Google's checker reads that as a gated/empty page:
+
+- "Your home page is behind a login page" — it never was; the checker
+  saw the redirect + contentless HTML.
+- "Your home page does not explain the purpose of your app."
+- App-name mismatch — no visible "Because" on the crawled page.
+
+Fixed in the repo: the `/` → `/app/` redirect is gone from
+`firebase.json`, and `site/index.html` now serves a static landing page
+at `https://app.philmaps.com/` that names **Because**, explains argument
+visualization (language adapted from philmaps.com), and links to the
+editor (`/app/`), `/privacy`, and `/terms`. The app itself also shows a
+first-visit welcome modal (Help > Welcome to Because) stating name and
+purpose.
+
+To retry: deploy, confirm `https://app.philmaps.com/` returns the
+landing page with HTTP 200 (`curl -sI https://app.philmaps.com/`), keep
+the consent-screen home page set to `https://app.philmaps.com`, and
+resubmit branding verification from the Branding page.
+
 ## What instructors get once the ID is in
 
 - **File → Open from Google Drive…** — Google sign-in (first time only),

@@ -33,6 +33,54 @@ Firebase site; argumentbase.web.app serves identically).
   in docs/drive-setup.md. Until then the menu items show setup info and
   everything local keeps working. Stubbed-boundary e2e: test/drive-e2e.js.
 
+## 2026-07-16 late evening
+
+- Topbar light/dark switcher (sun/moon button right of the save status);
+  same state as View > Dark mode, persists as before.
+- Rich text in claims: ⌘B/⌘I/⌘U toggle the whole selected claim, and
+  format the text selection inside the editor (execCommand, normalised
+  on commit); titles store a canonical minimal subset (<b>/<i>/<u>,
+  entities escaped) so plain titles round-trip byte-identically.
+  ⌘⇧. / ⌘⇧, step attr.style.fontMultiplier (the .mup-native per-node
+  size). New vendor module src/core/content/rich-text.js, exported as
+  MAPJS.richText.
+- Right-click a node → style popover: background swatches (the palette
+  Simon's maps already use) + custom colour, A−/A+, B/I/U. Writes
+  attr.style.background; one undo step per change.
+- Click a connector → MindMup-style Stronger/Weaker popover
+  (attr.parentConnector.width, default 3, clamp 1–10) with an Edit-label
+  tile; click a label (or double-click any connector, labelled or not)
+  to edit its text. Root cause of "clicking labels does nothing": mapjs
+  only fired lineLabelClicked on the SVG text glyphs, and an UPSTREAM
+  BUG in DomMapController's stats recorder returned false from its
+  listener, which the observable treats as "stop dispatching" — so app
+  listeners registered after the controller never got connectorCreated
+  & co. (patched; see LOCAL-PATCHES.diff).
+- Dark mode fidelity on hand-coloured maps (80101-solution-rachels-foot):
+  author-set attr.style.background / legacy backgroundColor /
+  text.color now pass through darkenUserColor (hue-preserving lightness
+  flip) at render time; legacy backgroundColor is now honoured in light
+  mode too; connector-label masks follow the canvas colour instead of
+  staying white. Map data stays byte-identical (features-e2e asserts).
+- Connector labels ("but…") on busy levels sat left of their curves
+  (solution-huemer-guns): aboveEnd labels now centre on the actual curve
+  at label height (binary search on the path) instead of a fixed-ratio
+  interpolation between node centres.
+- Loading overlay for huge maps: engine.loadMap defers layout two
+  animation frames behind an "Opening map…" spinner, ≥100 nodes only
+  (a 68-node map lays out in ~140ms, so typical course maps never see
+  it). mapLoaded now fires synchronously inside loadMap (drive.js file
+  marker depends on that ordering).
+- Google branding retry prep: / no longer 302s to /app/ —
+  site/index.html is a static landing page (name, purpose, links to
+  editor/privacy/terms), fixing all three verification findings
+  (details in docs/drive-setup.md). First-visit welcome modal in the
+  app ("Don't show this again"; Help > Welcome to Because reopens it).
+- New test/features-e2e.js covers all of the above; webkit-e2e.js
+  additionally drives rich text + right-click styling in real WebKit.
+  All five suites pass. NOT yet deployed/committed at the time of this
+  entry — deploy + commit follow.
+
 ## 2026-07-16 evening
 
 - Cmd+Z/Cmd+Shift+Z bound (mapjs never had undo keys — Safari was

@@ -5,9 +5,15 @@ import { makeFileIO } from './file-io.js';
 import { makeDrive } from './drive.js';
 import { makeDarkMode } from './dark-mode.js';
 import { makeLabelEdit } from './label-edit.js';
+import { makeNodeStyle } from './node-style.js';
+import { makeLoading } from './loading.js';
+import { makeIntro } from './intro.js';
 import { buildToolbar } from './toolbar.js';
 import { buildMenus } from './menus.js';
 import { bindShortcuts } from './shortcuts.js';
+
+const SUN_ICON = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.4"/><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5.3 5.3l1.7 1.7M17 17l1.7 1.7M18.7 5.3L17 7M7 17l-1.7 1.7"/></svg>',
+	MOON_ICON = '<svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M20.6 14.6A8.6 8.6 0 019.4 3.4a8.6 8.6 0 1011.2 11.2z"/></svg>';
 
 const status = {
 	el: null,
@@ -26,14 +32,34 @@ document.addEventListener('DOMContentLoaded', function () {
 		io = makeFileIO(engine, status),
 		drive = makeDrive(engine, io, status),
 		darkMode = makeDarkMode(engine),
-		labelEdit = makeLabelEdit(engine);
+		labelEdit = makeLabelEdit(engine),
+		nodeStyle = makeNodeStyle(engine, commands),
+		loading = makeLoading(),
+		intro = makeIntro();
 
 	buildToolbar(document.getElementById('toolbar'), commands, io);
-	buildMenus(document.getElementById('menubar'), commands, io, engine, drive, darkMode, labelEdit);
+	buildMenus(document.getElementById('menubar'), commands, io, engine, drive, darkMode, labelEdit, nodeStyle, intro);
 	bindShortcuts(engine, commands);
 
+	// top-right light/dark switcher; the View menu toggles the same state
+	const themeToggle = document.getElementById('theme-toggle'),
+		refreshThemeToggle = function () {
+			const dark = darkMode.isDark(),
+				label = dark ? 'Switch to light mode' : 'Switch to dark mode';
+			themeToggle.innerHTML = dark ? SUN_ICON : MOON_ICON;
+			themeToggle.title = label;
+			themeToggle.setAttribute('aria-label', label);
+		};
+	themeToggle.addEventListener('click', () => darkMode.toggle());
+	darkMode.onChange(refreshThemeToggle);
+	refreshThemeToggle();
+
+	// large maps lay out for seconds; engine defers so this can paint
+	engine.on('loadStarted', () => loading.show('Opening map…'));
+	engine.on('loadFinished', () => loading.hide());
+
 	// dev/test handle
-	window.__because = { engine, commands, io, drive, darkMode, labelEdit };
+	window.__because = { engine, commands, io, drive, darkMode, labelEdit, nodeStyle, intro };
 
 	// every model change marks the map unsaved (relative to its file) and
 	// refreshes the crash-recovery autosave; only File > Save clears it

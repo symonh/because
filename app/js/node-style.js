@@ -1,0 +1,141 @@
+/*global document, window*/
+/*
+ * Right-click node formatting popover: background colour swatches, text
+ * size steppers and bold/italic/underline for the selected claim(s).
+ * The popover is chrome; what it writes (attr.style.background,
+ * attr.style.fontMultiplier, title formatting) is map data — undoable
+ * and serialized, exactly the attributes MindMup maps already carry.
+ *
+ * mapjs already routes right-clicks: the DomMapController selects the
+ * node and calls mapModel.requestContextMenu, which dispatches
+ * contextMenuRequested(nodeId, pageX, pageY) and suppresses the browser
+ * menu. This module is the listener MindMup's closed app layer used to be.
+ */
+
+const SWATCHES = [
+	['None', false],
+	['White', '#ffffff'],
+	['Grey', '#d3d3d3'],
+	['Cyan', '#e0ffff'],
+	['Lemon', '#fafad2'],
+	['Coral', '#f08080'],
+	['Mint', '#c9e7c9'],
+	['Sky', '#cfe6f5']
+];
+
+export function makeNodeStyle(engine, commands) {
+	const mapModel = engine.mapModel;
+	let popover = null;
+
+	const close = function () {
+			if (popover) { popover.remove(); popover = null; }
+		},
+		selectedNode = function () {
+			return mapModel.findIdeaById(mapModel.getSelectedNodeId());
+		},
+		currentBackground = function () {
+			const node = selectedNode(),
+				style = (node && node.attr && node.attr.style) || {};
+			return style.background || style.backgroundColor || false;
+		},
+		setBackground = function (color) {
+			const content = mapModel.getIdea();
+			if (!content) { return; }
+			// one undo step: write the modern key, drop the legacy one
+			content.batch(function () {
+				mapModel.updateStyle('ui', 'background', color);
+				mapModel.updateStyle('ui', 'backgroundColor', false);
+			});
+		},
+		addButton = function (parent, className, title, html, onClick) {
+			const b = document.createElement('button');
+			b.type = 'button';
+			b.className = className;
+			b.title = title;
+			b.innerHTML = html;
+			b.addEventListener('click', onClick);
+			parent.appendChild(b);
+			return b;
+		},
+		refreshSwatches = function () {
+			if (!popover) { return; }
+			const current = String(currentBackground() || '').toLowerCase();
+			popover.querySelectorAll('.ns-swatch').forEach(function (el) {
+				el.classList.toggle('current', (el.dataset.color || '') === current);
+			});
+		},
+		show = function (x, y) {
+			close();
+			const node = selectedNode();
+			if (!node) { return; }
+			popover = document.createElement('div');
+			popover.className = 'node-style-popover';
+			// clicks inside must not bubble to the close-on-click-away handler
+			popover.addEventListener('mousedown', e => e.stopPropagation());
+			popover.addEventListener('click', e => e.stopPropagation());
+
+			const swatchRow = document.createElement('div');
+			swatchRow.className = 'ns-row ns-swatches';
+			SWATCHES.forEach(function ([name, color]) {
+				const b = addButton(swatchRow, 'ns-swatch' + (color ? '' : ' ns-none'), name, '', function () {
+					setBackground(color);
+					refreshSwatches();
+				});
+				if (color) {
+					b.style.background = color;
+					b.dataset.color = color;
+				}
+			});
+			const customInput = document.createElement('input');
+			customInput.type = 'color';
+			customInput.className = 'ns-custom';
+			customInput.title = 'Custom colour…';
+			customInput.value = /^#[0-9a-f]{6}$/i.test(currentBackground() || '') ? currentBackground() : '#fafad2';
+			customInput.addEventListener('input', function () {
+				setBackground(customInput.value);
+				refreshSwatches();
+			});
+			swatchRow.appendChild(customInput);
+
+			const textRow = document.createElement('div');
+			textRow.className = 'ns-row ns-text';
+			addButton(textRow, 'ns-btn', 'Smaller text (⌘⇧,)', 'A<small>−</small>', commands.fontSmaller);
+			addButton(textRow, 'ns-btn', 'Bigger text (⌘⇧.)', 'A<small>+</small>', commands.fontBigger);
+			const sep = document.createElement('span');
+			sep.className = 'ns-sep';
+			textRow.appendChild(sep);
+			addButton(textRow, 'ns-btn ns-b', 'Bold (⌘B)', 'B', commands.toggleBold);
+			addButton(textRow, 'ns-btn ns-i', 'Italic (⌘I)', 'I', commands.toggleItalic);
+			addButton(textRow, 'ns-btn ns-u', 'Underline (⌘U)', 'U', commands.toggleUnderline);
+
+			popover.append(swatchRow, textRow);
+			document.body.appendChild(popover);
+			refreshSwatches();
+
+			const rect = popover.getBoundingClientRect();
+			popover.style.left = Math.max(6, Math.min(x, window.innerWidth - rect.width - 6)) + 'px';
+			popover.style.top = Math.max(6, Math.min(y, window.innerHeight - rect.height - 6)) + 'px';
+		};
+
+	mapModel.addEventListener('contextMenuRequested', function (nodeId, x, y) {
+		show(x, y);
+	});
+	document.addEventListener('mousedown', function (e) {
+		if (popover && !popover.contains(e.target)) { close(); }
+	});
+	document.addEventListener('keydown', function (e) {
+		if (e.key === 'Escape') { close(); }
+	});
+
+	return {
+		close,
+		// menu entry path: anchor the popover to the selected node
+		openForSelection() {
+			const id = mapModel.getSelectedNodeId(),
+				el = id && document.getElementById(('node_' + id).replace(/[^A-Za-z0-9_-]/g, '_'));
+			if (!el) { return; }
+			const rect = el.getBoundingClientRect();
+			show(rect.left, rect.bottom + 6);
+		}
+	};
+}

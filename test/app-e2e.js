@@ -29,6 +29,14 @@ function ok(cond, name) {
 
 	ok(await page.evaluate(() => !document.body.classList.contains('dark')),
 		'first visit opens light even when the OS prefers dark');
+
+	// first visit shows the welcome modal; "don't show again" persists
+	ok(await page.$('.intro-panel') !== null, 'first visit shows the welcome modal');
+	await page.evaluate(() => {
+		document.getElementById('intro-dont-show').checked = true;
+		document.querySelector('.intro-start').click();
+	});
+	ok(await page.$('.intro-panel') === null, 'welcome modal closes on Get started');
 	ok(await page.$('#toolbar .tb-btn') !== null, 'toolbar renders');
 	ok(await page.$$eval('.menu-title', els => els.length) === 6, 'six menus render');
 	ok(await page.$$eval('.mapjs-node', els => els.length) === 1, 'new map has a single conclusion');

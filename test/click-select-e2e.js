@@ -17,6 +17,12 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 	await page.goto(BASE + '/app/index.html', { waitUntil: 'networkidle0' });
 	await page.waitForSelector('.mapjs-node');
 
+	// dismiss the first-visit welcome modal so it never blocks clicks
+	await page.evaluate(() => {
+		const box = document.getElementById('intro-dont-show');
+		if (box) { box.checked = true; document.querySelector('.intro-start').click(); }
+	});
+
 	await page.evaluate(() => {
 		window.__because.engine.loadMap({ formatVersion: 3, id: 1, title: 'root', ideas: {
 			1: { id: 11, title: 'group', attr: { group: 'supporting', contentLocked: true }, ideas: {

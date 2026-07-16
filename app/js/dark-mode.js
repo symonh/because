@@ -6,21 +6,26 @@
  * First visit is always light; the user's choice persists after that,
  * and printing is always light.
  */
-import { darkenThemeJson } from './themes.js';
+import { darkenThemeJson, darkenUserColor } from './themes.js';
 
 const KEY = 'because.darkmode',
 	LEGACY_KEY = 'argumentbase.darkmode';
 
 export function makeDarkMode(engine) {
 	let dark = false;
+	const listeners = [];
 
 	const applyView = function (asDark) {
 			document.body.classList.toggle('dark', asDark);
-			engine.setThemeFilter(asDark ? darkenThemeJson : null);
+			// darkenUserColor covers per-node author colours (attr.style.*),
+			// which live outside the theme JSON the main filter transforms
+			engine.setThemeFilter(asDark ? darkenThemeJson : null,
+				asDark ? darkenUserColor : null);
 		},
 		apply = function () {
 			applyView(dark);
 			try { localStorage.setItem(KEY, dark ? '1' : '0'); } catch (e) { /* private mode */ }
+			listeners.forEach(fn => fn(dark));
 		};
 
 	let stored = null;
@@ -36,6 +41,7 @@ export function makeDarkMode(engine) {
 
 	return {
 		isDark: () => dark,
+		onChange(fn) { listeners.push(fn); },
 		toggle() {
 			dark = !dark;
 			apply();

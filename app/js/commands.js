@@ -1,3 +1,4 @@
+/*global window*/
 /*
  * Argument-mapping commands over the raw mapModel. Every UI surface
  * (toolbar, menus, shortcuts) goes through these, so the argument grammar
@@ -5,7 +6,10 @@
  * co-premises, never bare mind-map children — except sticky notes.
  */
 
-const SOURCE = 'ui';
+const SOURCE = 'ui',
+	FONT_STEP = 1.2,
+	FONT_MIN = 0.4,
+	FONT_MAX = 4;
 
 export function makeCommands(engine) {
 	const mapModel = engine.mapModel,
@@ -14,6 +18,24 @@ export function makeCommands(engine) {
 		selectedIdea = () => mapModel.findIdeaById(selectedId()),
 		findParent = id => idea() && idea().findParent(id),
 		isGroup = n => n && n.attr && n.attr.group,
+		// whole-title formatting for a selected node (while editing, the
+		// text editor applies these to the text selection instead)
+		toggleTitleFormat = function (tag) {
+			const node = selectedIdea();
+			if (!node || isGroup(node) || !node.title) { return; }
+			const newTitle = window.MAPJS.richText.toggleFormat(node.title, tag);
+			if (newTitle !== node.title) { mapModel.updateTitle(node.id, newTitle); }
+		},
+		stepFontSize = function (factor) {
+			const node = selectedIdea();
+			if (!node || isGroup(node)) { return; }
+			const current = (node.attr && node.attr.style && node.attr.style.fontMultiplier) || 1;
+			let next = Math.round(current * factor * 100) / 100;
+			next = Math.min(FONT_MAX, Math.max(FONT_MIN, next));
+			// fontMultiplier is the .mup-native per-node size (MindMup wrote
+			// it too); ~1 means default, so drop the attribute entirely
+			mapModel.updateStyle(SOURCE, 'fontMultiplier', Math.abs(next - 1) <= 0.01 ? false : next);
+		},
 		styleNamesOf = n => (n && n.attr && Array.isArray(n.attr.styleNames)) ? n.attr.styleNames.slice() : [],
 		setStyleNames = (id, names) => idea().updateAttr(id, 'styleNames', names.length ? names : false),
 		toggleStyleName = function (id, name) {
@@ -80,6 +102,11 @@ export function makeCommands(engine) {
 			}
 			setStyleNames(node.id, names);
 		},
+		toggleBold() { toggleTitleFormat('b'); },
+		toggleItalic() { toggleTitleFormat('i'); },
+		toggleUnderline() { toggleTitleFormat('u'); },
+		fontBigger() { stepFontSize(FONT_STEP); },
+		fontSmaller() { stepFontSize(1 / FONT_STEP); },
 		toggleCollapse() { mapModel.toggleCollapse(SOURCE); },
 		zoomIn() { mapModel.scaleUp(SOURCE); },
 		zoomOut() { mapModel.scaleDown(SOURCE); },

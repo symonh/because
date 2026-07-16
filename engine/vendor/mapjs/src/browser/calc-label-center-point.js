@@ -11,10 +11,34 @@ module.exports = function calcLabelCenterPoint(connectionPosition, fromBox, toBo
 	if (labelPosition.aboveEnd) {
 		const middleToBox = toBox.left + (toBox.width / 2) - connectionPosition.left,
 			middleFromBox = fromBox.left + (fromBox.width / 2) - connectionPosition.left,
-			multiplier = labelPosition.ratio || 1;
+			multiplier = labelPosition.ratio || 1,
+			y = toBox.top - connectionPosition.top - labelPosition.aboveEnd,
+			path = pathElement[0],
+			total = path.getTotalLength ? path.getTotalLength() : 0;
+		/* LOCAL PATCH: the linear interpolation between the two node centres
+		   drifts away from the curve when nodes fan far horizontally (a
+		   busy level put "but…" labels well left of their connectors), so
+		   place the label on the actual curve at the label's height. The
+		   S-curve is monotonic in y for top-down layouts; anything else
+		   falls back to the historical interpolation. */
+		if (total > 0) {
+			const start = path.getPointAtLength(0),
+				end = path.getPointAtLength(total);
+			if (start.y < end.y && y > start.y && y < end.y) {
+				let lo = 0, hi = total;
+				for (let i = 0; i < 20; i++) {
+					const mid = (lo + hi) / 2;
+					if (path.getPointAtLength(mid).y < y) { lo = mid; } else { hi = mid; }
+				}
+				return {
+					x: Math.round(path.getPointAtLength((lo + hi) / 2).x),
+					y: y
+				};
+			}
+		}
 		return {
 			x: Math.round(middleFromBox + multiplier * (middleToBox - middleFromBox)),
-			y: toBox.top - connectionPosition.top - labelPosition.aboveEnd
+			y: y
 		};
 	} else if (labelPosition.ratio) {
 		return pathElement[0].getPointAtLength(pathElement[0].getTotalLength() * labelTheme.position.ratio);
