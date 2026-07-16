@@ -74,7 +74,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 		await dismissEditor();
 		{ const c = await nNodes(); ok('add objection -> 4 nodes', c === 4, 'got ' + c); }
 		ok('opposing group exists', await AB(() => Object.values(window.ArgumentBase.doc.ideas['1'].ideas).some(g => g.attr && g.attr.group === 'opposing')));
-		ok('opposing bracket renders red', await AB(() => Array.from(document.querySelectorAll('path')).some(p => (p.getAttribute('stroke') || '').toLowerCase() === '#d1483a')));
+		ok('opposing bracket renders red', await AB(() => Array.from(document.querySelectorAll('path')).some(p => (p.getAttribute('stroke') || '').toLowerCase() === '#cc4636')));
 
 		// 6. Implicit toggle
 		const objId = await AB(() => { const g = Object.values(window.ArgumentBase.doc.ideas['1'].ideas).find(x => x.attr && x.attr.group === 'opposing'); return Object.values(g.ideas)[0].id; });
@@ -82,7 +82,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 		await page.click('#btnImplicit');
 		await sleep(150);
 		ok('implicit on: styleNames set', await AB(id => { const n = window.ArgumentBase.findNode(id); return n.attr.styleNames && n.attr.styleNames.includes('attr_implicit_claim'); }, objId));
-		ok('implicit renders dotted blue', await AB(id => { const r = document.querySelector('.node[data-id="' + id + '"] rect'); return r && r.getAttribute('stroke') === '#22AAE0' && !!r.getAttribute('stroke-dasharray'); }, objId));
+		ok('implicit renders dotted border', await AB(id => { const r = document.querySelector('.node[data-id="' + id + '"] rect'); return r && r.getAttribute('stroke') === '#8b98a3' && !!r.getAttribute('stroke-dasharray'); }, objId));
 		await page.click('#btnImplicit');
 		await sleep(150);
 		ok('implicit off', await AB(id => { const n = window.ArgumentBase.findNode(id); return !n.attr.styleNames || !n.attr.styleNames.includes('attr_implicit_claim'); }, objId));

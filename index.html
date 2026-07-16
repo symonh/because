@@ -60,6 +60,7 @@
 		<button class="tb" id="btnZoomIn">+</button>
 		<button class="tb" id="btnZoomOut">−</button>
 		<button class="tb" id="btnFit">Fit</button>
+		<button class="tb" id="btnNumbers" title="Show / hide premise numbers">1.1</button>
 		<span class="maptitle" id="mapTitle"></span>
 	</div>
 	<div id="stage">
@@ -92,11 +93,13 @@
 
 	let doc = null;
 	let selectedId = null;
+	let showNumbers = true;
 	let undoStack = [], redoStack = [];
 	let view = { x: 40, y: 20, scale: 1 };
 
 	const controller = {
 		get selectedId() { return selectedId; },
+		get showNumbers() { return showNumbers; },
 		select(id) { selectedId = id; rerender(); },
 		editNode(id) { startEdit(id); }
 	};
@@ -350,6 +353,7 @@
 	document.getElementById('btnZoomIn').onclick = () => zoom(1.2);
 	document.getElementById('btnZoomOut').onclick = () => zoom(0.83);
 	document.getElementById('btnFit').onclick = fit;
+	document.getElementById('btnNumbers').onclick = () => { showNumbers = !showNumbers; rerender(); };
 
 	// keyboard
 	window.addEventListener('keydown', e => {

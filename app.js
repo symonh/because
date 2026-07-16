@@ -1,11 +1,11 @@
 /* ArgumentBase — a standalone argument-map editor.
  *
  * Reads and writes the MindMup `.mup` format (formatVersion 3) natively, and
- * renders argument maps in the "How We Argue" / MindMup argument-visualization
- * style: a claim at the top, supporting (green) and opposing (red) reason
- * groups joined by brackets, co-premises sharing a bracket, implicit premises
- * drawn with a dotted blue border, yellow sticky-note annotations, and numbered
- * badges computed on the fly.
+ * renders argument maps in the MindMup argument-visualization style: a claim at
+ * the top; supporting (green) and opposing (red) reason groups joined by
+ * brackets; co-premises sharing one bracket; implicit premises with a dotted
+ * border; yellow sticky-note annotations; and numbered badges computed on the
+ * fly. Layout is a tidy top-down tree (each parent centered over its children).
  *
  * No build step, no dependencies, no network. Everything is in this file.
  */
@@ -17,292 +17,313 @@
 	const STYLE_IMPLICIT = 'attr_implicit_claim';
 	const STYLE_STICKY = 'sticky_note';
 
-	// ---- layout constants --------------------------------------------------
-	const PAD_X = 12, PAD_Y = 9;          // node text padding
-	const LINE_H = 19;                     // text line height
-	const FONT = '14px "Helvetica Neue", Arial, sans-serif';
-	const FONT_CLAIM = '15px "Helvetica Neue", Arial, sans-serif';
-	const MIN_W = 90, MAX_W = 240;         // auto width clamp (px, content box)
-	const V_GAP = 74;                      // parent bottom -> premise top
-	const BRACKET_RISE = 26;               // premise top -> bracket line
-	const PREM_GAP = 18;                   // gap between co-premises
-	const GROUP_GAP = 44;                  // gap between groups under one node
+	// ---- layout constants (tuned to MindMup's argument-mapping theme) ------
+	const PAD_X = 14, PAD_Y = 11;
+	const FONT_SIZE = 15, LINE_H = 21;
+	const FONT_FAMILY = '"Helvetica Neue", Arial, sans-serif';
+	const STICKY_FAMILY = '"Segoe Print","Bradley Hand","Comic Sans MS",cursive';
+	const MIN_W = 76, MAX_W = 168;         // auto content-width clamp (px)
+	const V_GAP = 82;                      // parent bottom -> child top
+	const BRACKET_RISE = 24;               // premise top -> bracket bar
+	const CHILD_GAP = 20;                  // gap between co-premises within a group
+	const GROUP_GAP = 74;                  // gap between separate groups under a node
 	const CORNER = 6;
+	const GREEN = '#3c9a55', RED = '#cc4636', BLUE = '#22AAE0';
+	const BORDER = '#a6acb0', TEXT = '#42474b', SELECT = '#f5a623';
+	const IMPLICIT_STROKE = '#8b98a3';
 
 	// ---- text measurement --------------------------------------------------
-	const _canvas = document.createElement('canvas');
-	const _ctx = _canvas.getContext('2d');
+	const _ctx = document.createElement('canvas').getContext('2d');
 	function wrapText(text, maxW, font) {
 		_ctx.font = font;
-		const words = String(text == null ? '' : text).split(/\s+/);
+		const raw = String(text == null ? '' : text);
+		const paras = raw.split('\n');
 		const lines = [];
-		let line = '';
-		for (const w of words) {
-			const test = line ? line + ' ' + w : w;
-			if (_ctx.measureText(test).width > maxW && line) {
-				lines.push(line);
-				line = w;
-			} else {
-				line = test;
+		for (const para of paras) {
+			const words = para.split(/\s+/).filter(Boolean);
+			if (!words.length) { lines.push(''); continue; }
+			let line = '';
+			for (const w of words) {
+				const test = line ? line + ' ' + w : w;
+				if (_ctx.measureText(test).width > maxW && line) { lines.push(line); line = w; }
+				else line = test;
 			}
+			if (line) lines.push(line);
 		}
-		if (line) lines.push(line);
 		if (!lines.length) lines.push('');
 		let width = 0;
 		for (const l of lines) width = Math.max(width, _ctx.measureText(l).width);
 		return { lines, width };
 	}
 
-	// ---- model normalization ----------------------------------------------
-	function attrOf(node) { return node.attr || (node.attr = {}); }
-	function styleNames(node) {
-		const sn = attrOf(node).styleNames;
-		return Array.isArray(sn) ? sn : [];
-	}
-	function isGroup(node) {
-		const g = attrOf(node).group;
-		return g === SUPPORTING || g === OPPOSING;
-	}
+	// ---- model helpers -----------------------------------------------------
+	function attrOf(node) { return (node && node.attr) || (node ? (node.attr = {}) : {}); }
+	function styleNames(node) { const sn = attrOf(node).styleNames; return Array.isArray(sn) ? sn : []; }
+	function isGroup(node) { const g = attrOf(node).group; return g === SUPPORTING || g === OPPOSING; }
 	function isSticky(node) { return styleNames(node).indexOf(STYLE_STICKY) >= 0; }
 	function isImplicit(node) { return styleNames(node).indexOf(STYLE_IMPLICIT) >= 0; }
-
+	function isCollapsed(node) { return attrOf(node).collapsed === true; }
 	function childrenOf(node) {
-		const ideas = node.ideas || {};
+		const ideas = (node && node.ideas) || {};
 		return Object.keys(ideas)
 			.map(k => ({ rank: parseFloat(k), node: ideas[k] }))
 			.sort((a, b) => a.rank - b.rank)
 			.map(x => x.node);
 	}
 
-	// Build a render tree from a content node. Content nodes hold group nodes;
-	// group nodes hold premise (content) nodes + stickies. Stray sticky/content
-	// children directly under a content node are attached as loose annotations.
+	// Build a render tree. A content node holds group nodes; each group holds
+	// premise (content) nodes + stickies. Bare content/sticky children are kept
+	// as loose annotations. Collapsed nodes keep their subtree data but are
+	// flagged so layout can hide it.
 	function build(node, depth) {
-		const kids = childrenOf(node);
-		const groups = [];
-		const stickies = [];
-		for (const k of kids) {
+		const rt = { raw: node, title: node.title, depth: depth,
+			groups: [], stickies: [], implicit: isImplicit(node), sticky: isSticky(node),
+			collapsed: isCollapsed(node) };
+		if (rt.collapsed) return rt;
+		for (const k of childrenOf(node)) {
 			if (isGroup(k)) {
-				const premises = [];
-				const gstickies = [];
+				const g = { raw: k, type: attrOf(k).group, premises: [], stickies: [] };
 				for (const p of childrenOf(k)) {
-					if (isSticky(p)) gstickies.push({ raw: p, title: p.title });
-					else premises.push(build(p, depth + 1));
+					if (isSticky(p)) g.stickies.push(build(p, depth + 1));
+					else g.premises.push(build(p, depth + 1));
 				}
-				groups.push({ raw: k, type: attrOf(k).group, premises, stickies: gstickies });
+				rt.groups.push(g);
 			} else if (isSticky(k)) {
-				stickies.push({ raw: k, title: k.title });
+				rt.stickies.push(build(k, depth + 1));
 			} else {
-				// a bare content child (rare) — treat as an implicit single-node group
-				groups.push({ raw: null, type: SUPPORTING, premises: [build(k, depth + 1)], stickies: [] });
+				rt.groups.push({ raw: null, type: SUPPORTING, premises: [build(k, depth + 1)], stickies: [] });
 			}
 		}
-		return { raw: node, title: node.title, depth, groups, stickies, implicit: isImplicit(node), sticky: isSticky(node) };
+		return rt;
 	}
 
-	// ---- measure + layout --------------------------------------------------
+	// ---- measure -----------------------------------------------------------
 	function measure(rt) {
-		const font = rt.depth === 0 ? FONT_CLAIM : FONT;
 		const st = attrOf(rt.raw).style || {};
-		const targetW = st.width ? Math.max(40, st.width - PAD_X * 2) : MAX_W;
-		const { lines, width } = wrapText(rt.title, targetW, font);
-		rt.lines = lines;
-		rt.w = Math.min(Math.max(width, MIN_W), st.width ? st.width : MAX_W) + PAD_X * 2;
-		if (st.width) rt.w = st.width;
-		rt.h = lines.length * LINE_H + PAD_Y * 2;
+		if (rt.sticky) {
+			const tw = st.width ? Math.max(60, st.width - 20) : 165;
+			const m = wrapText(rt.title, tw, FONT_SIZE + 'px ' + STICKY_FAMILY);
+			rt.lines = m.lines;
+			rt.w = st.width || Math.min(Math.max(m.width, 60), 210) + 20;
+			rt.h = m.lines.length * 20 + 16;
+			return rt;
+		}
+		const mult = st.fontMultiplier || 1;
+		rt.fontSize = FONT_SIZE * mult;
+		const lh = LINE_H * mult;
+		const fam = st.fontFamily ? styleFont(st.fontFamily) : FONT_FAMILY;
+		rt.fontFamily = fam;
+		const target = st.width ? Math.max(40, st.width - PAD_X * 2) : MAX_W * mult;
+		const m = wrapText(rt.title, target, rt.fontSize + 'px ' + fam);
+		rt.lines = m.lines;
+		rt.w = st.width || Math.min(Math.max(m.width, MIN_W), MAX_W * mult) + PAD_X * 2;
+		rt.lineH = lh;
+		rt.h = m.lines.length * lh + PAD_Y * 2;
 		return rt;
 	}
-
-	function groupWidth(g) {
-		let w = 0;
-		g.premises.forEach((p, i) => { w += p.subtreeW + (i ? PREM_GAP : 0); });
-		// stickies laid out to the right of the premises in-flow
-		g.stickies.forEach(s => { w += PREM_GAP + stickyW(s); });
-		return Math.max(w, 40);
-	}
-	function stickyW(s) {
-		const { lines, width } = wrapText(s.title, 150, '14px "Segoe Print","Bradley Hand",cursive');
-		s.lines = lines; s.w = width + 20; s.h = lines.length * 18 + 16;
-		return s.w;
+	function styleFont(fam) {
+		if (/marker/i.test(fam)) return STICKY_FAMILY;
+		if (/serif/i.test(fam)) return 'Georgia, "Times New Roman", serif';
+		return FONT_FAMILY;
 	}
 
-	function layout(rt) {
+	// direct layout children = all premises (bracketed) + stickies (loose), in
+	// order. Mark the first premise of each group (after the first) so layout can
+	// insert a wider gap that visually separates one bracket/group from the next.
+	function layoutChildren(rt) {
+		const kids = [];
+		rt.groups.forEach((g, gi) => {
+			g.premises.forEach((p, pi) => { p._newGroup = (pi === 0 && kids.length > 0); kids.push(p); });
+			for (const s of g.stickies) { s._newGroup = false; kids.push(s); }
+		});
+		for (const s of rt.stickies) { s._newGroup = false; kids.push(s); }
+		return kids;
+	}
+
+	// ---- tidy-tree layout: compute subtree width, parent centered on children
+	function layoutTree(rt) {
 		measure(rt);
-		rt.groups.forEach(g => g.premises.forEach(layout));
-		let groupsRow = 0;
-		rt.groups.forEach((g, i) => { g.width = groupWidth(g); groupsRow += g.width + (i ? GROUP_GAP : 0); });
-		// loose stickies add to the row
-		let stW = 0;
-		rt.stickies.forEach(s => { stW += PREM_GAP + stickyW(s); });
-		rt.subtreeW = Math.max(rt.w, groupsRow) + stW;
-		rt.groupsRow = groupsRow;
+		const kids = layoutChildren(rt);
+		if (!kids.length) { rt.subtreeW = rt.w; rt.relCenter = rt.w / 2; rt._kids = []; return rt; }
+		kids.forEach(layoutTree);
+		let cursor = 0;
+		kids.forEach((k, i) => {
+			if (i > 0) cursor += k._newGroup ? GROUP_GAP : CHILD_GAP;
+			k._rx = cursor; cursor += k.subtreeW;
+		});
+		const childrenW = cursor;
+		const firstC = kids[0]._rx + kids[0].relCenter;
+		const lastC = kids[kids.length - 1]._rx + kids[kids.length - 1].relCenter;
+		const parentCenter = (firstC + lastC) / 2;
+		const left = Math.min(0, parentCenter - rt.w / 2);
+		const right = Math.max(childrenW, parentCenter + rt.w / 2);
+		rt.subtreeW = right - left;
+		rt._childShift = -left;             // add to child _rx to get subtree-local x
+		rt.relCenter = parentCenter - left; // node center within subtree box
+		rt._kids = kids;
 		return rt;
 	}
 
-	// assign absolute positions; collect draw ops
-	function place(rt, x, y, out) {
-		const nodeX = x + (rt.subtreeW - rt.w) / 2;
-		rt.x = nodeX; rt.y = y;
-		out.nodes.push(rt);
-
-		const childY = y + rt.h + V_GAP;
-		let cursor = x + (rt.subtreeW - rt.groupsRow) / 2;
+	// ---- place: assign absolute coords, emit draw ops ----------------------
+	function placeTree(rt, left, top, out, hi) {
+		const cx = left + rt.relCenter;
+		rt.x = cx - rt.w / 2; rt.y = top;
+		if (rt.sticky) out.stickies.push(rt); else out.nodes.push(rt);
+		if (!rt._kids || !rt._kids.length) return;
+		const childTop = top + rt.h + V_GAP;
+		const base = left + rt._childShift;
+		for (const k of rt._kids) placeTree(k, base + k._rx, childTop, out, hi);
+		// one bracket per group, spanning that group's premise centers
 		for (const g of rt.groups) {
-			let pc = cursor;
-			const premCenters = [];
-			for (const p of g.premises) {
-				place(p, pc, childY, out);
-				premCenters.push(p.x + p.w / 2);
-				pc += p.subtreeW + PREM_GAP;
-			}
-			// stickies in this group, placed after premises
-			for (const s of g.stickies) {
-				s.x = pc; s.y = childY; out.stickies.push(s);
-				pc += s.w + PREM_GAP;
-			}
-			if (premCenters.length) {
-				let bx1, bx2;
-				if (premCenters.length === 1) {
-					const p = g.premises[0];
-					bx1 = p.x + 16; bx2 = p.x + p.w - 16;
-					if (bx2 <= bx1) { bx1 = p.x + p.w / 2 - 8; bx2 = p.x + p.w / 2 + 8; }
-				} else {
-					bx1 = premCenters[0]; bx2 = premCenters[premCenters.length - 1];
-				}
-				const bracketY = childY - BRACKET_RISE;
-				out.brackets.push({
-					type: g.type, x1: bx1, x2: bx2, y: bracketY,
-					parentX: rt.x + rt.w / 2, parentBottom: rt.y + rt.h,
-					premTops: g.premises.map(p => ({ x: p.x + p.w / 2, y: p.y }))
-				});
-			}
-			cursor += g.width + GROUP_GAP;
-		}
-		// loose stickies to the right of the whole subtree
-		let sx = x + Math.max(rt.w, rt.groupsRow) + PREM_GAP;
-		for (const s of rt.stickies) {
-			s.x = sx; s.y = y; out.stickies.push(s);
-			sx += s.w + PREM_GAP;
+			if (!g.premises.length) continue;
+			const centers = g.premises.map(p => p.x + p.w / 2);
+			let bx1, bx2;
+			if (centers.length === 1) {
+				const p = g.premises[0]; bx1 = p.x + 18; bx2 = p.x + p.w - 18;
+				if (bx2 <= bx1) { bx1 = centers[0] - 9; bx2 = centers[0] + 9; }
+			} else { bx1 = centers[0]; bx2 = centers[centers.length - 1]; }
+			const bracketY = childTop - BRACKET_RISE;
+			const label = connectorLabel(g, hi);
+			out.brackets.push({ type: g.type, x1: bx1, x2: bx2, y: bracketY,
+				parentX: cx, parentBottom: rt.y + rt.h,
+				premTops: g.premises.map(p => ({ x: p.x + p.w / 2, y: p.y })), label: label });
 		}
 	}
+	function connectorLabel(g, hi) {
+		// explicit per-node parentConnector.label wins; else high-impact defaults
+		for (const p of g.premises) {
+			const pc = attrOf(p.raw).parentConnector;
+			if (pc && pc.label) return pc.label;
+		}
+		if (hi) return g.type === OPPOSING ? 'but…' : 'because…';
+		return null;
+	}
 
-	// ---- numbering (computed, not stored) ----------------------------------
+	// ---- numbering (renderer-computed; BFS by content depth) ---------------
 	function number(rt) {
-		// breadth-first over content nodes; label = level.indexWithinLevel
-		let level = [rt];
-		let depth = 1;
+		let level = [rt], depth = 1;
 		while (level.length) {
-			let idx = 1;
-			const next = [];
+			let idx = 1; const next = [];
 			for (const n of level) {
 				if (!n.sticky) { n.label = depth + '.' + idx; idx++; }
-				for (const g of n.groups) for (const p of g.premises) next.push(p);
+				if (n._kids) for (const k of n._kids) if (!k.sticky) next.push(k);
 			}
-			level = next;
-			depth++;
+			level = next; depth++;
+		}
+	}
+
+	// ---- normalize canvas to positive coords -------------------------------
+	function normalize(out, margin) {
+		let minX = Infinity, minY = Infinity;
+		const items = out.nodes.concat(out.stickies);
+		for (const n of items) { minX = Math.min(minX, n.x); minY = Math.min(minY, n.y); }
+		for (const b of out.brackets) { minX = Math.min(minX, b.x1, b.x2); minY = Math.min(minY, b.y); }
+		if (!isFinite(minX)) return;
+		const dx = margin - minX, dy = margin - minY;
+		for (const n of items) { n.x += dx; n.y += dy; }
+		for (const b of out.brackets) {
+			b.x1 += dx; b.x2 += dx; b.y += dy; b.parentX += dx; b.parentBottom += dy;
+			b.premTops = b.premTops.map(t => ({ x: t.x + dx, y: t.y + dy }));
 		}
 	}
 
 	// ---- SVG rendering -----------------------------------------------------
 	const SVGNS = 'http://www.w3.org/2000/svg';
-	function el(name, attrs) {
-		const e = document.createElementNS(SVGNS, name);
-		for (const k in attrs) e.setAttribute(k, attrs[k]);
-		return e;
-	}
-	const GREEN = '#3f9c53', RED = '#d1483a', BLUE = '#22AAE0';
+	function el(name, attrs) { const e = document.createElementNS(SVGNS, name); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
 
 	function bracketPath(b) {
 		const left = b.x1, right = b.x2, y = b.y;
-		const r = Math.max(2, Math.min(12, (right - left) / 2));
-		// horizontal line with ends curving down toward the premises
-		return `M ${left} ${y + r} Q ${left} ${y} ${left + r} ${y} `
-			+ `L ${right - r} ${y} Q ${right} ${y} ${right} ${y + r}`;
+		const r = Math.max(2, Math.min(13, (right - left) / 2));
+		return `M ${left} ${y + r} Q ${left} ${y} ${left + r} ${y} L ${right - r} ${y} Q ${right} ${y} ${right} ${y + r}`;
 	}
 
 	function render(doc, host, controller) {
 		host.innerHTML = '';
-		const roots = childrenOf(doc).filter(n => !isGroup(n));
-		if (!roots.length) { return { width: 0, height: 0 }; }
+		const themeName = (doc.attr && doc.attr.theme) || 'argMappingSimple';
+		const hi = themeName === 'argMappingHighImpact';
+		const showNumbers = !controller || controller.showNumbers !== false;
+		const tops = childrenOf(doc).filter(n => !isGroup(n));
+		const out = { nodes: [], brackets: [], stickies: [], links: [] };
+		if (!tops.length) return { width: 0, height: 0 };
 
-		const out = { nodes: [], brackets: [], stickies: [] };
-		let x = 40;
-		const trees = [];
-		for (const r of roots) {
-			const rt = build(r, 0);
-			layout(rt);
-			number(rt);
-			place(rt, x, 40, out);
-			trees.push(rt);
-			x += rt.subtreeW + 80;
+		// classify: argument trees (have reason groups) vs lone annotation boxes
+		// (instructions, feedback, floating notes). Trees get auto-laid-out and
+		// numbered; annotations go in a separated strip and are not numbered.
+		const trees = [], floats = [];
+		for (const t of tops) {
+			const rt = build(t, 0);
+			layoutTree(rt);
+			const pos = attrOf(t).position;
+			const hasPos = pos && pos.length >= 2 && isFinite(pos[0]);
+			// a floating annotation = a sticky note, or a childless box that was
+			// manually positioned off to the side. A bare claim (no premises yet,
+			// no position) is a real argument root and gets numbered.
+			const isFloat = rt.sticky || (!rt.groups.length && hasPos);
+			if (isFloat) { rt._float = true; floats.push(rt); }
+			else { number(rt); trees.push(rt); }
 		}
+		let cursor = 0;
+		for (const rt of trees) { placeTree(rt, cursor, 0, out, hi); cursor += rt.subtreeW + 120; }
+		// annotation strip to the right, stacked vertically
+		let fx = (trees.length ? cursor + 20 : 0), fy = 0;
+		for (const rt of floats) { placeTree(rt, fx, fy, out, hi); fy += rt.h + 26; }
+		normalize(out, 46);
 
-		// compute extent
 		let maxX = 0, maxY = 0;
-		const consider = (o) => { maxX = Math.max(maxX, o.x + (o.w || 0)); maxY = Math.max(maxY, o.y + (o.h || 0)); };
-		out.nodes.forEach(consider); out.stickies.forEach(consider);
-		const W = maxX + 60, H = maxY + 60;
-
+		for (const n of out.nodes.concat(out.stickies)) { maxX = Math.max(maxX, n.x + n.w); maxY = Math.max(maxY, n.y + n.h); }
+		const W = maxX + 46, H = maxY + 46;
 		const svg = el('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, class: 'argmap-svg' });
 		const gLinks = el('g', {}), gNodes = el('g', {});
 		svg.appendChild(gLinks); svg.appendChild(gNodes);
 
-		// brackets + connectors (draw under nodes)
-		for (const b of out.brackets) {
-			const color = b.type === OPPOSING ? RED : GREEN;
-			const cx = (b.x1 + b.x2) / 2;
-			// stem: parent bottom -> bracket line center
-			gLinks.appendChild(el('path', {
-				d: `M ${b.parentX} ${b.parentBottom} L ${b.parentX} ${b.y} L ${cx} ${b.y}`,
-				fill: 'none', stroke: color, 'stroke-width': 2
-			}));
-			// bracket + premise risers (always draw a spanning bracket)
-			gLinks.appendChild(el('path', { d: bracketPath(b), fill: 'none', stroke: color, 'stroke-width': 2 }));
-			for (const t of b.premTops) {
-				gLinks.appendChild(el('path', { d: `M ${t.x} ${b.y} L ${t.x} ${t.y}`, fill: 'none', stroke: color, 'stroke-width': 2 }));
-			}
-		}
-
-		// nodes
-		for (const n of out.nodes) drawNode(gNodes, n, controller);
-		// stickies
+		for (const b of out.brackets) drawBracket(gLinks, b);
+		// cross-links (root.links) disabled for now: with our own tidy layout the
+		// stored endpoints produce long diagonal lines that add noise. Re-enable
+		// with proper routing later.
+		for (const n of out.nodes) drawNode(gNodes, n, controller, showNumbers);
 		for (const s of out.stickies) drawSticky(gNodes, s, controller);
 
 		host.appendChild(svg);
 		return { svg, width: W, height: H };
 	}
 
-	function drawNode(g, n, controller) {
+	function drawBracket(g, b) {
+		const color = b.type === OPPOSING ? RED : GREEN;
+		const cx = (b.x1 + b.x2) / 2;
+		g.appendChild(el('path', { d: `M ${b.parentX} ${b.parentBottom} L ${b.parentX} ${b.y} L ${cx} ${b.y}`,
+			fill: 'none', stroke: color, 'stroke-width': 2.3, 'stroke-linejoin': 'round' }));
+		g.appendChild(el('path', { d: bracketPath(b), fill: 'none', stroke: color, 'stroke-width': 2.3 }));
+		for (const t of b.premTops) g.appendChild(el('path', { d: `M ${t.x} ${b.y} L ${t.x} ${t.y}`, fill: 'none', stroke: color, 'stroke-width': 2.3 }));
+		if (b.label) {
+			const midY = (b.parentBottom + b.y) / 2;
+			const t = el('text', { x: b.parentX + 6, y: midY + 4, fill: color, 'font-size': 13, 'font-style': 'italic', 'font-family': FONT_FAMILY });
+			t.textContent = b.label;
+			g.appendChild(t);
+		}
+	}
+
+	function drawNode(g, n, controller, showNumbers) {
 		const st = attrOf(n.raw).style || {};
-		const bg = st.background || (st.backgroundColor) || '#ffffff';
+		const bg = st.backgroundColor || st.background || '#ffffff';
 		const selected = controller && controller.selectedId === n.raw.id;
 		const grp = el('g', { class: 'node', 'data-id': n.raw.id, transform: `translate(${n.x},${n.y})` });
-		const rect = el('rect', {
-			width: n.w, height: n.h, rx: CORNER, ry: CORNER,
-			fill: bg,
-			stroke: n.implicit ? BLUE : (selected ? '#f5a623' : '#8a8a8a'),
-			'stroke-width': n.implicit ? 2.5 : (selected ? 2.5 : 1.2),
-			'stroke-dasharray': n.implicit ? '2,4' : (selected ? '' : ''),
-			filter: 'url(#nodeshadow)'
-		});
-		if (n.implicit) rect.setAttribute('stroke-linecap', 'round');
+		const rect = el('rect', { width: n.w, height: n.h, rx: CORNER, ry: CORNER, fill: bg,
+			stroke: n.implicit ? IMPLICIT_STROKE : (selected ? SELECT : BORDER),
+			'stroke-width': n.implicit ? 1.8 : (selected ? 2.4 : 1.2),
+			'stroke-dasharray': n.implicit ? '1.5,3.5' : '', 'stroke-linecap': 'round',
+			filter: 'url(#nodeshadow)' });
 		grp.appendChild(rect);
-		const font = n.depth === 0 ? FONT_CLAIM : FONT;
-		const fontSize = n.depth === 0 ? 15 : 14;
-		const text = el('text', { x: PAD_X, y: PAD_Y + fontSize - 2, fill: '#4a4a4a', 'font-family': font.replace(/^\d+px /, ''), 'font-size': fontSize });
-		n.lines.forEach((ln, i) => {
-			const ts = el('tspan', { x: PAD_X, dy: i ? LINE_H : 0 });
-			ts.textContent = ln;
-			text.appendChild(ts);
-		});
+		const tc = (st.text && st.text.color) || TEXT;
+		const text = el('text', { x: PAD_X, y: PAD_Y + n.fontSize - 3, fill: tc, 'font-family': n.fontFamily, 'font-size': n.fontSize });
+		n.lines.forEach((ln, i) => { const ts = el('tspan', { x: PAD_X, dy: i ? n.lineH : 0 }); ts.textContent = ln; text.appendChild(ts); });
 		grp.appendChild(text);
-		// numbered badge
-		if (n.label) {
-			const bx = n.w - 4, by = -4;
-			grp.appendChild(el('circle', { cx: bx, cy: by, r: 12, fill: '#eaf6fc', stroke: BLUE, 'stroke-width': 1.5 }));
-			const bl = el('text', { x: bx, y: by + 4, fill: '#2b8fc0', 'font-size': 11, 'font-weight': 'bold', 'text-anchor': 'middle', 'font-family': 'Arial, sans-serif' });
-			bl.textContent = n.label;
-			grp.appendChild(bl);
+		if (n.attr && false) { /* reserved */ }
+		drawDecorations(grp, n);
+		if (showNumbers && n.label) {
+			const bx = n.w - 3, by = -3, badgeC = badgeColor(n);
+			grp.appendChild(el('circle', { cx: bx, cy: by, r: 11.5, fill: '#eef7fc', stroke: badgeC, 'stroke-width': 1.4 }));
+			const bl = el('text', { x: bx, y: by + 4, fill: badgeC, 'font-size': 10.5, 'font-weight': 'bold', 'text-anchor': 'middle', 'font-family': 'Arial, sans-serif' });
+			bl.textContent = n.label; grp.appendChild(bl);
 		}
 		if (controller) {
 			grp.style.cursor = 'pointer';
@@ -311,19 +332,26 @@
 		}
 		g.appendChild(grp);
 	}
+	function badgeColor(n) { return '#2b8fc0'; }
+	function drawDecorations(grp, n) {
+		const attr = n.raw.attr || {};
+		let ox = 4;
+		if (attr.note && attr.note.text) { grp.appendChild(iconBadge(ox, n.h - 2, '📎')); ox += 18; }
+		if (attr.attachment) { grp.appendChild(iconBadge(ox, n.h - 2, '🔗')); ox += 18; }
+		if (Array.isArray(attr.stickers)) for (const s of attr.stickers) {
+			const m = /emoji:([0-9a-fA-F]+)/.exec(s); if (m) { grp.appendChild(iconBadge(ox, n.h - 2, String.fromCodePoint(parseInt(m[1], 16)))); ox += 18; }
+		}
+	}
+	function iconBadge(x, y, ch) { const t = el('text', { x: x, y: y, 'font-size': 12 }); t.textContent = ch; return t; }
 
 	function drawSticky(g, s, controller) {
-		const grp = el('g', { class: 'sticky', 'data-id': s.raw.id, transform: `translate(${s.x},${s.y})` });
 		const implicit = isImplicit(s.raw);
-		grp.appendChild(el('rect', {
-			width: s.w, height: s.h, rx: 2, fill: '#fdfd96',
-			stroke: implicit ? BLUE : '#e4e46a', 'stroke-width': implicit ? 2.5 : 1,
-			'stroke-dasharray': implicit ? '2,4' : '', filter: 'url(#nodeshadow)'
-		}));
-		const text = el('text', { x: 10, y: 18, fill: '#5b5b3a', 'font-size': 14, 'font-family': '"Segoe Print","Bradley Hand","Comic Sans MS",cursive' });
-		(s.lines || [s.title]).forEach((ln, i) => {
-			const ts = el('tspan', { x: 10, dy: i ? 18 : 0 }); ts.textContent = ln; text.appendChild(ts);
-		});
+		const grp = el('g', { class: 'sticky', 'data-id': s.raw.id, transform: `translate(${s.x},${s.y})` });
+		grp.appendChild(el('rect', { width: s.w, height: s.h, rx: 2, fill: '#fdfd9a',
+			stroke: implicit ? BLUE : '#e0e070', 'stroke-width': implicit ? 2 : 1,
+			'stroke-dasharray': implicit ? '2,3' : '', filter: 'url(#nodeshadow)' }));
+		const text = el('text', { x: 10, y: 19, fill: '#585836', 'font-size': FONT_SIZE, 'font-family': STICKY_FAMILY });
+		(s.lines || [s.title]).forEach((ln, i) => { const ts = el('tspan', { x: 10, dy: i ? 20 : 0 }); ts.textContent = ln; text.appendChild(ts); });
 		grp.appendChild(text);
 		if (controller) {
 			grp.style.cursor = 'pointer';
@@ -331,6 +359,25 @@
 			grp.addEventListener('dblclick', e => { e.stopPropagation(); controller.editNode(s.raw.id); });
 		}
 		g.appendChild(grp);
+	}
+
+	// cross-links (root.links): dashed/solid connectors between arbitrary nodes
+	function buildLinks(doc, out) {
+		const links = doc.links;
+		if (!Array.isArray(links)) return;
+		out._nodeById = {};
+		for (const n of out.nodes) out._nodeById[n.raw.id] = n;
+		out.links = links.filter(l => l && l.ideaIdFrom != null && l.ideaIdTo != null);
+	}
+	function drawLink(g, lk, out) {
+		const a = out._nodeById[lk.ideaIdFrom], b = out._nodeById[lk.ideaIdTo];
+		if (!a || !b) return;
+		const st = (lk.attr && lk.attr.style) || {};
+		const ax = a.x + a.w / 2, ay = a.y + a.h / 2, bx = b.x + b.w / 2, by = b.y + b.h / 2;
+		const path = el('path', { d: `M ${ax} ${ay} L ${bx} ${by}`, fill: 'none',
+			stroke: st.color || '#909090', 'stroke-width': 1.5,
+			'stroke-dasharray': st.lineStyle === 'dashed' ? '4,4' : '' });
+		g.appendChild(path);
 	}
 
 	// ---- document mutation helpers -----------------------------------------
@@ -346,32 +393,15 @@
 	}
 	function nextRank(node) {
 		const ideas = node.ideas || (node.ideas = {});
-		let m = 0;
-		for (const k of Object.keys(ideas)) m = Math.max(m, parseFloat(k));
+		let m = 0; for (const k of Object.keys(ideas)) m = Math.max(m, parseFloat(k));
 		return m + 1;
 	}
-	function findParent(doc, id) {
-		let res = null;
-		(function scan(n) {
-			for (const c of childrenOf(n)) {
-				if (c.id === id) { res = n; return; }
-				scan(c);
-			}
-		})(doc);
-		return res;
-	}
-	function findNode(doc, id) {
-		let res = null;
-		(function scan(n) {
-			if (n.id === id) { res = n; return; }
-			for (const c of childrenOf(n)) scan(c);
-		})(doc);
-		return res;
-	}
+	function findParent(doc, id) { let res = null; (function scan(n) { for (const c of childrenOf(n)) { if (c.id === id) { res = n; return; } scan(c); } })(doc); return res; }
+	function findNode(doc, id) { let res = null; (function scan(n) { if (n.id === id) { res = n; return; } for (const c of childrenOf(n)) scan(c); })(doc); return res; }
 
 	global.ArgMap = {
-		render, build, layout, number,
-		isGroup, isSticky, isImplicit, styleNames, attrOf, childrenOf,
+		render, build, layoutTree, number,
+		isGroup, isSticky, isImplicit, isCollapsed, styleNames, attrOf, childrenOf,
 		findNode, findParent, maxId, nextRank,
 		SUPPORTING, OPPOSING, STYLE_IMPLICIT, STYLE_STICKY
 	};
