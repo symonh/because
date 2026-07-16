@@ -82,7 +82,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 		await page.click('#btnImplicit');
 		await sleep(150);
 		ok('implicit on: styleNames set', await AB(id => { const n = window.ArgumentBase.findNode(id); return n.attr.styleNames && n.attr.styleNames.includes('attr_implicit_claim'); }, objId));
-		ok('implicit renders dotted border', await AB(id => { const r = document.querySelector('.node[data-id="' + id + '"] rect'); return r && r.getAttribute('stroke') === '#8b98a3' && !!r.getAttribute('stroke-dasharray'); }, objId));
+		ok('implicit renders dotted border', await AB(id => { const r = document.querySelector('.node[data-id="' + id + '"] rect'); return r && r.getAttribute('stroke') === '#29abe2' && !!r.getAttribute('stroke-dasharray'); }, objId));
 		await page.click('#btnImplicit');
 		await sleep(150);
 		ok('implicit off', await AB(id => { const n = window.ArgumentBase.findNode(id); return !n.attr.styleNames || !n.attr.styleNames.includes('attr_implicit_claim'); }, objId));

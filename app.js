@@ -18,19 +18,20 @@
 	const STYLE_STICKY = 'sticky_note';
 
 	// ---- layout constants (tuned to MindMup's argument-mapping theme) ------
-	const PAD_X = 14, PAD_Y = 11;
-	const FONT_SIZE = 15, LINE_H = 21;
+	const PAD_X = 15, PAD_Y = 12;
+	const FONT_SIZE = 16, LINE_H = 22;
 	const FONT_FAMILY = '"Helvetica Neue", Arial, sans-serif';
 	const STICKY_FAMILY = '"Segoe Print","Bradley Hand","Comic Sans MS",cursive';
-	const MIN_W = 76, MAX_W = 168;         // auto content-width clamp (px)
-	const V_GAP = 82;                      // parent bottom -> child top
-	const BRACKET_RISE = 24;               // premise top -> bracket bar
-	const CHILD_GAP = 20;                  // gap between co-premises within a group
-	const GROUP_GAP = 74;                  // gap between separate groups under a node
-	const CORNER = 6;
-	const GREEN = '#3c9a55', RED = '#cc4636', BLUE = '#22AAE0';
-	const BORDER = '#a6acb0', TEXT = '#42474b', SELECT = '#f5a623';
-	const IMPLICIT_STROKE = '#8b98a3';
+	const MIN_W = 74, MAX_W = 176;         // auto content-width clamp (px)
+	const V_GAP = 84;                      // parent bottom -> child top
+	const BRACKET_RISE = 26;               // premise top -> bracket bar
+	const CHILD_GAP = 22;                  // gap between co-premises within a group
+	const GROUP_GAP = 80;                  // gap between separate reasons/objections
+	const CORNER = 8;
+	const GREEN = '#2e9e52', RED = '#cc4636', BLUE = '#29abe2';
+	const BORDER = '#9aa0a4', TEXT = '#3b4045', SELECT = '#f5a623';
+	const IMPLICIT_STROKE = '#29abe2';     // bright blue dotted (MindMup implicit)
+	const BADGE_FILL = '#5b9bd5', BADGE_RING = '#cfe6fa';
 
 	// ---- text measurement --------------------------------------------------
 	const _ctx = document.createElement('canvas').getContext('2d');
@@ -290,8 +291,13 @@
 	function drawBracket(g, b) {
 		const color = b.type === OPPOSING ? RED : GREEN;
 		const cx = (b.x1 + b.x2) / 2;
-		g.appendChild(el('path', { d: `M ${b.parentX} ${b.parentBottom} L ${b.parentX} ${b.y} L ${cx} ${b.y}`,
-			fill: 'none', stroke: color, 'stroke-width': 2.3, 'stroke-linejoin': 'round' }));
+		// S-curve from the parent's bottom-centre to THIS group's bracket centre.
+		// (A straight vertical when the group is centred under the parent; a smooth
+		// fan-out when a node has several separate reason/objection groups — so the
+		// groups never merge into one horizontal bar.)
+		const midY = (b.parentBottom + b.y) / 2;
+		g.appendChild(el('path', { d: `M ${b.parentX} ${b.parentBottom} C ${b.parentX} ${midY}, ${cx} ${midY}, ${cx} ${b.y}`,
+			fill: 'none', stroke: color, 'stroke-width': 2.3 }));
 		g.appendChild(el('path', { d: bracketPath(b), fill: 'none', stroke: color, 'stroke-width': 2.3 }));
 		for (const t of b.premTops) g.appendChild(el('path', { d: `M ${t.x} ${b.y} L ${t.x} ${t.y}`, fill: 'none', stroke: color, 'stroke-width': 2.3 }));
 		if (b.label) {
@@ -309,8 +315,8 @@
 		const grp = el('g', { class: 'node', 'data-id': n.raw.id, transform: `translate(${n.x},${n.y})` });
 		const rect = el('rect', { width: n.w, height: n.h, rx: CORNER, ry: CORNER, fill: bg,
 			stroke: n.implicit ? IMPLICIT_STROKE : (selected ? SELECT : BORDER),
-			'stroke-width': n.implicit ? 1.8 : (selected ? 2.4 : 1.2),
-			'stroke-dasharray': n.implicit ? '1.5,3.5' : '', 'stroke-linecap': 'round',
+			'stroke-width': n.implicit ? 2.5 : (selected ? 2.4 : 1.3),
+			'stroke-dasharray': n.implicit ? '2,4' : '', 'stroke-linecap': 'round',
 			filter: 'url(#nodeshadow)' });
 		grp.appendChild(rect);
 		const tc = (st.text && st.text.color) || TEXT;
@@ -320,9 +326,9 @@
 		if (n.attr && false) { /* reserved */ }
 		drawDecorations(grp, n);
 		if (showNumbers && n.label) {
-			const bx = n.w - 3, by = -3, badgeC = badgeColor(n);
-			grp.appendChild(el('circle', { cx: bx, cy: by, r: 11.5, fill: '#eef7fc', stroke: badgeC, 'stroke-width': 1.4 }));
-			const bl = el('text', { x: bx, y: by + 4, fill: badgeC, 'font-size': 10.5, 'font-weight': 'bold', 'text-anchor': 'middle', 'font-family': 'Arial, sans-serif' });
+			const bx = n.w - 6, by = 1;
+			grp.appendChild(el('circle', { cx: bx, cy: by, r: 12.5, fill: BADGE_FILL, stroke: BADGE_RING, 'stroke-width': 2.5 }));
+			const bl = el('text', { x: bx, y: by + 4, fill: '#ffffff', 'font-size': 11, 'font-weight': 'bold', 'text-anchor': 'middle', 'font-family': 'Arial, sans-serif' });
 			bl.textContent = n.label; grp.appendChild(bl);
 		}
 		if (controller) {
