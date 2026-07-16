@@ -48,12 +48,18 @@ export function makeLabelEdit(engine) {
 				node.attr.parentConnector.label) || '',
 			rect = anchor.getBoundingClientRect(),
 			crect = container.getBoundingClientRect(),
+			// clamp to the container's VISIBLE box (viewport coords), then
+			// convert to content coords: the input is absolute inside the
+			// scrolling container, so the scroll offsets must be added or a
+			// scrolled map puts the editor far from the connector
+			visibleLeft = Math.min(Math.max(4, rect.left - crect.left + rect.width / 2 - 110), crect.width - 224),
+			visibleTop = Math.min(Math.max(4, rect.top - crect.top + rect.height / 2 - 14), crect.height - 32),
 			input = document.createElement('input');
 		input.type = 'text';
 		input.className = 'connector-label-editor';
 		input.value = current;
-		input.style.left = Math.max(4, rect.left - crect.left + rect.width / 2 - 110) + 'px';
-		input.style.top = Math.max(4, rect.top - crect.top + rect.height / 2 - 14) + 'px';
+		input.style.left = (visibleLeft + container.scrollLeft) + 'px';
+		input.style.top = (visibleTop + container.scrollTop) + 'px';
 		container.appendChild(input);
 		activeInput = input;
 		mapModel.setInputEnabled(false, true); // engine hotkeys off while typing

@@ -275,6 +275,30 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 	});
 	ok(labelDrift <= 15, `"but…" label sits on its curve on a wide fan (drift ${labelDrift}px)`);
 
+	// ---- label editor opens AT the connector on a scrolled viewport ----
+	// (the editor is absolute inside the scrolling container; without the
+	// scroll offsets it appeared far from the connector being edited)
+	await page.evaluate(() => {
+		const c = document.getElementById('map-container');
+		c.scrollLeft += 180;
+		c.scrollTop += 120;
+	});
+	await sleep(200);
+	const scrolledPoint = await page.evaluate(() => {
+		const path = document.querySelector('#connector_2_11 path.mapjs-link-hit'),
+			r = path.getBoundingClientRect();
+		return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+	});
+	await page.mouse.click(scrolledPoint.x, scrolledPoint.y, { clickCount: 2 });
+	await page.waitForSelector('.connector-label-editor', { timeout: 5000 });
+	const editorDistance = await page.evaluate(p => {
+		const r = document.querySelector('.connector-label-editor').getBoundingClientRect();
+		return Math.round(Math.hypot(r.x + r.width / 2 - p.x, r.y + r.height / 2 - p.y));
+	}, scrolledPoint);
+	ok(editorDistance < 200, `label editor opens next to the connector when scrolled (${editorDistance}px away)`);
+	await page.keyboard.press('Escape');
+	await sleep(200);
+
 	// ---- loading overlay on big maps ----
 	const overlayShown = await page.evaluate(() => {
 		const ideas = {};
