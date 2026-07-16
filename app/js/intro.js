@@ -38,11 +38,6 @@ export function makeIntro() {
 				'objections against it encourages clearly articulated reasoning ' +
 				'and makes intricate arguments easier to discuss, evaluate, and ' +
 				'teach.</p>' +
-				'<ul class="intro-legend">' +
-				'<li><span class="intro-chip green"></span>green brackets group <b>supporting reasons</b> that work together</li>' +
-				'<li><span class="intro-chip red"></span>red brackets mark <b>objections</b></li>' +
-				'<li><span class="intro-chip dashed"></span>dashed borders mark <b>implicit claims</b> left unstated</li>' +
-				'</ul>' +
 				'<p>Select the conclusion and press <kbd>Enter</kbd> to add a ' +
 				'reason, <kbd>Tab</kbd> to add a co-premise, or <kbd>Alt+O</kbd> ' +
 				'to raise an objection. The full list is under ' +

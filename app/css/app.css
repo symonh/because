@@ -330,18 +330,6 @@ body.dark .cp-tile:hover { background: #1a86b8; color: #fff; }
 
 /* ---- first-visit welcome (intro.js) ---- */
 .intro-panel { max-width: 480px; }
-.intro-legend { list-style: none; padding: 0; }
-.intro-legend li { margin: 6px 0; }
-.intro-chip {
-	display: inline-block;
-	width: 24px;
-	height: 0;
-	border-top: 3px solid #339966;
-	vertical-align: middle;
-	margin-right: 8px;
-}
-.intro-chip.red { border-top-color: #ff0000; }
-.intro-chip.dashed { border-top: 2px dashed #707070; }
 .intro-footer {
 	display: flex;
 	align-items: center;
