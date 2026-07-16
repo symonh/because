@@ -65,10 +65,13 @@ export function initEngine(container) {
 			const idea = MAPJS.content(mapJson);
 			idea.addEventListener('changed', () => emit('mapChanged'));
 			mapModel.setIdea(idea);
+			// center once the DomMapController has finished the initial layout
 			window.setTimeout(function () {
+				const rootId = mapModel.getSelectedNodeId();
+				if (rootId) { mapModel.centerOnNode(rootId); }
 				mapModel.resetView();
 				deselectAll();
-			}, 50);
+			}, 250);
 			emit('mapLoaded', mapJson);
 		},
 		// re-resolve and apply a named theme, recording it on the map
