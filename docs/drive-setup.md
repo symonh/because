@@ -21,8 +21,21 @@ Google offers no API for creating OAuth clients, so this part is a
 Console task (about two minutes, signed in as sc@simoncullen.org):
 
 1. **Branding** — https://console.cloud.google.com/auth/branding?project=driveshare-446802
-   - App name `Because`, user support email sc@simoncullen.org,
-     developer contact sc@simoncullen.org. Save.
+
+   The project carries leftover branding from the old DriveShare app
+   (simoncullen.org links, which no longer resolve). Replace with:
+   - App name `Because`; user support email sc@simoncullen.org.
+   - Logo: leave empty — uploading one triggers Google's
+     brand-verification review.
+   - Application home page `https://app.philmaps.com`; clear the privacy
+     policy and terms links (optional for non-sensitive scopes; the old
+     simoncullen.org ones are dead).
+   - Authorized domains: `philmaps.com`. Before deleting
+     `simoncullen.org`, check the Clients tab for any old DriveShare
+     client that might still use it; adding philmaps.com alongside is
+     also fine.
+   - Developer contact sc@simoncullen.org (an email, so simoncullen.org
+     is correct here). Save.
 2. **Audience** — https://console.cloud.google.com/auth/audience?project=driveshare-446802
    - Choose **External**, then **Publish** the app. (In Testing mode only
      allow-listed test users can sign in; published + non-sensitive scope
@@ -30,8 +43,12 @@ Console task (about two minutes, signed in as sc@simoncullen.org):
 3. **Create the client** — https://console.cloud.google.com/auth/clients?project=driveshare-446802
    - Create client → type **Web application** → name `Because web`.
    - Authorized JavaScript origins (no redirect URIs needed):
-     - `https://argumentbase.web.app`
-     - `https://app.philmaps.com` (the custom domain, once live)
+     - `https://app.philmaps.com`
+     - `https://argumentbase.web.app` (if the console objects that the
+       domain isn't authorized, either add `argumentbase.web.app` as an
+       authorized domain on Branding — web.app subdomains count as their
+       own registrable domains — or drop this origin; the custom domain
+       is the one that matters)
      - `http://localhost:8871`
      - `http://127.0.0.1:8871`
    - Copy the client ID (`…apps.googleusercontent.com`).
