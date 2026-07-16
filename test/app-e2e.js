@@ -314,6 +314,51 @@ function ok(cond, name) {
 	await page.keyboard.press('Escape');
 	ok(await page.$('.connector-label-editor') === null, 'Escape closes the editor without saving');
 
+	// numbering off must leave NO badge remnants (the engine hides the
+	// label span but keeps the decorations container — it must paint nothing)
+	await clickMenu('View', 'Claim numbering');
+	await new Promise(r => setTimeout(r, 400));
+	const badgeOff = await page.evaluate(() => {
+		const d = document.querySelector('.mapjs-node .mapjs-decorations'),
+			label = d && d.querySelector('.mapjs-label');
+		return {
+			containerBg: d ? getComputedStyle(d).backgroundColor : 'none',
+			labelHidden: !label || getComputedStyle(label).display === 'none'
+		};
+	});
+	ok(badgeOff.containerBg === 'rgba(0, 0, 0, 0)' && badgeOff.labelHidden,
+		`numbering off leaves no blue circle (bg=${badgeOff.containerBg})`);
+	await clickMenu('View', 'Claim numbering');
+
+	// connector label sizing: an embedded theme that specs the label font in
+	// points (no sizePx — how newer MindMup saves look) must not fall back
+	// to the browser default 16px
+	const ptLabelFont = await page.evaluate(async () => {
+		const eng = window.__because.engine,
+			themesMod = await import('./js/themes.js'),
+			theme = JSON.parse(JSON.stringify(themesMod.argMappingSimple)),
+			stripPx = function (obj) {
+				Object.keys(obj).forEach(function (k) {
+					const v = obj[k];
+					if (k === 'font' && v && v.sizePx) {
+						v.size = Math.round(v.sizePx * 72 / 96); // pt, like newer saves
+						delete v.sizePx;
+					} else if (v && typeof v === 'object') { stripPx(v); }
+				});
+			};
+		stripPx(theme);
+		eng.loadMap({ formatVersion: 3, id: 'root', theme: theme, ideas: { 1: { id: 2, title: 'Conclusion', ideas: {
+			1: { id: 11, title: 'group',
+				attr: { group: 'supporting', contentLocked: true, parentConnector: { label: 'Sized from points' } },
+				ideas: { 1: { id: 12, title: 'Premise' } } }
+		} } } });
+		return new Promise(res => setTimeout(() => {
+			const t = document.querySelector('[data-mapjs-role=connector] text');
+			res(t ? t.style.fontSize : 'missing');
+		}, 600));
+	});
+	ok(ptLabelFont === '12px', `pt-only embedded theme still sizes the label (${ptLabelFont})`);
+
 	// dark mode: flips chrome + map theme, never touches map data, persists
 	await clickMenu('View', 'Dark mode');
 	const darkState = await page.evaluate(() => ({

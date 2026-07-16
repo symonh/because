@@ -33,10 +33,13 @@
  * Number badge. The theme places decorations at the top edge, position end,
  * overlapping the border; the engine reserves no space for top-edge
  * decorations, so the badge straddles the top-right corner like MindMup.
- * Container = outer blue ring; label = white ring + blue fill + white text.
+ * The label itself carries the blue fill + white ring, with the outer blue
+ * rim drawn by a box-shadow; the container stays transparent so nothing
+ * shows when numbering is off (the engine then hides the label span but
+ * leaves the decorations container in place).
  */
 .mapjs-node .mapjs-decorations {
-	background: rgba(34, 170, 224, 0.8);
+	background: transparent;
 	border-radius: 12px;
 	height: 24px;
 	min-width: 24px;
@@ -53,7 +56,8 @@
 	height: 20px;
 	border: 1px solid #ffffff;
 	border-radius: 10px;
-	background: transparent;
+	background: rgba(34, 170, 224, 0.8);
+	box-shadow: 0 0 0 2px rgba(34, 170, 224, 0.8);
 	opacity: 1;
 	color: #ffffff;
 	font: 700 12px/18px 'NotoSans', 'Helvetica Neue', Helvetica, Arial, sans-serif;

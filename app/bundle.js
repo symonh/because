@@ -16494,13 +16494,14 @@
         if (!textDOM) {
           return false;
         }
+        const labelFont = labelTheme.text && labelTheme.text.font || {}, labelFontPx = labelFont.sizePx || labelFont.size && Math.round(labelFont.size * 96 / 72) || 12;
         textDOM.style.stroke = "none";
-        textDOM.style.fill = labelTheme.text.color;
-        textDOM.style.fontSize = labelTheme.text.font.sizePx + "px";
-        textDOM.style.fontWeight = labelTheme.text.font.weight;
+        textDOM.style.fill = labelTheme.text && labelTheme.text.color || "#4F4F4F";
+        textDOM.style.fontSize = labelFontPx + "px";
+        textDOM.style.fontWeight = labelFont.weight || "bold";
         textDOM.style.dominantBaseline = "hanging";
         textElement.text(labelText.trim());
-        dimensions = textDOM.getClientRects()[0];
+        dimensions = textDOM.getBBox && textDOM.getBBox() || textDOM.getClientRects()[0];
         translate.x = Math.round(centrePoint.x - dimensions.width / 2);
         translate.y = Math.round(centrePoint.y - dimensions.height - 2);
         g[0].style.transform = `translate(${translate.x}px, ${translate.y}px)`;
