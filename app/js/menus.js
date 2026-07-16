@@ -4,13 +4,20 @@
  * Pure DOM, no framework. Menus close on click-away or Escape.
  */
 
-export function buildMenus(el, commands, io, engine) {
-	const spec = [
+export function buildMenus(el, commands, io, engine, drive) {
+	const driveItem = run => () => {
+			if (drive && drive.isConfigured()) { run(); } else { showDriveSetup(); }
+		},
+		spec = [
 		['File', () => [
 			['New', () => io.newMap()],
 			['Open…', () => io.open()],
 			['Save', () => io.save(false)],
 			['Save As…', () => io.save(true)],
+			['—'],
+			['Open from Google Drive…', driveItem(() => drive.open())],
+			[(drive && drive.currentFile() ? '✓ ' : '') + 'Save to Google Drive', driveItem(() => drive.save(false))],
+			['Save a copy in Drive…', driveItem(() => drive.save(true))],
 			['—'],
 			['Print / Save as PDF', () => window.print()]
 		]],
@@ -83,6 +90,17 @@ export function buildMenus(el, commands, io, engine) {
 				['⌘Z / ⌘⇧Z', 'undo / redo']
 			].map(r => '<tr><td><kbd>' + r[0] + '</kbd></td><td>' + r[1] + '</td></tr>').join('') +
 			'</table>'
+		);
+	}
+
+	function showDriveSetup() {
+		showPanel(
+			'<h2>Google Drive is not connected yet</h2>' +
+			'<p>This deployment has no OAuth client configured, so Drive open/save is switched off. ' +
+			'To enable it, create an OAuth 2.0 Web client in the Google Cloud Console and put its ' +
+			'client ID in <code>app/js/config.js</code> — the exact steps are in ' +
+			'<code>docs/drive-setup.md</code> in the repository.</p>' +
+			'<p>Local files keep working: use <b>File &gt; Open…</b> and <b>Save</b>.</p>'
 		);
 	}
 

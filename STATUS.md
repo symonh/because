@@ -2,14 +2,29 @@
 
 ## 2026-07-16 afternoon
 
+- **Deployed: https://argumentbase.web.app** (Firebase Hosting site
+  `argumentbase`, project driveshare-446802; `./deploy.sh` stages app/ +
+  samples/ into deploy/ and pushes to Firebase plus the legacy GCS mirror
+  at storage.googleapis.com/argumentbase-app). Firebase gives a real
+  origin, which Google OAuth requires; argumentbase.com can attach later.
 - Drag-and-drop now follows the argument grammar (app/js/drop-policy.js):
   a claim dropped onto another claim becomes a supporting reason in a fresh
   green group instead of a naked child; dropping onto a group joins it as a
   co-premise; a source group emptied by the move is removed; one undo
   reverts the whole thing. Verified with a real mouse drag in Puppeteer.
-- Deployed: https://storage.googleapis.com/argumentbase-app/app/index.html
-  (bucket argumentbase-app, project driveshare-446802). App objects are
-  uploaded with Cache-Control: no-cache so fixes appear on plain reload.
+- File > Open fixed (Safari never fired change on the detached picker
+  input) and an unsaved-changes guard added: Open/New/drop show a
+  Save / Don't save / Cancel modal, closing the tab warns, and the status
+  text tracks the map relative to its FILE (localStorage autosave is
+  crash recovery, not saving). Verified in Chrome and WebKit.
+- Google Drive open/save built and wired (app/js/drive.js + config.js):
+  Picker-based open of instructors' existing .mup files, Save writes back
+  to the same Drive file, Save-a-copy creates one (drive.file scope only).
+  Drive + Picker APIs enabled, restricted browser API key created and
+  committed. Blocked on ONE manual step Google has no API for: Simon
+  creates the OAuth web client in the Console — exact 2-minute checklist
+  in docs/drive-setup.md. Until then the menu items show setup info and
+  everything local keeps working. Stubbed-boundary e2e: test/drive-e2e.js.
 
 ## Original morning build notes
 
@@ -46,10 +61,10 @@ underscore aliased to its UMD file — see engine/build.sh for why.
 
 ## Not done yet
 
-- Google Drive integration (open/save in Drive, `drive.file` scope) — the
-  actual point for course use; next major piece.
-- Deploy (static host on driveshare-446802; argumentbase.com is owned).
-  Nothing is deployed.
+- Drive OAuth client ID (Simon, Console, ~2 min — docs/drive-setup.md),
+  then a live end-to-end Drive test with a real Google account.
+- argumentbase.com custom domain on the Firebase site (needs a DNS record
+  at Cloudflare).
 - PNG export (Print → PDF works); node-level notes side panel (`n` key);
   explicit link-drawing UI; the real argMappingHighImpact spec if a .mup
   embedding it turns up — check any old high-impact map before trusting the

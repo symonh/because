@@ -1,0 +1,20 @@
+{
+	"hosting": {
+		"site": "argumentbase",
+		"public": "deploy",
+		"ignore": ["**/.*"],
+		"redirects": [
+			{ "source": "/", "destination": "/app/", "type": 302 }
+		],
+		"headers": [
+			{
+				"source": "**",
+				"headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+			},
+			{
+				"source": "**/fonts/**",
+				"headers": [{ "key": "Cache-Control", "value": "public, max-age=604800" }]
+			}
+		]
+	}
+}

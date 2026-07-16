@@ -11,7 +11,9 @@ way they did in MindMup.
 
 ## Run it
 
-No build step needed — the engine bundles are committed:
+Hosted: **https://argumentbase.web.app** (deployed from this repo with
+`./deploy.sh`). Locally, no build step is needed — the engine bundles are
+committed:
 
 ```
 python3 -m http.server 8871      # from the repo root
@@ -20,7 +22,11 @@ open http://127.0.0.1:8871/app/
 
 - Drag any `.mup` file onto the window to open it, or use File → Open.
 - File → Save writes a standard `.mup` (JSON) that MindMup-family tools read.
-- Work is autosaved to the browser's localStorage between sessions.
+- Google Drive open/save is built in (`drive.file` scope, Picker-based);
+  enabling it on a deployment takes one OAuth client — see
+  [docs/drive-setup.md](docs/drive-setup.md).
+- Work is autosaved to the browser's localStorage as crash recovery; the
+  status text tracks whether the map is saved to its file.
 
 ## Keyboard (the philmaps.com set)
 

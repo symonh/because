@@ -15,7 +15,8 @@ export function makeFileIO(engine, status) {
 	let fileHandle = null,
 		fileName = 'untitled.mup',
 		dirty = false,
-		pickerInput = null;
+		pickerInput = null,
+		saveOverride = null; // set by the Drive module while a Drive file is open
 
 	const setName = function (name) {
 			fileName = name;
@@ -68,6 +69,7 @@ export function makeFileIO(engine, status) {
 		// (e.g. the Open dialog) still has a user gesture to spend: writes
 		// through the file handle when there is one, otherwise downloads.
 		saveQuietly = async function () {
+			if (saveOverride) { return saveOverride(); }
 			const text = engine.serialize();
 			if (fileHandle) {
 				const writable = await fileHandle.createWritable();
@@ -85,6 +87,13 @@ export function makeFileIO(engine, status) {
 		fileName: () => fileName,
 		isDirty: () => dirty,
 		markDirty: () => setDirty(true),
+		// external saver (Drive) reporting a completed save
+		markSaved(name) {
+			if (name) { setName(name); }
+			setDirty(false);
+			io.autosave();
+		},
+		setSaveOverride(fn) { saveOverride = fn || null; },
 		// Save / Don't save / Cancel before anything that replaces the map
 		guardUnsaved(proceed) {
 			if (!dirty) { proceed(); return; }
@@ -163,6 +172,7 @@ export function makeFileIO(engine, status) {
 			setDirty(false);
 		},
 		async save(as) {
+			if (!as && saveOverride) { return saveOverride(); }
 			const text = engine.serialize();
 			if (window.showSaveFilePicker && (as || !fileHandle)) {
 				try {

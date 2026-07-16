@@ -173,15 +173,17 @@ function ok(cond, name) {
 	await page.evaluate(() => { delete window.showOpenFilePicker; });
 	await clickMenu('File', 'New');
 	await page.click('.panel-actions button[data-act=discard]');
-	await new Promise(r => setTimeout(r, 400));
-	hasEdited = await page.evaluate(() =>
-		Array.from(document.querySelectorAll('.mapjs-node')).some(n => n.textContent.indexOf('Edited claim') >= 0));
+	hasEdited = await page.waitForFunction(() =>
+		!Array.from(document.querySelectorAll('.mapjs-node')).some(n => n.textContent.indexOf('Edited claim') >= 0),
+	{ timeout: 5000 }).then(() => false).catch(() => true);
 	ok(!hasEdited, 'Don\'t save proceeds to the new map');
 	await clickMenu('File', 'Open');
 	const picker = await page.$('input[type=file]');
 	ok(picker !== null, 'fallback picker input is attached to the DOM');
 	await picker.uploadFile(require('path').join(__dirname, '..', 'samples', 'death.mup'));
-	await new Promise(r => setTimeout(r, 600));
+	await page.waitForFunction(() =>
+		document.getElementById('map-title').textContent === 'death.mup',
+	{ timeout: 5000 }).catch(() => null);
 	const openedSecond = await page.evaluate(() => ({
 		hasDeath: Array.from(document.querySelectorAll('.mapjs-node'))
 			.some(n => n.textContent.indexOf('going to die') >= 0),
