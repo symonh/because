@@ -45,10 +45,18 @@ jQuery.fn.editNode = function (shouldSelectAll) {
 			finishEditing = function () {
 				/* LOCAL PATCH (rich text): serialize the edited DOM to the
 				   canonical markup when formatting is present, otherwise keep
-				   the historical plain-text extraction byte for byte */
-				const runs = richText.trimRuns(richText.runsFromDom(textBox[0])),
+				   the historical plain-text extraction byte for byte. The
+				   promise must always settle — an unsettled promise means the
+				   controller never re-enables input and the whole app freezes
+				   — so any extraction failure falls back to plain text. */
+				let content;
+				try {
+					const runs = richText.trimRuns(richText.runsFromDom(textBox[0]));
 					content = richText.hasFormatting(runs) ?
 						richText.runsToTitle(runs) : textBox.innerText();
+				} catch (e) {
+					content = textBox.innerText();
+				}
 				if (content === unformattedText) {
 					return cancelEditing(); //eslint-disable-line no-use-before-define
 				}
@@ -58,6 +66,7 @@ jQuery.fn.editNode = function (shouldSelectAll) {
 			cancelEditing = function () {
 				clear();
 				textBox.html(originalHtml);
+				reject();
 			},
 			keyboardEvents = function (e) {
 				const ENTER_KEY_CODE = 13,

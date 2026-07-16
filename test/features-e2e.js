@@ -109,6 +109,37 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 	title = await page.evaluate(() => window.__because.engine.mapModel.getIdea().findSubIdeaById(12).title);
 	ok(title === 'Premise text', `⌘Z undoes the rich edit in one step (${title})`);
 
+	// ---- cancelled edits must re-enable input (the Mini-0 freeze) ----
+	// Escape out of an editor
+	await clickNode(12);
+	await page.keyboard.press('F2');
+	await sleep(400);
+	await page.keyboard.press('Escape');
+	await sleep(300);
+	ok(await page.evaluate(() => window.__because.engine.mapModel.getInputEnabled()),
+		'Escape from the editor re-enables input');
+	// Enter creates a new premise whose editor opens; clicking away without
+	// typing must cancel, undo the new node, and leave the app alive
+	const nodesBefore = await page.evaluate(() => document.querySelectorAll('.mapjs-node').length);
+	await page.keyboard.press('Enter');
+	await sleep(500);
+	await page.mouse.click(30, 300); // blur the fresh editor without typing
+	await sleep(500);
+	const afterAbandoned = await page.evaluate(() => ({
+		inputEnabled: window.__because.engine.mapModel.getInputEnabled(),
+		nodes: document.querySelectorAll('.mapjs-node').length
+	}));
+	ok(afterAbandoned.inputEnabled, 'abandoning a brand-new node editor re-enables input');
+	ok(afterAbandoned.nodes === nodesBefore,
+		`abandoned new node is rolled back (${afterAbandoned.nodes} vs ${nodesBefore})`);
+	await clickNode(12); // keyboard must actually work again
+	await metaPress('.', true);
+	ok(await page.evaluate(() => {
+		const s = (window.__because.engine.mapModel.getIdea().findSubIdeaById(12).attr || {}).style;
+		return s && s.fontMultiplier === 1.2;
+	}), 'keyboard commands still work after the cancelled edits');
+	await metaPress(',', true); // restore default
+
 	// ---- font size shortcuts ----
 	await clickNode(12);
 	await metaPress('.', true);

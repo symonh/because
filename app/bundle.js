@@ -17945,7 +17945,13 @@
             textBox.removeAttr("contenteditable");
             node.shadowDraggable();
           }, finishEditing = function() {
-            const runs = richText.trimRuns(richText.runsFromDom(textBox[0])), content = richText.hasFormatting(runs) ? richText.runsToTitle(runs) : textBox.innerText();
+            let content;
+            try {
+              const runs = richText.trimRuns(richText.runsFromDom(textBox[0]));
+              content = richText.hasFormatting(runs) ? richText.runsToTitle(runs) : textBox.innerText();
+            } catch (e) {
+              content = textBox.innerText();
+            }
             if (content === unformattedText) {
               return cancelEditing();
             }
@@ -17954,6 +17960,7 @@
           }, cancelEditing = function() {
             clear();
             textBox.html(originalHtml);
+            reject();
           }, keyboardEvents = function(e) {
             const ENTER_KEY_CODE = 13, ESC_KEY_CODE = 27, TAB_KEY_CODE = 9, S_KEY_CODE = 83, Z_KEY_CODE = 90, FORMAT_COMMANDS = { 66: "bold", 73: "italic", 85: "underline" };
             if (e.which === ENTER_KEY_CODE && !e.shiftKey) {
