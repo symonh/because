@@ -1,0 +1,86 @@
+diff --git a/src/browser/dom-map-controller.js b/src/browser/dom-map-controller.js
+index a5cd76c..6b5f992 100644
+--- a/src/browser/dom-map-controller.js
++++ b/src/browser/dom-map-controller.js
+@@ -271,7 +271,7 @@ module.exports = function DomMapController(mapModel, stageElement, touchEnabled,
+ 		textBox.appendTo('body').updateNodeContent(
+ 			idea,
+ 			themeSource(),
+-			{resourceTranslator: translateToPixel, level: level, decorations: ['left', 'right']}
++			{resourceTranslator: translateToPixel, level: level, decorations: ['left', 'right', 'top', 'bottom']}
+ 		);
+ 		result = {
+ 			width: Math.ceil(textBox.outerWidth(true)),
+diff --git a/src/browser/dom-map-widget.js b/src/browser/dom-map-widget.js
+index 7dd0cdd..65ca2ee 100644
+--- a/src/browser/dom-map-widget.js
++++ b/src/browser/dom-map-widget.js
+@@ -3,7 +3,7 @@ const $ = require('jquery'),
+ 	_ = require('underscore'),
+ 	createSVG = require('./create-svg');
+ 
+-require('imports-loader?jQuery=jquery!jquery.hotkeys');
++require('../../test/esbuild-shims/jquery-hotkeys-shim.js');
+ 
+ $.fn.scrollWhenDragging = function (scrollPredicate) {
+ 	'use strict';
+diff --git a/src/browser/hammer-draggable.js b/src/browser/hammer-draggable.js
+index 3243c23..6aad804 100644
+--- a/src/browser/hammer-draggable.js
++++ b/src/browser/hammer-draggable.js
+@@ -1,6 +1,6 @@
+ /*global require*/
+ const $ = require('jquery'),
+-	Hammer = require('exports-loader?Hammer!jquery-hammerjs/jquery.hammer-full.js'),
++	Hammer = require('../../test/esbuild-shims/jquery-hammer-shim.js'),
+ 	onDrag = function (e) {
+ 		'use strict';
+ 		$(this).trigger(
+diff --git a/src/browser/set-theme-class-list.js b/src/browser/set-theme-class-list.js
+index 2d05631..a68a993 100644
+--- a/src/browser/set-theme-class-list.js
++++ b/src/browser/set-theme-class-list.js
+@@ -6,7 +6,7 @@ jQuery.fn.setThemeClassList = function (classList) {
+ 	const domElement = this[0],
+ 		filterClasses = function (classes) {
+ 			return _.filter(classes, function (c) {
+-				return /^level_.+/.test(c) ||  /^attr_.+/.test(c);
++				return /^level_.+/.test(c) ||  /^attr_.+/.test(c) || c === 'sticky_note';
+ 			});
+ 		},
+ 		toRemove = filterClasses(domElement.classList),
+diff --git a/src/browser/update-connector.js b/src/browser/update-connector.js
+index 0f3af3f..b34e5a3 100644
+--- a/src/browser/update-connector.js
++++ b/src/browser/update-connector.js
+@@ -4,6 +4,7 @@ const jQuery = require('jquery'),
+ 	createSVG = require('./create-svg'),
+ 	defaultTheme = require('../core/theme/default-theme'),
+ 	lineStrokes = require('../core/theme/line-strokes'),
++	lineStyles = require('../core/theme/line-styles'),
+ 	convertPositionToTransform = require('../core/util/convert-position-to-transform'),
+ 	updateConnectorText = require('./update-connector-text'),
+ 	calcLabelCenterPont = require('./calc-label-center-point'),
+@@ -29,7 +30,7 @@ jQuery.fn.updateConnector = function (optional) {
+ 			allowParentConnectorOverride = !theme || !(theme.connectorEditingContext || theme.blockParentConnectorOverride) || (theme.connectorEditingContext && theme.connectorEditingContext.allowed && theme.connectorEditingContext.allowed.length), //TODO: rempve blockParentConnectorOverride once site has been live for a while
+ 			connection = buildConnection(element, optional),
+ 			applyLabel = function () {
+-				const labelText = (connectorAttr && connectorAttr.label) || '',
++				const labelText = (connectorAttr && connectorAttr.label) || (connection.theme && connection.theme.label && connection.theme.label.defaultText) || '',
+ 					shapeTo = labelText && element.data('nodeTo'),
+ 					shapeFrom = labelText && element.data('nodeFrom'),
+ 					labelTheme = (connection.theme && connection.theme.label) || defaultTheme.connector.default.label,
+@@ -59,10 +60,12 @@ jQuery.fn.updateConnector = function (optional) {
+ 			pathElement = createSVG('path').attr('class', 'mapjs-connector').appendTo(element);
+ 		}
+ 		//TODO: if the map was translated (so only the relative position changed), do not re-update the curve!!!!
++		const effectiveLineStyle = connection.lineStyle || (connection.theme && connection.theme.line && connection.theme.line.style) || 'solid';
+ 		pathElement.attr({
+ 			'd': connection.d,
+ 			'stroke-width': connection.width,
+-			'stroke-dasharray': lineStrokes[connection.lineStyle || 'solid'],
++			'stroke-dasharray': lineStyles.strokes(effectiveLineStyle, connection.width) || lineStrokes[effectiveLineStyle] || '',
++			'stroke-linecap': lineStyles.linecap(effectiveLineStyle) || 'square',
+ 			fill: 'transparent'
+ 		});
+ 		if (allowParentConnectorOverride) {

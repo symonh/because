@@ -1,0 +1,153 @@
+/* ArgumentBase chrome (topbar, menus, toolbar, panels) — the map canvas
+ * itself is styled by argmap.css + the generated theme CSS. */
+* { box-sizing: border-box; }
+html, body {
+	margin: 0;
+	height: 100%;
+	font-family: 'NotoSans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+	color: #444;
+	overflow: hidden;
+}
+
+#topbar {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	height: 44px;
+	padding: 0 12px;
+	background: #fff;
+	border-bottom: 1px solid #e3e3e3;
+}
+.brand { display: flex; align-items: center; }
+#map-title {
+	font-size: 14px;
+	font-weight: 700;
+	color: #333;
+	white-space: nowrap;
+	max-width: 260px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+#menubar { display: flex; gap: 2px; }
+.menu-title {
+	padding: 6px 10px;
+	font-size: 13px;
+	color: #555;
+	border-radius: 4px;
+	cursor: pointer;
+	user-select: none;
+}
+.menu-title:hover, .menu-title.open { background: #eef6fb; color: #1a86b8; }
+#save-status {
+	margin-left: auto;
+	font-size: 12px;
+	color: #aaa;
+	white-space: nowrap;
+}
+
+.menu-dropdown {
+	position: fixed;
+	z-index: 900;
+	min-width: 230px;
+	background: #fff;
+	border: 1px solid #ddd;
+	border-radius: 6px;
+	box-shadow: 0 4px 14px rgba(0,0,0,0.13);
+	padding: 4px 0;
+}
+.menu-item {
+	padding: 7px 16px;
+	font-size: 13px;
+	cursor: pointer;
+	user-select: none;
+	white-space: nowrap;
+}
+.menu-item:hover { background: #eef6fb; color: #1a86b8; }
+.menu-sep { border-top: 1px solid #eee; margin: 4px 0; }
+
+#toolbar {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	height: 40px;
+	padding: 0 10px;
+	background: #fafafa;
+	border-bottom: 1px solid #e3e3e3;
+}
+.tb-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	border: none;
+	background: transparent;
+	border-radius: 5px;
+	cursor: pointer;
+	padding: 0;
+}
+.tb-btn:hover { background: #e8f2f8; }
+.tb-btn:active { background: #d8eaf4; }
+.tb-sep {
+	width: 1px;
+	height: 22px;
+	background: #ddd;
+	margin: 0 7px;
+}
+
+#map-container {
+	position: relative;
+	height: calc(100% - 84px);
+	width: 100%;
+	background: #fff;
+	overflow: hidden;
+}
+#map-container:focus { outline: none; }
+
+.panel-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 1000;
+	background: rgba(0,0,0,0.35);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.panel {
+	background: #fff;
+	border-radius: 8px;
+	max-width: 560px;
+	max-height: 80vh;
+	overflow: auto;
+	padding: 22px 28px;
+	box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+	font-size: 14px;
+	line-height: 1.5;
+}
+.panel h2 { margin-top: 0; font-size: 18px; }
+.panel a { color: #1a86b8; }
+.panel-close { text-align: right; margin-top: 12px; }
+.panel-close button {
+	border: 1px solid #ccc;
+	background: #f6f6f6;
+	border-radius: 5px;
+	padding: 6px 16px;
+	cursor: pointer;
+	font-size: 13px;
+}
+.kbd td { padding: 3px 12px 3px 0; }
+kbd {
+	background: #f3f3f3;
+	border: 1px solid #ccc;
+	border-bottom-width: 2px;
+	border-radius: 4px;
+	padding: 1px 7px;
+	font-size: 12px;
+	font-family: inherit;
+	white-space: nowrap;
+}
+
+@media print {
+	#topbar, #toolbar { display: none; }
+	#map-container { height: 100%; }
+}

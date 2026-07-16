@@ -1,9 +1,11 @@
-# dev-only real maps (student/course work — never commit)
-samples-local/
-# test tooling / artifacts
-test/node_modules/
-node_modules/
-test/screenshots/
-test/artifacts/
-*.log
 .DS_Store
+*.log
+# dev-only real maps (student/course work — never commit)
+# test tooling / artifacts
+engine/node_modules
+node_modules/
+refs-local/
+samples-local/
+test/artifacts/
+test/node_modules/
+test/screenshots/

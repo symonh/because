@@ -1,15 +1,10 @@
 /*
  * Authentic MindMup argument-mapping theme, extracted verbatim from a .mup
- * file saved by the current MindMup product (the file embeds the resolved
- * theme JSON under its top-level "theme" key). This is the product's own
- * spec — colors, spacing, badge geometry — not a reconstruction.
- *
- * Registry: .mup files reference themes by name (attr.theme). Files that
- * embed a full theme use it directly; for name-only files we resolve here.
- * argMappingHighImpact currently aliases argMappingSimple: its real spec
- * (connector labels like "because"/"but") has not been recovered yet.
+ * file saved by the MindMup product (files embed their resolved theme JSON).
+ * argMappingHighImpact = the same theme plus default connector labels
+ * ("because..." / "but...").
  */
-const argMappingSimple = {
+export const argMappingSimple = {
  "name": "MindMup Top Down Argument Mapping",
  "connectorEditingContext": {
   "name": "argument-mapping",
@@ -536,13 +531,63 @@ const argMappingSimple = {
  }
 };
 
-const argMappingHighImpact = JSON.parse(JSON.stringify(argMappingSimple));
-argMappingHighImpact.name = 'MindMup Top Down Argument Mapping (high impact)';
-argMappingHighImpact.connector['supporting-group'].label.defaultText = 'because...';
-argMappingHighImpact.connector['opposing-group'].label.defaultText = 'but...';
+export const argMappingHighImpact = (() => {
+	const t = JSON.parse(JSON.stringify(argMappingSimple));
+	t.name = 'MindMup Top Down Argument Mapping (high impact)';
+	t.connector['supporting-group'].label.defaultText = 'because...';
+	t.connector['opposing-group'].label.defaultText = 'but...';
+	return t;
+})();
 
-module.exports = {
-	default: argMappingSimple,
+const registry = {
 	argMappingSimple: argMappingSimple,
 	argMappingHighImpact: argMappingHighImpact
 };
+
+// .mup files either embed their resolved theme (top-level "theme" key) or
+// name one in attr.theme; fall back to the authentic argument-mapping theme.
+export function resolveThemeJson(mapJson) {
+	return (mapJson && mapJson.theme) ||
+		(mapJson && mapJson.attr && registry[mapJson.attr.theme]) ||
+		argMappingSimple;
+}
+
+// The argument-mapping themes don't cover sticky notes or their dotted
+// connectors (MindMup's newer renderer styles those outside the theme), so
+// fill the gaps on a copy; never mutate the map's own theme object.
+export function augmentThemeJson(json) {
+	const t = JSON.parse(JSON.stringify(json)),
+		hasNode = name => (t.node || []).some(n => n.name === name);
+	t.node = t.node || [];
+	if (!hasNode('sticky_note')) {
+		t.node.push({
+			name: 'sticky_note',
+			cornerRadius: 2,
+			backgroundColor: '#ffff99',
+			border: {type: 'surround', line: {color: 'transparent', width: 1, style: 'solid'}},
+			shadow: [{color: '#070707', opacity: 0.4, offset: {width: 2, height: 3}, radius: 3}],
+			text: {
+				margin: 8, alignment: 'start', maxWidth: 200,
+				color: '#4F4F4F', lightColor: '#EEEEEE', darkColor: '#000000',
+				font: {lineSpacing: 6, size: 13, weight: 'normal'}
+			},
+			connections: {
+				style: 'note-link',
+				'default': {h: 'center-separated', v: 'base'},
+				from: {horizontal: {h: 'center-separated', v: 'base'}},
+				to: {h: 'center', v: 'top'}
+			}
+		});
+	}
+	if (!hasNode('activated.sticky_note')) {
+		t.node.push({
+			name: 'activated.sticky_note',
+			border: {type: 'surround', line: {color: '#22AAE0', width: 3, style: 'dashed'}}
+		});
+	}
+	t.connector = t.connector || {};
+	if (!t.connector['note-link']) {
+		t.connector['note-link'] = {type: 'vertical-quadratic-s-curve', line: {color: '#707070', width: 1.5, style: 'dotted'}};
+	}
+	return t;
+}

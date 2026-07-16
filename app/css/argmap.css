@@ -1,0 +1,110 @@
+/*
+ * ArgumentBase presentation layer, loaded after mapjs-default-styles.css.
+ * The map's own MindMup theme JSON drives colors/borders/spacing; the
+ * generated theme CSS hardcodes the family "NotoSans" (no space), so the
+ * font faces below intercept that name — exactly how classic MindMup shipped
+ * it (a single regular face, so the theme's weight 200 resolves to 400).
+ */
+@font-face {
+	font-family: 'NotoSans';
+	src: url('../fonts/NotoSans-400.woff2') format('woff2');
+	font-weight: 400;
+	font-style: normal;
+}
+@font-face {
+	font-family: 'NotoSans';
+	src: url('../fonts/NotoSans-700.woff2') format('woff2');
+	font-weight: 700;
+	font-style: normal;
+}
+/* Sticky-note handwriting (Architects Daughter — MindMup's sticky font) */
+@font-face {
+	font-family: 'Architects Daughter';
+	src: url('../fonts/ArchitectsDaughter.woff2') format('woff2');
+	font-weight: 400;
+	font-style: normal;
+}
+
+.mapjs-connector-text {
+	font-family: 'NotoSans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+/*
+ * Number badge. The theme places decorations at the top edge, position end,
+ * overlapping the border; the engine reserves no space for top-edge
+ * decorations, so the badge straddles the top-right corner like MindMup.
+ * Container = outer blue ring; label = white ring + blue fill + white text.
+ */
+.mapjs-node .mapjs-decorations {
+	background: rgba(34, 170, 224, 0.8);
+	border-radius: 12px;
+	height: 24px;
+	min-width: 24px;
+	top: -14px !important;
+	right: 0 !important;
+	text-align: center;
+}
+.mapjs-label {
+	display: inline-block;
+	box-sizing: border-box;
+	margin: 2px;
+	padding: 0 4px;
+	min-width: 20px;
+	height: 20px;
+	border: 1px solid #ffffff;
+	border-radius: 10px;
+	background: transparent;
+	opacity: 1;
+	color: #ffffff;
+	font: 700 12px/18px 'NotoSans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+	text-align: center;
+	vertical-align: top;
+}
+
+/*
+ * MindMup's newer renderer keeps the base 7px node padding and adds the theme
+ * text margin (5) on top -> 12px inset; the 2018 engine replaces the padding
+ * with the margin. Groups must stay untouched (they are sized by children).
+ */
+.mapjs-node:not(.attr_group) {
+	padding: 12px !important;
+}
+
+/* Sticky notes: theme augmentation colors them; the handwriting face and the
+ * slight oblique are CSS (the generated font shorthand must be beaten). */
+.mapjs-node.sticky_note {
+	font-family: 'Architects Daughter', cursive !important;
+	font-style: oblique 7deg !important;
+	font-weight: 400 !important;
+}
+.mapjs-node.sticky_note .mapjs-decorations {
+	/* stickies keep plain link/attachment icons, not the number pill */
+	background: transparent;
+}
+
+/* Claim-evaluation marks (app extension; MindMup shows a blue circle with a
+ * red no-entry mark on claims marked false) */
+.mapjs-node.attr_eval_rejected::after,
+.mapjs-node.attr_eval_accepted::after {
+	content: '\1F6AB';
+	position: absolute;
+	top: -12px;
+	right: -10px;
+	width: 24px;
+	height: 24px;
+	background: rgba(34, 170, 224, 0.85);
+	border-radius: 50%;
+	font-size: 14px;
+	line-height: 24px;
+	text-align: center;
+}
+.mapjs-node.attr_eval_accepted::after {
+	content: '\2714\FE0F';
+}
+
+/* The theme says maxWidth 146 but MindMup's rendered wrap measures ~154px
+ * (their renderer adds padding on top of the span width); with real NotoSans
+ * metrics 146 wraps too early. */
+.mapjs-node span {
+	max-width: 154px !important;
+}

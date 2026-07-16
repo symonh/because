@@ -1,50 +1,73 @@
 # ArgumentBase
 
-A standalone argument-map editor. It reads and writes the MindMup `.mup` format
-natively and renders argument maps in the argument-visualization style used in
-critical-thinking teaching: a claim at the top, supporting (green) and opposing
-(red) reason groups joined by brackets, co-premises sharing a bracket, implicit
-premises drawn with a dotted blue border, and numbered badges.
+A standalone editor and renderer for MindMup argument visualizations (`.mup`
+files). MindMup discontinued free argument-visualization access in June 2026;
+ArgumentBase runs the same MIT-licensed rendering engine
+([mindmup/mapjs](https://github.com/mindmup/mapjs)) with the product's own
+argument-mapping theme, so existing course maps open unchanged and render the
+way they did in MindMup.
 
-It exists so that the teaching community that built courses on MindMup's
-argument-visualization mode — after free access to it ended in 2026 — has a free,
-education-first tool that opens their existing `.mup` files and keeps working.
-
-## Status
-
-Early. This is a working editor for viewing and editing argument maps. See
-`STATUS.md` for what works, what is partial, and what is not done yet.
-
-## Design goals
-
-- **Opens existing work.** Your `.mup` files are ordinary JSON in your own
-  storage; this app loads them directly, with no account and no server.
-- **No build, no dependencies, no network.** The whole app is `index.html` +
-  `app.js`. Open the file and it runs.
-- **Free and education-first.** Non-commercial; it does not use the MindMup name
-  or brand, and builds only on the MIT-licensed argument-mapping engine lineage.
+![the app](docs/app-ui.png)
 
 ## Run it
 
-Open `index.html` in a browser, or serve the folder:
+No build step needed — the engine bundles are committed:
 
 ```
-python3 -m http.server 8000
-# then visit http://localhost:8000/
+python3 -m http.server 8871      # from the repo root
+open http://127.0.0.1:8871/app/
 ```
 
-Open a `.mup` file with **Open**, or drag one onto the window. Press **New** to
-start from a blank claim.
+- Drag any `.mup` file onto the window to open it, or use File → Open.
+- File → Save writes a standard `.mup` (JSON) that MindMup-family tools read.
+- Work is autosaved to the browser's localStorage between sessions.
 
-## Keyboard
+## Keyboard (the philmaps.com set)
 
-- **Enter** — add a supporting reason to the selected box
-- **Tab** — add a co-premise beside the selected premise
-- **F2 / double-click** — edit text
-- **Delete** — remove the selected box
-- **Cmd/Ctrl-Z** — undo (Shift to redo)
+| Key | Action |
+|---|---|
+| Enter | add reason under selected claim |
+| Tab | add co-premise to selected claim |
+| Alt+O | add objection |
+| Alt+T | toggle reason/objection (on a bracket) or implicit/explicit (on a claim) |
+| Alt+N | add sticky note |
+| arrows | navigate; F2/Space edit; Delete remove; ⌘Z/⌘⇧Z undo/redo |
+| Z / Shift+Z | zoom |
 
-## License
+## The argument-visualization grammar
 
-MIT (see `LICENSE`). The rendering engine derives from the MIT-licensed
-`mindmup/mapjs` argument-mapping lineage.
+- Co-premises (claims that jointly make one reason) share **one bracket** with
+  a single stem; independent reasons get **separate brackets** with fanning
+  stems.
+- Green brackets support; **red brackets are objections**.
+- **Dashed borders** mark implicit claims; sticky notes are yellow handwriting
+  notes; claim numbering (1.1, 2.1 …) is a view toggle.
+
+![co-premises vs independent reasons](docs/copremises-vs-independent.png)
+
+## Fidelity
+
+The theme is not a lookalike: it is the argument-mapping theme JSON extracted
+from the embedded `theme` object of a `.mup` file saved by the MindMup product
+(`app/js/themes.js`, `engine/theme-argmap.js`), plus the fonts MindMup used
+(NotoSans for claims, Architects Daughter for stickies). Per-map embedded
+themes, author-set node widths, connector-width overrides, links and
+attachments in real `.mup` files are honored by the engine as-is. Known gaps:
+CSS dashed borders draw slightly shorter dashes than MindMup's renderer, and
+the `argMappingHighImpact` theme is reconstructed (base theme + "because…" /
+"but…" connector labels) rather than extracted.
+
+## Repo layout
+
+```
+app/           the editor (static ES modules; app/bundle.js is the engine)
+engine/        vendored mapjs source + build script (see engine/README.md)
+engine-demo/   raw engine playground (drag a .mup onto it; ?src=&labels=0)
+samples/       synthetic .mup fixtures safe for a public repo
+samples-local/ real course maps — gitignored, never commit
+test/          app-e2e.js (Puppeteer smoke test), render-map.js (headless renders)
+docs/          rendered proofs
+```
+
+Tests: `cd test && npm ci && node app-e2e.js` (expects the static server on
+port 8871 and Google Chrome installed).
