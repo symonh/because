@@ -12,6 +12,9 @@ import { track, noteMapSource } from './analytics.js';
 const AUTOSAVE_KEY = 'because.autosave',
 	NAME_KEY = 'because.autosave.name',
 	DIRTY_KEY = 'because.autosave.dirty',
+	AUTO_KEY = 'because.autosave.auto',
+	// how long after the last change auto-save writes the file
+	AUTO_DELAY_MS = 1200,
 	// pre-rename keys (the app shipped briefly as ArgumentBase)
 	LEGACY_KEYS = {
 		'because.autosave': 'argumentbase.autosave',
@@ -28,7 +31,15 @@ export function makeFileIO(engine, status) {
 		fileName = 'untitled.mup',
 		dirty = false,
 		pickerInput = null,
-		saveOverride = null; // set by the Drive module while a Drive file is open
+		saveOverride = null, // set by the Drive module while a Drive file is open
+		// auto-save (File > Auto-save): each change writes back to the map's
+		// own file — only ever a writable one (Drive, or a File System Access
+		// handle), never the download fallback
+		autoOn = localStorage.getItem(AUTO_KEY) === '1',
+		autoTimer = null,
+		autoBusy = false,
+		autoFailed = false,
+		changeGen = 0;
 
 	const setName = function (name) {
 			fileName = name;
@@ -37,7 +48,14 @@ export function makeFileIO(engine, status) {
 		},
 		setDirty = function (value) {
 			dirty = !!value;
-			if (dirty) { status.dirty(); } else { status.saved(); }
+			if (!dirty) {
+				autoFailed = false; // a successful save re-arms a paused auto-save
+				status.saved();
+			} else if (autoOn && autoFailed) {
+				status.autoSaveFailed();
+			} else {
+				status.dirty();
+			}
 		},
 		parseAndLoad = function (text, name, loadedDirty) {
 			const json = JSON.parse(text);
@@ -94,12 +112,65 @@ export function makeFileIO(engine, status) {
 			setDirty(false);
 			io.autosave();
 			return true;
+		},
+		canWriteInPlace = () => !!(saveOverride || fileHandle),
+		scheduleAutoSave = function () {
+			if (!autoOn || autoFailed || !canWriteInPlace()) { return; }
+			if (autoTimer) { window.clearTimeout(autoTimer); }
+			autoTimer = window.setTimeout(runAutoSave, AUTO_DELAY_MS);
+		},
+		// never rejects: a failure pauses auto-save (status message, no
+		// alert per keystroke) until the next successful save re-arms it
+		runAutoSave = async function () {
+			autoTimer = null;
+			if (autoBusy || !autoOn || !dirty || !canWriteInPlace()) { return; }
+			const gen = changeGen;
+			autoBusy = true;
+			status.saving();
+			try {
+				if (saveOverride) {
+					await saveOverride({ auto: true }); // Drive tracks + marks saved
+				} else {
+					const text = engine.serialize(),
+						writable = await fileHandle.createWritable();
+					await writable.write(text);
+					await writable.close();
+					track('map_save', { destination: 'file', mode: 'auto' });
+					setDirty(false);
+					io.autosave();
+				}
+				if (changeGen !== gen) { // edits arrived mid-write: still unsaved
+					setDirty(true);
+					scheduleAutoSave();
+				}
+			} catch (e) {
+				autoFailed = true;
+				status.autoSaveFailed();
+				track('auto_save_error', { description: String((e && e.message) || e).slice(0, 100) });
+			} finally {
+				autoBusy = false;
+			}
 		};
 
 	const io = {
 		fileName: () => fileName,
 		isDirty: () => dirty,
-		markDirty: () => setDirty(true),
+		markDirty: () => {
+			changeGen += 1;
+			setDirty(true);
+			scheduleAutoSave();
+		},
+		autoSaveEnabled: () => autoOn,
+		canAutoSave: () => canWriteInPlace(),
+		setAutoSave(on) {
+			autoOn = !!on;
+			autoFailed = false;
+			try { localStorage.setItem(AUTO_KEY, autoOn ? '1' : ''); } catch (e) { /* quota — non-fatal */ }
+			track('auto_save_toggle', { enabled: autoOn ? 'on' : 'off' });
+			if (!autoOn && autoTimer) { window.clearTimeout(autoTimer); autoTimer = null; }
+			// run inside the user's click, so a Drive token popup can open
+			if (autoOn && dirty && canWriteInPlace()) { runAutoSave(); }
+		},
 		// external saver (Drive) reporting a completed save
 		markSaved(name) {
 			if (name) { setName(name); }
@@ -242,5 +313,12 @@ export function makeFileIO(engine, status) {
 			return false;
 		}
 	};
+	// a hidden tab may never come back: write any pending auto-save now
+	document.addEventListener('visibilitychange', function () {
+		if (document.visibilityState === 'hidden' && autoTimer) {
+			window.clearTimeout(autoTimer);
+			runAutoSave();
+		}
+	});
 	return io;
 }

@@ -56,7 +56,9 @@ GA4 is the replacement and its web streams use `G-…` measurement ids.
 |---|---|---|
 | `app_open` | — | the editor boots (site pages send only `page_view`) |
 | `map_open` | `method` (`new`, `file_picker`, `drag_drop`, `drive`, `url`, `autosave_restore`, `unknown`), `node_count`, `node_bucket`, `map_theme` | any map replaces the current one |
-| `map_save` | `destination` (`file`, `download`, `drive`), `mode` (`save`, `save_as`, `save_copy`, `guard`) | a save completes (`guard` = via the unsaved-changes dialog) |
+| `map_save` | `destination` (`file`, `download`, `drive`), `mode` (`save`, `save_as`, `save_copy`, `guard`, `auto`) | a save completes (`guard` = via the unsaved-changes dialog, `auto` = auto-save wrote the map's own file) |
+| `auto_save_toggle` | `enabled` (`on`/`off`) | File > Auto-save toggled |
+| `auto_save_error` | `description` (truncated) | an auto-save attempt failed; auto-save pauses until the next successful save |
 | `map_print` | — | print / save-as-PDF starts |
 | `command` | `command_name` (the `commands.js` name, e.g. `addReason`), `method` (`menu`, `toolbar`, `shortcut`, `style_popover`) | any command runs, tagged by UI surface |
 | `edit_batch` | `changes` | batched count of model changes, flushed when the tab hides and every 2 minutes — measures editing intensity without per-keystroke events |

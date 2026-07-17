@@ -7,6 +7,30 @@ bucket `argumentbase-app`, localStorage keys migrate on first load.
 Canonical URL: **https://app.philmaps.com** (custom domain on the same
 Firebase site; argumentbase.web.app serves identically).
 
+## 2026-07-16 — File > Auto-save (opt-in)
+
+- File > Auto-save (✓ toggle, preference persisted in localStorage as
+  `because.autosave.auto` — an app preference, never map data). When on,
+  each change debounces (1.2s) into a real save to the map's own writable
+  target: the current Drive file, or a File System Access handle
+  (Chrome/Edge). Maps without a writable target (drag-drop, fallback
+  picker, ?src=, Safari local files) just stay "Unsaved changes" — the
+  download fallback is manual-save only, so auto-save can never spawn a
+  download per keystroke; enabling it targetless shows an explainer panel.
+- Failure handling: a failed auto-save pauses the feature (status shows
+  "Auto-save failed — use File > Save", no alert per change) and any
+  successful save re-arms it. Edits landing mid-write keep the map dirty
+  and reschedule. A pending auto-save flushes when the tab hides.
+- drive.js: save() threads an `{auto}` option (map_save mode `auto`,
+  silent rethrow instead of alert, never prompts); GIS token client got
+  an `error_callback`, so a popup blocked outside a user gesture (expired
+  token during auto-save) rejects instead of hanging the save forever.
+- Analytics: map_save mode `auto`, new `auto_save_toggle` and
+  `auto_save_error` events (docs/analytics.md updated).
+- Tests: drive-e2e (coalesced PATCH, failure pause without alert, manual
+  re-arm), features-e2e (targetless behaviour + toggle tracking),
+  webkit-e2e (explainer, no download in real WebKit).
+
 ## 2026-07-16 afternoon
 
 - **Deployed: https://argumentbase.web.app** (Firebase Hosting site

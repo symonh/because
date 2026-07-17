@@ -143,6 +143,28 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 	}), 'swatch click writes attr.style.background in WebKit');
 	await page.keyboard.press('Escape');
 
+	// ---- auto-save in WebKit: no File System Access API, so a local map
+	// has no writable target — enabling must explain itself and edits must
+	// never trigger a download (the download fallback is manual-save only)
+	const downloads = [];
+	page.on('download', d => downloads.push(d));
+	await clickMenu('File', 'Auto-save');
+	await page.waitForTimeout(200);
+	ok(await page.evaluate(() => {
+		const p = document.querySelector('.panel');
+		return !!p && p.textContent.indexOf('Auto-save is on') >= 0;
+	}), 'enabling auto-save without a writable target shows the explainer');
+	await page.click('.panel-close button');
+	await page.evaluate(() => {
+		const content = window.__because.engine.mapModel.getIdea(),
+			anyId = Object.values(content.ideas)[0].id;
+		content.updateTitle(anyId, 'Auto probe');
+	});
+	await page.waitForTimeout(2000);
+	ok(await page.evaluate(() => document.getElementById('save-status').textContent) === 'Unsaved changes',
+		'edits stay merely Unsaved — auto-save never fires without a target');
+	ok(downloads.length === 0, 'no download was triggered by auto-save');
+
 	await page.screenshot({ path: '/tmp/webkit_open.png' });
 	if (errors.length) { console.log('PAGE ERRORS:', errors.join(' | ')); failures += 1; }
 	await browser.close();

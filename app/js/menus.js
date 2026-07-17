@@ -16,6 +16,11 @@ export function buildMenus(el, commands, io, engine, drive, darkMode, labelEdit,
 			['Open…', () => io.open()],
 			['Save', () => io.save(false)],
 			['Save As…', () => io.save(true)],
+			[(io.autoSaveEnabled() ? '✓ ' : '') + 'Auto-save', () => {
+				const on = !io.autoSaveEnabled();
+				io.setAutoSave(on);
+				if (on && !io.canAutoSave()) { showAutoSaveInfo(); }
+			}],
 			['—'],
 			['Open from Google Drive…', driveItem(() => drive.open())],
 			[(drive && drive.currentFile() ? '✓ ' : '') + 'Save to Google Drive', driveItem(() => drive.save(false))],
@@ -118,6 +123,18 @@ export function buildMenus(el, commands, io, engine, drive, darkMode, labelEdit,
 				['Double-click a connector', 'edit its label']
 			].map(r => '<tr><td><kbd>' + r[0] + '</kbd></td><td>' + r[1] + '</td></tr>').join('') +
 			'</table>'
+		);
+	}
+
+	function showAutoSaveInfo() {
+		showPanel(
+			'<h2>Auto-save is on</h2>' +
+			'<p>Each change will be saved straight back to the map’s own file — ' +
+			'but this map doesn’t have one the browser can write to yet.</p>' +
+			'<p>Open the map from Google Drive or use <b>File &gt; Save to Google Drive</b>; ' +
+			'from then on every change saves there automatically. In Chrome and Edge, ' +
+			'a local file chosen with <b>File &gt; Save</b> works too. ' +
+			'Until then, keep saving with <b>File &gt; Save</b>.</p>'
 		);
 	}
 

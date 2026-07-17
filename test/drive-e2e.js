@@ -75,7 +75,9 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 					return Promise.resolve(new Response(deathMup, { status: 200 }));
 				}
 				if (u.indexOf('uploadType=media') >= 0) {
-					return Promise.resolve(new Response('{}', { status: 200 }));
+					return Promise.resolve(window.__driveFail ?
+						new Response('boom', { status: 500 }) :
+						new Response('{}', { status: 200 }));
 				}
 				if (u.indexOf('uploadType=multipart') >= 0) {
 					return Promise.resolve(new Response(JSON.stringify({ id: 'new-drive-file', name: 'Copy of map.mup' }), { status: 200 }));
@@ -170,6 +172,67 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 		window.__driveCalls.find(c => c.method === 'POST' && c.url.indexOf('uploadType=multipart') >= 0));
 	ok(!!created, 'Save a copy POSTs multipart files.create');
 	ok(created && String(created.body).indexOf('application/vnd.mindmup') >= 0, 'new file created with the MindMup mime type');
+
+	// ---- auto-save: each change writes back to the Drive file on its own ----
+	const drivePatches = () => page.evaluate(() =>
+		window.__driveCalls.filter(c => c.method === 'PATCH' && c.url.indexOf('new-drive-file') >= 0).length);
+	await page.evaluate(() => { window.__alerts = []; window.alert = m => window.__alerts.push(String(m)); });
+	await clickMenu('File', 'Auto-save');
+	const beforeAuto = await drivePatches();
+	await page.evaluate(() => {
+		const content = window.__because.engine.mapModel.getIdea(),
+			anyId = Object.values(content.ideas)[0].id;
+		content.updateTitle(anyId, 'Auto edit one');
+		content.updateTitle(anyId, 'Auto edit two'); // rapid pair: must coalesce
+	});
+	await page.waitForFunction(n => window.__driveCalls.filter(c =>
+		c.method === 'PATCH' && c.url.indexOf('new-drive-file') >= 0).length > n, { timeout: 6000 }, beforeAuto);
+	await new Promise(r => setTimeout(r, 800)); // would catch a second, uncoalesced write
+	ok(await drivePatches() === beforeAuto + 1, 'two rapid edits auto-save as ONE Drive PATCH');
+	ok(await page.evaluate(() => document.getElementById('save-status').textContent) === 'All changes saved',
+		'status settles on All changes saved after the auto-save');
+	const lastAutoBody = await page.evaluate(() => {
+		const calls = window.__driveCalls.filter(c => c.method === 'PATCH' && c.url.indexOf('new-drive-file') >= 0);
+		return String(calls[calls.length - 1].body);
+	});
+	ok(lastAutoBody.indexOf('Auto edit two') >= 0, 'the auto-saved body carries the newest edit');
+	ok(await page.evaluate(() => window.__because.analytics.events().some(e =>
+		e.name === 'map_save' && e.params.mode === 'auto' && e.params.destination === 'drive')),
+		'auto-save is tracked as map_save mode=auto');
+
+	// a failing backend pauses auto-save quietly; a manual Save re-arms it
+	await page.evaluate(() => { window.__driveFail = true; });
+	await page.evaluate(() => {
+		const content = window.__because.engine.mapModel.getIdea(),
+			anyId = Object.values(content.ideas)[0].id;
+		content.updateTitle(anyId, 'Fails to save');
+	});
+	await page.waitForFunction(() =>
+		document.getElementById('save-status').textContent.indexOf('Auto-save failed') >= 0, { timeout: 6000 });
+	ok(true, 'a failed auto-save reports in the status bar');
+	ok(await page.evaluate(() => window.__alerts.length) === 0, 'auto-save failures never alert()');
+	ok(await page.evaluate(() => window.__because.analytics.events().some(e => e.name === 'auto_save_error')),
+		'the failure lands in analytics as auto_save_error');
+	const pausedCount = await drivePatches();
+	await page.evaluate(() => {
+		const content = window.__because.engine.mapModel.getIdea(),
+			anyId = Object.values(content.ideas)[0].id;
+		content.updateTitle(anyId, 'Still paused');
+	});
+	await new Promise(r => setTimeout(r, 2000));
+	ok(await drivePatches() === pausedCount, 'auto-save stays paused after a failure (no retry storm)');
+	await page.evaluate(() => { window.__driveFail = false; });
+	await clickMenu('File', 'Save');
+	await page.waitForFunction(() => document.getElementById('save-status').textContent === 'All changes saved', { timeout: 6000 });
+	const rearmedCount = await drivePatches();
+	await page.evaluate(() => {
+		const content = window.__because.engine.mapModel.getIdea(),
+			anyId = Object.values(content.ideas)[0].id;
+		content.updateTitle(anyId, 'Auto again');
+	});
+	await page.waitForFunction(n => window.__driveCalls.filter(c =>
+		c.method === 'PATCH' && c.url.indexOf('new-drive-file') >= 0).length > n, { timeout: 6000 }, rearmedCount);
+	ok(true, 'a successful manual Save re-arms auto-save');
 
 	if (errors.length) { console.log('PAGE ERRORS:', errors.join(' | ')); failures += 1; }
 	await browser.close();

@@ -21,6 +21,8 @@ const status = {
 	titleEl: null,
 	saved() { this.el.textContent = 'All changes saved'; },
 	dirty() { this.el.textContent = 'Unsaved changes'; },
+	saving() { this.el.textContent = 'Saving…'; },
+	autoSaveFailed() { this.el.textContent = 'Auto-save failed — use File > Save'; },
 	setFileName(name) { this.titleEl.textContent = name; }
 };
 

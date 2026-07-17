@@ -65,6 +65,14 @@ export function makeDrive(engine, io, status) {
 					tokenExpiresAt = Date.now() + (Number(resp.expires_in) || 3600) * 1000;
 					resolve(accessToken);
 				};
+				// GIS reports popup failures here (e.g. blocked when the
+				// request runs outside a user gesture — an expired token
+				// during auto-save); without it the promise never settles
+				tokenClient.error_callback = function (err) {
+					const type = (err && err.type) || 'unknown';
+					reject(new Error(type === 'popup_failed_to_open' ?
+						'Google sign-in popup was blocked — use File > Save to sign in again.' : type));
+				};
 				// after the first grant Google re-issues silently; the popup
 				// only appears when consent is actually needed
 				tokenClient.requestAccessToken({ prompt: '' });
@@ -126,10 +134,14 @@ export function makeDrive(engine, io, status) {
 				picker.setVisible(true);
 			});
 		},
-		saveToDrive = async function (asCopy) {
-			const text = engine.serialize();
+		saveToDrive = async function (asCopy, opts) {
+			const auto = !!(opts && opts.auto),
+				text = engine.serialize();
 			let name = io.fileName();
 			if (asCopy || !currentDriveFile) {
+				// an auto-save must never open a prompt; it only ever runs
+				// while a Drive file is current, so this is a safety net
+				if (auto) { throw new Error('auto-save has no Drive file to write to'); }
 				const suggested = (name === 'untitled.mup' && engine.mapModel.getIdea()) ?
 					rootTitleName() : name;
 				name = window.prompt('Save in Google Drive as:', suggested);
@@ -143,7 +155,7 @@ export function makeDrive(engine, io, status) {
 					headers: { 'Content-Type': MUP_MIME },
 					body: text
 				});
-				track('map_save', { destination: 'drive', mode: 'save' });
+				track('map_save', { destination: 'drive', mode: auto ? 'auto' : 'save' });
 				io.markSaved(currentDriveFile.name);
 				return true;
 			}
@@ -163,7 +175,7 @@ export function makeDrive(engine, io, status) {
 				meta = await resp.json();
 			track('map_save', { destination: 'drive', mode: asCopy ? 'save_copy' : 'save_as' });
 			currentDriveFile = { id: meta.id, name: meta.name };
-			io.setSaveOverride(() => drive.save(false));
+			io.setSaveOverride(opts => drive.save(false, opts));
 			io.markSaved(meta.name);
 			return true;
 		},
@@ -202,16 +214,17 @@ export function makeDrive(engine, io, status) {
 					noteMapSource('drive');
 					io.loadJson(JSON.parse(text), doc.name); // clears currentDriveFile via mapLoaded
 					currentDriveFile = { id: doc.id, name: doc.name };
-					io.setSaveOverride(() => drive.save(false));
+					io.setSaveOverride(opts => drive.save(false, opts));
 				} catch (e) {
 					showError(e);
 				}
 			});
 		},
-		async save(asCopy) {
+		async save(asCopy, opts) {
 			try {
-				return await saveToDrive(asCopy);
+				return await saveToDrive(asCopy, opts);
 			} catch (e) {
+				if (opts && opts.auto) { throw e; } // auto-save handles it silently
 				showError(e);
 				return false;
 			}

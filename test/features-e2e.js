@@ -404,6 +404,43 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 	ok(await page.evaluate(() => document.querySelectorAll('.mapjs-node').length > 50),
 		'big map finishes rendering and the overlay goes away');
 
+	// ---- auto-save: opt-in, and inert without a writable file target ----
+	// (this map has no Drive file and no FS Access handle, so enabling must
+	// explain itself and edits must stay merely dirty — never a download)
+	await page.evaluate(() => {
+		Array.from(document.querySelectorAll('.menu-title')).find(t => t.textContent === 'File').click();
+	});
+	const autoLabel = await page.evaluate(() =>
+		Array.from(document.querySelectorAll('.menu-item')).map(i => i.textContent).find(t => t.indexOf('Auto-save') >= 0));
+	ok(autoLabel === 'Auto-save', `File menu offers Auto-save, off by default (${autoLabel})`);
+	await page.keyboard.press('Escape');
+	await clickMenu('File', 'Auto-save');
+	await sleep(200);
+	ok(await page.$eval('.panel', el => el.textContent.indexOf('Auto-save is on') >= 0).catch(() => false),
+		'enabling without a writable target explains where auto-save applies');
+	await page.click('.panel-close button');
+	ok(await page.evaluate(() => localStorage.getItem('because.autosave.auto') === '1'),
+		'the auto-save preference persists in localStorage');
+	await page.evaluate(() => {
+		Array.from(document.querySelectorAll('.menu-title')).find(t => t.textContent === 'File').click();
+	});
+	ok(await page.evaluate(() => Array.from(document.querySelectorAll('.menu-item'))
+		.some(i => i.textContent === '✓ Auto-save')), 'the menu shows Auto-save checked');
+	await page.keyboard.press('Escape');
+	await page.evaluate(() => {
+		const content = window.__because.engine.mapModel.getIdea(),
+			anyId = Object.values(content.ideas)[0].id;
+		content.updateTitle(anyId, 'auto probe');
+	});
+	await sleep(2000);
+	ok(await page.evaluate(() => document.getElementById('save-status').textContent) === 'Unsaved changes',
+		'without a target an edit stays merely Unsaved (no phantom auto-save)');
+	ok(await page.evaluate(() => !window.__because.analytics.events().some(e =>
+		e.name === 'map_save' && e.params.mode === 'auto')),
+		'no map_save mode=auto is emitted without a target');
+	await clickMenu('File', 'Auto-save'); // back off for the rest of the suite
+	await sleep(200);
+
 	// ---- analytics: local buffer, surface tagging, privacy ----
 	// on localhost analytics must never send (and with no measurement id it
 	// couldn't anyway), but every event still lands in the inspectable
@@ -426,6 +463,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 	ok(!!findEv('command', p => p.command_name === 'toggleBold' && p.method === 'shortcut'),
 		'commands are tracked with their UI surface (⌘B → shortcut)');
 	ok(!!findEv('dark_mode_toggle', p => p.enabled === 'on'), 'dark mode toggles are tracked');
+	ok(!!findEv('auto_save_toggle', p => p.enabled === 'on') && !!findEv('auto_save_toggle', p => p.enabled === 'off'),
+		'auto-save toggles are tracked');
 	ok(!!findEv('theme_select', p => p.theme === 'high_impact'), 'View-menu theme choice is tracked');
 	ok(!!findEv('connector_action', p => p.action === 'stronger') &&
 		!!findEv('connector_action', p => p.action === 'label_set'),
