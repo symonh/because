@@ -25,6 +25,8 @@ export function buildMenus(el, commands, io, engine, drive, darkMode, labelEdit,
 			['Open from Google Drive…', driveItem(() => drive.open())],
 			[(drive && drive.currentFile() ? '✓ ' : '') + 'Save to Google Drive', driveItem(() => drive.save(false))],
 			['Save a copy in Drive…', driveItem(() => drive.save(true))],
+			['Switch Google Drive account…' + (drive && drive.account && drive.account() ?
+				' (' + drive.account() + ')' : ''), driveItem(() => drive.switchAccount())],
 			['—'],
 			['Print / Save as PDF', () => window.print()]
 		]],

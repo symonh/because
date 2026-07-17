@@ -18,6 +18,10 @@ import { track, noteMapSource } from './analytics.js';
 
 const GSI_SRC = 'https://accounts.google.com/gsi/client',
 	GAPI_SRC = 'https://apis.google.com/js/api.js',
+	// which Google account granted Drive access — persisted so return
+	// visits skip the account chooser (multi-account browsers show it on
+	// EVERY token request otherwise)
+	ACCOUNT_KEY = 'because.drive.account',
 	MUP_MIME = 'application/vnd.mindmup',
 	// what instructors' existing .mup files look like to Drive: MindMup
 	// saved them with its own mime type; manual uploads get octet-stream
@@ -28,7 +32,7 @@ export function makeDrive(engine, io, status) {
 		tokenExpiresAt = 0,
 		tokenClient = null,
 		pickerReady = false,
-		accountHint = null, // email of the account that granted access
+		accountHint = window.localStorage.getItem(ACCOUNT_KEY) || null,
 		currentDriveFile = null; // {id, name, canEdit} while the open map lives in Drive
 
 	const scriptPromises = {},
@@ -44,8 +48,8 @@ export function makeDrive(engine, io, status) {
 			}
 			return scriptPromises[src];
 		},
-		ensureToken = async function () {
-			if (accessToken && Date.now() < tokenExpiresAt - 60000) {
+		ensureToken = async function (forceSelect) {
+			if (!forceSelect && accessToken && Date.now() < tokenExpiresAt - 60000) {
 				return accessToken;
 			}
 			await loadScript(GSI_SRC);
@@ -77,22 +81,27 @@ export function makeDrive(engine, io, status) {
 				};
 				// after the first grant Google re-issues silently; the popup
 				// only appears when consent is actually needed. The hint pins
-				// renewals to the account that granted access — without it a
-				// silent renewal in a multi-account browser can come back for
-				// a DIFFERENT account, and every file call then 404s.
-				const overrides = { prompt: '' };
-				if (accountHint) { overrides.hint = accountHint; }
+				// requests to the account that granted access — without it a
+				// multi-account browser shows the account chooser on every
+				// visit, and a silent renewal can even come back for a
+				// DIFFERENT account (every file call then 404s).
+				const overrides = { prompt: forceSelect ? 'select_account' : '' };
+				if (!forceSelect && accountHint) { overrides.hint = accountHint; }
 				tokenClient.requestAccessToken(overrides);
 			});
 		},
-		// fire-and-forget whoami for the hint above; never blocks a save
+		// whoami for the hint above; fire-and-forget at token time (never
+		// blocks a save), awaited by switchAccount to name the new account
 		captureAccount = function (token) {
-			window.fetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)', {
+			return window.fetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)', {
 				headers: { Authorization: 'Bearer ' + token }
 			}).then(r => (r.ok ? r.json() : null))
 				.then(function (info) {
 					const email = info && info.user && info.user.emailAddress;
-					if (email) { accountHint = email; }
+					if (email) {
+						accountHint = email;
+						try { window.localStorage.setItem(ACCOUNT_KEY, email); } catch (e) { /* non-fatal */ }
+					}
 				})
 				.catch(() => {});
 		},
@@ -255,6 +264,22 @@ export function makeDrive(engine, io, status) {
 	const drive = {
 		isConfigured: () => !!driveConfig.clientId,
 		currentFile: () => currentDriveFile,
+		account: () => accountHint,
+		// forget the pinned account and re-run the chooser (the only way
+		// out of a wrong-account pin without clearing site data by hand)
+		async switchAccount() {
+			accessToken = null;
+			accountHint = null;
+			try { window.localStorage.removeItem(ACCOUNT_KEY); } catch (e) { /* non-fatal */ }
+			try {
+				const token = await ensureToken(true); // shows the account chooser
+				await captureAccount(token);
+				window.alert('Google Drive is now connected as ' +
+					(accountHint || 'the chosen account') + '.');
+			} catch (e) {
+				showError(e);
+			}
+		},
 		open() {
 			io.guardUnsaved(async function () {
 				try {

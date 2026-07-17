@@ -301,6 +301,23 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 		'Save on a view-only file never PATCHes the original — it creates a copy');
 	await page.evaluate(() => { window.__viewOnly = false; });
 
+	// ---- account persistence: no chooser on return visits ----
+	ok(await page.evaluate(() => localStorage.getItem('because.drive.account') === 'sc@test'),
+		'the granting account persists in localStorage');
+	await page.reload({ waitUntil: 'networkidle0' });
+	await page.waitForSelector('.mapjs-node', { timeout: 8000 });
+	await page.evaluate(() => { window.__alerts = []; window.alert = m => window.__alerts.push(String(m)); });
+	await clickMenu('File', 'Open from Google Drive');
+	await page.waitForFunction(() => document.getElementById('map-title').textContent === 'Drive map.mup', { timeout: 6000 });
+	ok(await page.evaluate(() => window.__tokenRequests.length > 0 && window.__tokenRequests[0].hint === 'sc@test'),
+		'after a reload the FIRST token request already carries the account hint');
+	await clickMenu('File', 'Switch Google Drive account');
+	await page.waitForFunction(() => window.__alerts.length > 0, { timeout: 6000 });
+	ok(await page.evaluate(() => window.__tokenRequests.some(r => r.prompt === 'select_account')),
+		'switching forces the account chooser (prompt=select_account)');
+	ok(await page.evaluate(() => window.__alerts[0].indexOf('sc@test') >= 0),
+		'the switch names the connected account');
+
 	if (errors.length) { console.log('PAGE ERRORS:', errors.join(' | ')); failures += 1; }
 	await browser.close();
 	console.log(failures === 0 ? 'ALL PASS (drive)' : failures + ' FAILURES (drive)');

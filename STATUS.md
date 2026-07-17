@@ -23,6 +23,12 @@ Firebase site; argumentbase.web.app serves identically).
   new Drive file" with the reason and signed-in account named, replacing
   the raw error alert; token renewals carry a `login_hint` for the
   granting account so silent renewals can't migrate accounts.
+- Account chooser fatigue (Simon's screenshot: multi-account Safari got
+  the chooser on every visit): the granting account persists in
+  localStorage (`because.drive.account`) and every token request carries
+  it as the hint, so return visits skip the chooser (the token popup may
+  still flash and self-close). File > "Switch Google Drive account…"
+  (shows the connected email) clears the pin and forces the chooser once.
 - Privacy fix found during this: the raw 404 text (contains the Drive
   file id) had been flowing into drive_error / auto_save_error analytics
   descriptions, against the stated contract. track() now masks any 25+
