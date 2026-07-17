@@ -33,15 +33,19 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 	});
 
 	await page.evaluateOnNewDocument(function (deathMup) {
-		// --- GIS stub: hands out a fake token immediately
+		// --- GIS stub: hands out a fake token immediately. The 30s expiry
+		// is below the app's 60s early-refresh margin, so EVERY Drive call
+		// requests a fresh token — which exercises the account-hint pinning.
+		window.__tokenRequests = [];
 		window.google = window.google || {};
 		window.google.accounts = {
 			oauth2: {
 				initTokenClient(cfg) {
 					return {
 						callback: cfg.callback,
-						requestAccessToken() {
-							this.callback({ access_token: 'FAKE_TOKEN', expires_in: 3600 });
+						requestAccessToken(overrides) {
+							window.__tokenRequests.push(overrides || {});
+							this.callback({ access_token: 'FAKE_TOKEN', expires_in: 30 });
 						}
 					};
 				}
@@ -54,6 +58,7 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 			ViewId: { DOCS: 'docs' },
 			Response: { ACTION: 'action', DOCUMENTS: 'docs' },
 			Action: { PICKED: 'picked', CANCEL: 'cancel' },
+			Feature: { SUPPORT_DRIVES: 'supportDrives' },
 			DocsView: function () { return chain({}); },
 			PickerBuilder: function () {
 				const self = {}, builder = chain(self);
@@ -71,13 +76,24 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 			const u = String(url);
 			if (u.indexOf('googleapis.com') >= 0 && u.indexOf('/drive/v3/') >= 0) {
 				window.__driveCalls.push({ url: u, method: (options && options.method) || 'GET', body: options && options.body });
+				if (u.indexOf('/drive/v3/about') >= 0) {
+					return Promise.resolve(new Response(JSON.stringify({ user: { emailAddress: 'sc@test' } }), { status: 200 }));
+				}
+				if (u.indexOf('fields=trashed') >= 0) { // the capability probe
+					return Promise.resolve(window.__probe404 ?
+						new Response('nope', { status: 404 }) :
+						new Response(JSON.stringify({ trashed: false, capabilities: { canEdit: !window.__viewOnly } }), { status: 200 }));
+				}
 				if (u.indexOf('alt=media') >= 0) {
 					return Promise.resolve(new Response(deathMup, { status: 200 }));
 				}
 				if (u.indexOf('uploadType=media') >= 0) {
-					return Promise.resolve(window.__driveFail ?
-						new Response('boom', { status: 500 }) :
-						new Response('{}', { status: 200 }));
+					if (window.__driveFail) { return Promise.resolve(new Response('boom', { status: 500 })); }
+					if (window.__driveFail404) {
+						return Promise.resolve(new Response(JSON.stringify({ error: { code: 404,
+							message: 'File not found: 1FAKEFAKEFAKEFAKEFAKEFAKEFAKE0.' } }), { status: 404 }));
+					}
+					return Promise.resolve(new Response('{}', { status: 200 }));
 				}
 				if (u.indexOf('uploadType=multipart') >= 0) {
 					return Promise.resolve(new Response(JSON.stringify({ id: 'new-drive-file', name: 'Copy of map.mup' }), { status: 200 }));
@@ -233,6 +249,57 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 	await page.waitForFunction(n => window.__driveCalls.filter(c =>
 		c.method === 'PATCH' && c.url.indexOf('new-drive-file') >= 0).length > n, { timeout: 6000 }, rearmedCount);
 	ok(true, 'a successful manual Save re-arms auto-save');
+
+	// ---- Drive hardening: shared-drive flag, account pinning, 404 triage ----
+	ok(await page.evaluate(() => window.__driveCalls
+		.filter(c => c.url.indexOf('/drive/v3/about') < 0)
+		.every(c => c.url.indexOf('supportsAllDrives=true') >= 0)),
+		'every Drive file read/write carries supportsAllDrives=true');
+	const hints = await page.evaluate(() => window.__tokenRequests.map(r => (r && r.hint) || null));
+	ok(hints.length >= 2 && hints[0] === null && hints[hints.length - 1] === 'sc@test',
+		`token renewals are pinned to the granting account (${hints[0]} → ${hints[hints.length - 1]})`);
+
+	// a write that 404s (file deleted / other account / shared-drive quirk)
+	// gets diagnosed and turned into a save-a-copy offer, not a raw alert
+	await page.evaluate(() => {
+		window.__driveFail404 = true;
+		window.__probe404 = true; // the probe can't see the file either
+		window.__confirms = [];
+		window.confirm = m => { window.__confirms.push(String(m)); return true; };
+	});
+	const postsBefore = await page.evaluate(() =>
+		window.__driveCalls.filter(c => c.method === 'POST' && c.url.indexOf('uploadType=multipart') >= 0).length);
+	await clickMenu('File', 'Save');
+	await page.waitForFunction(n => window.__driveCalls.filter(c =>
+		c.method === 'POST' && c.url.indexOf('uploadType=multipart') >= 0).length > n, { timeout: 6000 }, postsBefore);
+	ok(await page.evaluate(() => window.__confirms.length === 1 &&
+		window.__confirms[0].indexOf('no longer see') >= 0 && window.__confirms[0].indexOf('sc@test') >= 0),
+		'a 404 on Save is diagnosed (signed-in account named) and offers a new file');
+	await page.waitForFunction(() => document.getElementById('save-status').textContent === 'All changes saved', { timeout: 6000 });
+	ok(await page.evaluate(() => window.__alerts.length) === 0, 'the 404 path never shows the raw error alert');
+	ok(await page.evaluate(() => !window.__because.analytics.events().some(ev =>
+		/[\w-]{25,}/.test(JSON.stringify(ev.params)))),
+		'no Drive-id-sized token appears in any analytics event');
+	await page.evaluate(() => { window.__driveFail404 = false; window.__probe404 = false; });
+
+	// view-only files: warned at open, Save goes straight to a copy
+	await page.evaluate(() => { window.__viewOnly = true; });
+	await clickMenu('File', 'Open from Google Drive');
+	await page.waitForFunction(() => document.getElementById('map-title').textContent === 'Drive map.mup', { timeout: 6000 });
+	await page.waitForFunction(() => window.__alerts.length > 0, { timeout: 6000 });
+	ok(await page.evaluate(() => window.__alerts.some(a => a.indexOf('view-only') >= 0)),
+		'opening a view-only file warns immediately');
+	const patchesToOriginal = () => page.evaluate(() =>
+		window.__driveCalls.filter(c => c.method === 'PATCH' && c.url.indexOf('drive-file-1') >= 0).length);
+	const beforeViewOnlySave = await patchesToOriginal();
+	const postsBeforeViewOnly = await page.evaluate(() =>
+		window.__driveCalls.filter(c => c.method === 'POST' && c.url.indexOf('uploadType=multipart') >= 0).length);
+	await clickMenu('File', 'Save');
+	await page.waitForFunction(n => window.__driveCalls.filter(c =>
+		c.method === 'POST' && c.url.indexOf('uploadType=multipart') >= 0).length > n, { timeout: 6000 }, postsBeforeViewOnly);
+	ok(await patchesToOriginal() === beforeViewOnlySave,
+		'Save on a view-only file never PATCHes the original — it creates a copy');
+	await page.evaluate(() => { window.__viewOnly = false; });
 
 	if (errors.length) { console.log('PAGE ERRORS:', errors.join(' | ')); failures += 1; }
 	await browser.close();

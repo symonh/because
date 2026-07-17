@@ -28,7 +28,8 @@ export function makeDrive(engine, io, status) {
 		tokenExpiresAt = 0,
 		tokenClient = null,
 		pickerReady = false,
-		currentDriveFile = null; // {id, name} while the open map lives in Drive
+		accountHint = null, // email of the account that granted access
+		currentDriveFile = null; // {id, name, canEdit} while the open map lives in Drive
 
 	const scriptPromises = {},
 		loadScript = function (src) {
@@ -63,6 +64,7 @@ export function makeDrive(engine, io, status) {
 					}
 					accessToken = resp.access_token;
 					tokenExpiresAt = Date.now() + (Number(resp.expires_in) || 3600) * 1000;
+					captureAccount(accessToken);
 					resolve(accessToken);
 				};
 				// GIS reports popup failures here (e.g. blocked when the
@@ -74,9 +76,25 @@ export function makeDrive(engine, io, status) {
 						'Google sign-in popup was blocked — use File > Save to sign in again.' : type));
 				};
 				// after the first grant Google re-issues silently; the popup
-				// only appears when consent is actually needed
-				tokenClient.requestAccessToken({ prompt: '' });
+				// only appears when consent is actually needed. The hint pins
+				// renewals to the account that granted access — without it a
+				// silent renewal in a multi-account browser can come back for
+				// a DIFFERENT account, and every file call then 404s.
+				const overrides = { prompt: '' };
+				if (accountHint) { overrides.hint = accountHint; }
+				tokenClient.requestAccessToken(overrides);
 			});
+		},
+		// fire-and-forget whoami for the hint above; never blocks a save
+		captureAccount = function (token) {
+			window.fetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)', {
+				headers: { Authorization: 'Bearer ' + token }
+			}).then(r => (r.ok ? r.json() : null))
+				.then(function (info) {
+					const email = info && info.user && info.user.emailAddress;
+					if (email) { accountHint = email; }
+				})
+				.catch(() => {});
 		},
 		ensurePicker = async function () {
 			if (pickerReady) { return; }
@@ -101,6 +119,14 @@ export function makeDrive(engine, io, status) {
 			}
 			return resp;
 		},
+		// metadata probe: is the file trashed / writable / visible at all?
+		// Drive masks most access problems as plain 404, so this is how a
+		// failed write gets an actionable explanation
+		probeFile = async function (id) {
+			const resp = await driveFetch('https://www.googleapis.com/drive/v3/files/' +
+				encodeURIComponent(id) + '?fields=trashed,capabilities/canEdit&supportsAllDrives=true');
+			return resp.json();
+		},
 		showError = function (e) {
 			// popup dismissed / permission declined are normal cancellations
 			const benign = /popup_closed|access_denied|user_cancel/i.test(String(e && e.message));
@@ -116,22 +142,25 @@ export function makeDrive(engine, io, status) {
 				const google = window.google,
 					view = new google.picker.DocsView(google.picker.ViewId.DOCS)
 						.setIncludeFolders(true)
-						.setMimeTypes(OPENABLE_MIMES),
-					picker = new google.picker.PickerBuilder()
-						.setDeveloperKey(driveConfig.apiKey)
-						.setAppId(driveConfig.appId)
-						.setOAuthToken(token)
-						.setTitle('Open an argument map (.mup)')
-						.addView(view)
-						.setCallback(function (data) {
-							if (data[google.picker.Response.ACTION] === google.picker.Action.PICKED) {
-								resolve(data[google.picker.Response.DOCUMENTS][0]);
-							} else if (data[google.picker.Response.ACTION] === google.picker.Action.CANCEL) {
-								resolve(null);
-							}
-						})
-						.build();
-				picker.setVisible(true);
+						.setMimeTypes(OPENABLE_MIMES);
+				if (view.setEnableDrives) { view.setEnableDrives(true); } // shared drives
+				let builder = new google.picker.PickerBuilder()
+					.setDeveloperKey(driveConfig.apiKey)
+					.setAppId(driveConfig.appId)
+					.setOAuthToken(token)
+					.setTitle('Open an argument map (.mup)')
+					.addView(view)
+					.setCallback(function (data) {
+						if (data[google.picker.Response.ACTION] === google.picker.Action.PICKED) {
+							resolve(data[google.picker.Response.DOCUMENTS][0]);
+						} else if (data[google.picker.Response.ACTION] === google.picker.Action.CANCEL) {
+							resolve(null);
+						}
+					});
+				if (google.picker.Feature && google.picker.Feature.SUPPORT_DRIVES) {
+					builder = builder.enableFeature(google.picker.Feature.SUPPORT_DRIVES);
+				}
+				builder.build().setVisible(true);
 			});
 		},
 		saveToDrive = async function (asCopy, opts) {
@@ -150,7 +179,7 @@ export function makeDrive(engine, io, status) {
 			}
 			if (currentDriveFile && !asCopy) {
 				await driveFetch('https://www.googleapis.com/upload/drive/v3/files/' +
-					encodeURIComponent(currentDriveFile.id) + '?uploadType=media', {
+					encodeURIComponent(currentDriveFile.id) + '?uploadType=media&supportsAllDrives=true', {
 					method: 'PATCH',
 					headers: { 'Content-Type': MUP_MIME },
 					body: text
@@ -167,7 +196,7 @@ export function makeDrive(engine, io, status) {
 					'Content-Type: ' + MUP_MIME + '\r\n\r\n' +
 					text + '\r\n' +
 					'--' + boundary + '--',
-				resp = await driveFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name', {
+				resp = await driveFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name&supportsAllDrives=true', {
 					method: 'POST',
 					headers: { 'Content-Type': 'multipart/related; boundary=' + boundary },
 					body: body
@@ -178,6 +207,29 @@ export function makeDrive(engine, io, status) {
 			io.setSaveOverride(opts => drive.save(false, opts));
 			io.markSaved(meta.name);
 			return true;
+		},
+		// Drive masked a failed write as 404 — probe the file so the message
+		// says what is actually wrong, then offer saving as a new file
+		offerCopyAfter404 = async function (e) {
+			track('drive_error', { description: String((e && e.message) || e) });
+			let why = 'Google Drive reported the file missing.';
+			try {
+				const meta = await probeFile(currentDriveFile.id);
+				if (meta && meta.trashed) {
+					why = 'The file is in the Drive trash.';
+				} else if (meta && meta.capabilities && meta.capabilities.canEdit === false) {
+					why = 'You have view-only access to this file.';
+				}
+			} catch (probeErr) {
+				why = 'Google Drive can no longer see this file' +
+					(accountHint ? ' from ' + accountHint : '') +
+					' — it may have been deleted, or it may belong to a different Google account.';
+			}
+			if (window.confirm('Couldn’t save to “' + currentDriveFile.name + '”. ' + why +
+					'\n\nSave your current map as a NEW Drive file instead?')) {
+				return drive.save(true);
+			}
+			return false;
 		},
 		rootTitleName = function () {
 			const idea = engine.mapModel.getIdea(),
@@ -209,22 +261,43 @@ export function makeDrive(engine, io, status) {
 					const doc = await pickFile();
 					if (!doc) { return; }
 					const resp = await driveFetch('https://www.googleapis.com/drive/v3/files/' +
-							encodeURIComponent(doc.id) + '?alt=media'),
+							encodeURIComponent(doc.id) + '?alt=media&supportsAllDrives=true'),
 						text = await resp.text();
 					noteMapSource('drive');
 					io.loadJson(JSON.parse(text), doc.name); // clears currentDriveFile via mapLoaded
 					currentDriveFile = { id: doc.id, name: doc.name };
 					io.setSaveOverride(opts => drive.save(false, opts));
+					// warn about a view-only file NOW, not when the first
+					// save fails (Drive would mask that failure as a 404)
+					try {
+						const meta = await probeFile(doc.id);
+						if (meta && meta.capabilities && meta.capabilities.canEdit === false) {
+							currentDriveFile.canEdit = false;
+							window.alert('You have view-only access to “' + doc.name +
+								'” in Google Drive. You can edit the map here, but File > Save ' +
+								'will save it as a new Drive file (a copy).');
+						}
+					} catch (ignore) { /* the probe is advisory */ }
 				} catch (e) {
 					showError(e);
 				}
 			});
 		},
 		async save(asCopy, opts) {
+			const auto = !!(opts && opts.auto);
+			// a view-only file can never be written in place: manual Save
+			// becomes save-a-copy; auto-save pauses via its failure path
+			if (!asCopy && currentDriveFile && currentDriveFile.canEdit === false) {
+				if (auto) { throw new Error('view-only Drive file — File > Save saves a copy'); }
+				return drive.save(true, opts);
+			}
 			try {
 				return await saveToDrive(asCopy, opts);
 			} catch (e) {
-				if (opts && opts.auto) { throw e; } // auto-save handles it silently
+				if (auto) { throw e; } // auto-save handles it silently
+				if (!asCopy && currentDriveFile && /error 404/.test(String(e && e.message))) {
+					return offerCopyAfter404(e);
+				}
 				showError(e);
 				return false;
 			}

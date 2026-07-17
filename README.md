@@ -73,9 +73,12 @@ engine/        vendored mapjs source + build script (see engine/README.md)
 engine-demo/   raw engine playground (drag a .mup onto it; ?src=&labels=0)
 samples/       synthetic .mup fixtures safe for a public repo
 samples-local/ real course maps — gitignored, never commit
-test/          app-e2e.js (Puppeteer smoke test), render-map.js (headless renders)
+test/          five e2e suites (Chrome + real WebKit) and render-map.js (headless renders)
 docs/          rendered proofs
 ```
 
-Tests: `cd test && npm ci && node app-e2e.js` (expects the static server on
-port 8871 and Google Chrome installed).
+Tests: `cd test && npm ci`, serve the repo root (`python3 -m http.server
+8871`), then run all five suites — `node app-e2e.js`, `node
+click-select-e2e.js`, `node drive-e2e.js`, `node features-e2e.js` (Chrome
+via puppeteer-core) and `node webkit-e2e.js` (Playwright WebKit, the
+Safari-engine check). All five must pass before deploying.

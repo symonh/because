@@ -41,7 +41,11 @@ const debugOn = function () {
 		const out = {};
 		Object.keys(params || {}).forEach(function (k) {
 			const v = params[k];
-			out[k] = typeof v === 'string' ? v.slice(0, 100) : v;
+			// unbroken 25+ char tokens are ids (Drive file ids run 25–44
+			// chars; the longest legit enum value is 21) — mask them so a
+			// stray error message can never leak one into an event
+			out[k] = typeof v === 'string' ?
+				v.replace(/[\w-]{25,}/g, '…').slice(0, 100) : v;
 		});
 		return out;
 	};

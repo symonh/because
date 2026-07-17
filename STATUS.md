@@ -7,6 +7,30 @@ bucket `argumentbase-app`, localStorage keys migrate on first load.
 Canonical URL: **https://app.philmaps.com** (custom domain on the same
 Firebase site; argumentbase.web.app serves identically).
 
+## 2026-07-16 — Drive write-404 triage + hardening
+
+- Field incident (Simon): a .mup opened fine from the Picker but every
+  write to it failed with 404 "File not found" — fresh re-auth, same
+  result, so not token expiry. Google documents that Drive masks
+  permission problems as 404, and that shared-drive items 404 on update
+  without `supportsAllDrives=true` (which reads may survive). Root cause
+  on Simon's file still unconfirmed; the app now diagnoses it instead of
+  guessing.
+- Hardening shipped: `supportsAllDrives=true` on every file read/write
+  plus shared-drive support in the Picker; opening a view-only file warns
+  immediately and Save creates a copy instead of PATCHing; a write 404
+  probes the file (trashed? view-only? invisible?) and offers "save as a
+  new Drive file" with the reason and signed-in account named, replacing
+  the raw error alert; token renewals carry a `login_hint` for the
+  granting account so silent renewals can't migrate accounts.
+- Privacy fix found during this: the raw 404 text (contains the Drive
+  file id) had been flowing into drive_error / auto_save_error analytics
+  descriptions, against the stated contract. track() now masks any 25+
+  char token in every string param.
+- Doc drift fixed: README test instructions (five suites), LICENSE
+  copyright name (ArgumentBase → Because), stale GA4 BLOCKED section
+  here, analytics.md privacy rules.
+
 ## 2026-07-16 — File > Auto-save (opt-in)
 
 - File > Auto-save (✓ toggle, preference persisted in localStorage as
@@ -79,11 +103,12 @@ Firebase site; argumentbase.web.app serves identically).
   analytics" — all three updated to disclose the usage statistics
   honestly (privacy policy gained a full Usage analytics section; GA also
   added to the three site pages via the same module).
-- **BLOCKED on Simon**: Simon's UA-106489762-1 is Universal Analytics,
-  dead since Google's July 2023 UA shutdown — it cannot receive data. A
-  GA4 web stream id (G-…) for app.philmaps.com must be pasted into
-  gaConfig.measurementId (steps in docs/analytics.md), then redeploy.
-  Until then analytics is a silent no-op and the app is unaffected.
+- RESOLVED later that night: measurement id G-HZZYZYH512 ("Because" web
+  stream on app.philmaps.com) is in gaConfig.measurementId, deployed, and
+  verified live (accepted /g/collect hits). Remaining GA console work:
+  register the custom dimensions and set 14-month retention
+  (docs/analytics.md). Background kept for the record: the old
+  UA-106489762-1 was Universal Analytics, dead since July 2023.
 
 ## 2026-07-16 night
 
@@ -205,9 +230,10 @@ underscore aliased to its UMD file — see engine/build.sh for why.
 
 ## Not done yet
 
-- GA4 measurement id (Simon, analytics.google.com, ~5 min —
-  docs/analytics.md) into gaConfig.measurementId, then redeploy; register
-  the custom dimensions listed there so event params show in reports.
+- GA console housekeeping (Simon, ~5 min — docs/analytics.md): register
+  the custom dimensions so event params show in reports, and set
+  14-month data retention. The measurement id itself is live
+  (G-HZZYZYH512, verified end-to-end 2026-07-16).
 - Drive OAuth client ID (Simon, Console, ~2 min — docs/drive-setup.md),
   then a live end-to-end Drive test with a real Google account.
 - app.philmaps.com cert: DNS + custom domain done 2026-07-16 evening;

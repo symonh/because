@@ -79,8 +79,10 @@ short hash into the deployed copy of analytics.js (the repo copy says
 
 - Events carry feature names, fixed enum values, and counts **only**.
   Map content, claim titles, file names, Drive ids, and anything the user
-  typed never leave the browser. `track()` truncates strings defensively,
-  but the rule is: don't pass user text in the first place.
+  typed never leave the browser. `track()` truncates strings defensively
+  and masks any unbroken 25+ character token (Drive file ids are 25–44
+  chars), so even a raw error message can't leak an id — but the rule is:
+  don't pass user text in the first place.
 - Google signals and ad-personalization are disabled in the gtag config.
 - Global Privacy Control disables analytics entirely.
 - The welcome modal and the privacy policy state all of this; if the
