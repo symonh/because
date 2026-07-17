@@ -7,6 +7,44 @@ bucket `argumentbase-app`, localStorage keys migrate on first load.
 Canonical URL: **https://app.philmaps.com** (custom domain on the same
 Firebase site; argumentbase.web.app serves identically).
 
+## 2026-07-17 — WCAG 2.2 AA remediation
+
+- Full accessibility pass over the app chrome (docs/accessibility.md has
+  the conformance notes, palette table, and documented exceptions; the
+  map-canvas CONTENT still renders the authentic MindMup theme verbatim
+  per the fidelity rule — chrome only was recolored).
+- Keyboard model fixed at the root: shortcuts.js was intercepting
+  Tab/Enter/z/t on WINDOW capture, so the toolbar and menus were
+  unreachable by keyboard and Enter on a focused button added a reason
+  instead of clicking it. Now map-scoped (body counts as map scope except
+  Tab, which walks into the chrome). Skip link added; the vendor's
+  positive tabindex=1 on the container normalized to 0, nodes to -1 —
+  the map is one Tab stop.
+- Menubar is a real WAI-ARIA menubar (buttons, roving tabindex, arrow
+  keys, menuitemcheckbox/radio with aria-checked; menus.js). Every modal
+  (info panels, intro, unsaved guard) goes through app/js/a11y.js:
+  role=dialog, Tab trap, Escape, focus restore, and a focusin guard —
+  needed because setIdea focuses the root node mid-load and was yanking
+  focus out of the intro modal (engine.js deselectAll blur also scoped
+  to map nodes for the same reason). Popovers (node-style, connector)
+  manage focus + expose aria-pressed; Stronger/Weaker connector gained
+  menu items so the click-a-connector popover is no longer the only path.
+- Canvas semantics (app/js/a11y-canvas.js): container role=tree +
+  aria-activedescendant, nodes role=treeitem with aria-level/-selected/
+  -expanded, brackets get group labels, SVG layer aria-hidden. Arrows
+  move SELECTION not DOM focus (composite pattern), so the visible
+  keyboard indicator is a class the module holds on the active node
+  while the container is focused. Serialization stays byte-identical
+  (round-trip asserted with decoration active).
+- Contrast: chrome accent #1a86b8 → #16749f for text (4.76–5.21:1),
+  save-status #aaa → #6e6e6e / dark #a2a9b0, toolbar icon blues/yellow
+  darkened (#1987b5, #8a7b00) for 3:1 non-text; same palette applied to
+  the site pages. Focus-visible outlines everywhere; topbar/toolbar now
+  wrap in a flex column (200% zoom / 640px reflow clean); reduced-motion
+  honored; html lang, live-region save status, labelled everything.
+- New gate: test/a11y-e2e.js (WebKit) — six axe-core scans (all states
+  clean) + the whole keyboard walkthrough. All six suites pass.
+
 ## 2026-07-16 — Drive write-404 triage + hardening
 
 - Field incident (Simon): a .mup opened fine from the Picker but every

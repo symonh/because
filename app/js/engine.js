@@ -36,11 +36,16 @@ export function initEngine(container) {
 			return true;
 		},
 		// the editor auto-selects the root on load, which draws the dotted
-		// "activated" border; a freshly opened map should look clean
+		// "activated" border; a freshly opened map should look clean.
+		// Only blur when a map node holds focus: this runs 250ms after
+		// load, and an unscoped blur was yanking focus out of whatever
+		// dialog had opened meanwhile (the first-visit welcome modal)
 		deselectAll = function () {
 			jQuery('.mapjs-node').removeClass('activated selected');
-			if (document.activeElement && document.activeElement.blur) {
-				document.activeElement.blur();
+			const active = document.activeElement;
+			if (active && active.blur && active.classList &&
+					active.classList.contains('mapjs-node')) {
+				active.blur();
 			}
 		},
 		applyLabels = function () {

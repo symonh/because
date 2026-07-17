@@ -8,6 +8,7 @@
  */
 
 import { track, noteMapSource } from './analytics.js';
+import { initModal } from './a11y.js';
 
 const AUTOSAVE_KEY = 'because.autosave',
 	NAME_KEY = 'because.autosave.name',
@@ -181,25 +182,28 @@ export function makeFileIO(engine, status) {
 		// Save / Don't save / Cancel before anything that replaces the map
 		guardUnsaved(proceed) {
 			if (!dirty) { proceed(); return; }
+			let modal = null;
 			const overlay = document.createElement('div'),
 				panel = document.createElement('div'),
 				heading = document.createElement('h2'),
 				message = document.createElement('p'),
 				actions = document.createElement('div'),
-				close = () => overlay.remove(),
+				// close via the modal so focus is restored
+				close = () => { if (modal) { modal.close(); modal = null; } },
 				addButton = function (label, act, onClick) {
 					const b = document.createElement('button');
 					b.textContent = label;
 					b.dataset.act = act;
 					b.addEventListener('click', onClick);
 					actions.appendChild(b);
+					return b;
 				};
 			overlay.className = 'panel-overlay';
 			panel.className = 'panel';
 			heading.textContent = 'Unsaved changes';
 			message.textContent = '“' + fileName + '” has changes that are not saved to a file.';
 			actions.className = 'panel-actions';
-			addButton('Save', 'save', () => {
+			const saveButton = addButton('Save', 'save', () => {
 				close();
 				saveQuietly().then(saved => { if (saved) { proceed(); } });
 			});
@@ -209,6 +213,8 @@ export function makeFileIO(engine, status) {
 			overlay.appendChild(panel);
 			overlay.addEventListener('click', e => { if (e.target === overlay) { close(); } });
 			document.body.appendChild(overlay);
+			// Escape / cancel path is the same close()
+			modal = initModal(overlay, { initialFocus: saveButton, onRequestClose: close });
 		},
 		newMap() {
 			io.guardUnsaved(function () {

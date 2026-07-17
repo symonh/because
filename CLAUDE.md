@@ -32,7 +32,8 @@ OAuth setup.
   https://app.philmaps.com.
 - Tests: serve the repo root on port 8871, then run `node app-e2e.js`,
   `node click-select-e2e.js`, `node drive-e2e.js`, `node features-e2e.js`,
-  and `node webkit-e2e.js` (Playwright WebKit — the Safari rule) from
+  `node webkit-e2e.js` (Playwright WebKit — the Safari rule), and
+  `node a11y-e2e.js` (WCAG 2.2 AA gate; docs/accessibility.md) from
   `test/`. All must pass before deploying.
 
 ## Engine background

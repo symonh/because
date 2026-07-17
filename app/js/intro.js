@@ -9,11 +9,13 @@
  */
 
 import { track } from './analytics.js';
+import { initModal } from './a11y.js';
 
 const KEY = 'because.intro.dismissed';
 
 export function makeIntro() {
-	let overlay = null;
+	let overlay = null,
+		modal = null;
 
 	const close = function (rememberChoice) {
 			if (!overlay) { return; }
@@ -24,7 +26,8 @@ export function makeIntro() {
 				} catch (e) { /* private mode */ }
 				track('intro_dismissed', { dont_show_again: box && box.checked ? 'yes' : 'no' });
 			}
-			overlay.remove();
+			// modal.close() removes the overlay and restores focus
+			if (modal) { modal.close(); modal = null; }
 			overlay = null;
 		},
 		show = function (trigger) {
@@ -62,6 +65,11 @@ export function makeIntro() {
 				if (e.target === overlay) { close(true); }
 			});
 			document.body.appendChild(overlay);
+			// Escape counts as dismissal-with-remember, same as click-away
+			modal = initModal(overlay, {
+				initialFocus: overlay.querySelector('.intro-start'),
+				onRequestClose: () => close(true)
+			});
 		};
 
 	let dismissed = null;

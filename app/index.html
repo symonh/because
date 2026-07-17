@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <title>Because</title>
@@ -13,16 +13,17 @@
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
+<a href="#map-container" id="skip-link" tabindex="0">Skip to map</a>
 <header id="topbar">
 	<div class="brand" title="Because">
-		<svg viewBox="0 0 24 24" width="26" height="26"><rect x="7" y="2" width="10" height="6" rx="1.5" fill="#fff" stroke="#707070"/><path d="M12 8v3" stroke="#339966" stroke-width="2"/><path d="M3 12h18M3 12q0 2.5 2.5 2.5M21 12q0 2.5-2.5 2.5" stroke="#339966" stroke-width="2" fill="none"/><rect x="2" y="16" width="8" height="6" rx="1.5" fill="#fff" stroke="#707070"/><rect x="14" y="16" width="8" height="6" rx="1.5" fill="#fff" stroke="#707070" stroke-dasharray="2.5,1.6"/></svg>
+		<svg aria-hidden="true" viewBox="0 0 24 24" width="26" height="26"><rect x="7" y="2" width="10" height="6" rx="1.5" fill="#fff" stroke="#707070"/><path d="M12 8v3" stroke="#339966" stroke-width="2"/><path d="M3 12h18M3 12q0 2.5 2.5 2.5M21 12q0 2.5-2.5 2.5" stroke="#339966" stroke-width="2" fill="none"/><rect x="2" y="16" width="8" height="6" rx="1.5" fill="#fff" stroke="#707070"/><rect x="14" y="16" width="8" height="6" rx="1.5" fill="#fff" stroke="#707070" stroke-dasharray="2.5,1.6"/></svg>
 	</div>
 	<span id="map-title" title="Current file">untitled.mup</span>
-	<nav id="menubar"></nav>
-	<span id="save-status">All changes saved</span>
+	<nav id="menubar" role="menubar" aria-label="Application menu"></nav>
+	<span id="save-status" role="status">All changes saved</span>
 	<button id="theme-toggle" type="button" aria-label="Switch to dark mode"></button>
 </header>
-<div id="toolbar"></div>
+<div id="toolbar" role="toolbar" aria-label="Editing toolbar"></div>
 <div id="map-container"></div>
 <script src="bundle.js"></script>
 <script type="module" src="js/main.js"></script>

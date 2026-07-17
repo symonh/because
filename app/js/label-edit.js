@@ -59,6 +59,7 @@ export function makeLabelEdit(engine) {
 			input = document.createElement('input');
 		input.type = 'text';
 		input.className = 'connector-label-editor';
+		input.setAttribute('aria-label', 'Connector label');
 		input.value = current;
 		input.style.left = (visibleLeft + container.scrollLeft) + 'px';
 		input.style.top = (visibleTop + container.scrollTop) + 'px';
@@ -91,9 +92,24 @@ export function makeLabelEdit(engine) {
 	mapModel.addEventListener('lineLabelClicked', beginEdit);
 
 	// ---- Stronger / Weaker popover (MindMup's connector width editor) ----
-	let popover = null;
-	const closePopover = function () {
-			if (popover) { popover.remove(); popover = null; }
+	let popover = null,
+		popoverPrevFocus = null;
+	const restorePopoverFocus = function () {
+			if (popoverPrevFocus && popoverPrevFocus.focus &&
+					document.contains(popoverPrevFocus)) {
+				popoverPrevFocus.focus();
+			} else {
+				const container = document.getElementById('map-container');
+				if (container) { container.focus(); }
+			}
+		},
+		closePopover = function () {
+			if (!popover) { return; }
+			const hadFocus = popover.contains(document.activeElement);
+			popover.remove();
+			popover = null;
+			if (hadFocus) { restorePopoverFocus(); }
+			popoverPrevFocus = null;
 		},
 		strongerIcon = '<svg viewBox="0 0 24 24" width="26" height="26"><path d="M12 3l4.5 5h-9z" fill="currentColor"/><rect x="4" y="10.5" width="16" height="3" rx="1" fill="currentColor"/><path d="M12 21l-4.5-5h9z" fill="currentColor"/></svg>',
 		weakerIcon = '<svg viewBox="0 0 24 24" width="26" height="26"><path d="M12 10l-3.5-4h7z" fill="currentColor"/><rect x="5" y="11.25" width="14" height="1.5" rx="0.75" fill="currentColor"/><path d="M12 14l3.5 4h-7z" fill="currentColor"/></svg>',
@@ -115,9 +131,24 @@ export function makeLabelEdit(engine) {
 		},
 		showPopover = function (connector, x, y) {
 			closePopover();
+			popoverPrevFocus = document.activeElement;
 			popover = document.createElement('div');
 			popover.className = 'connector-popover';
+			popover.setAttribute('role', 'dialog');
+			popover.setAttribute('aria-label', 'Connector strength');
 			popover.addEventListener('mousedown', e => e.stopPropagation());
+			// trap Tab among the tiles, wrapping at the ends
+			popover.addEventListener('keydown', function (e) {
+				if (e.key !== 'Tab') { return; }
+				const items = Array.from(popover.querySelectorAll('button'));
+				if (!items.length) { return; }
+				e.preventDefault();
+				const at = items.indexOf(document.activeElement),
+					next = e.shiftKey ?
+						(at <= 0 ? items.length - 1 : at - 1) :
+						(at < 0 || at === items.length - 1 ? 0 : at + 1);
+				items[next].focus();
+			});
 			const addTile = function (icon, label, onClick) {
 					const b = document.createElement('button');
 					b.type = 'button';
@@ -140,6 +171,9 @@ export function makeLabelEdit(engine) {
 			const rect = popover.getBoundingClientRect();
 			popover.style.left = Math.max(6, Math.min(x - rect.width / 2, window.innerWidth - rect.width - 6)) + 'px';
 			popover.style.top = Math.max(6, Math.min(y - rect.height - 14, window.innerHeight - rect.height - 6)) + 'px';
+			// focus the first tile so the keyboard lands inside the popover
+			const firstTile = popover.querySelector('.cp-tile');
+			if (firstTile) { firstTile.focus(); }
 		};
 	document.addEventListener('mousedown', function (e) {
 		if (popover && !popover.contains(e.target)) { closePopover(); }
@@ -175,20 +209,37 @@ export function makeLabelEdit(engine) {
 		}
 	});
 
+	// resolve the selected node to its connector: a selected claim maps to
+	// its bracket/group target, and the connector runs from the target's
+	// parent to the target. shared by the label and strength menu paths.
+	const selectedConnector = function () {
+		const content = mapModel.getIdea(),
+			selectedId = mapModel.getSelectedNodeId(),
+			selected = selectedId && content && content.findSubIdeaById(selectedId);
+		if (!selected) { return null; }
+		const parent = content.findParent(selected.id),
+			target = (!isGroup(selected) && isGroup(parent)) ? parent : selected,
+			targetParent = content.findParent(target.id);
+		if (!targetParent || !targetParent.id) { return null; }
+		return { from: targetParent.id, to: target.id };
+	};
+
 	return {
 		// menu path — works even when no label text is rendered to click.
 		// The labelled connector in this grammar runs from a claim to its
 		// bracket, so a selected premise resolves to its bracket first.
 		editSelectedConnectorLabel() {
-			const content = mapModel.getIdea(),
-				selectedId = mapModel.getSelectedNodeId(),
-				selected = selectedId && content && content.findSubIdeaById(selectedId);
-			if (!selected) { return; }
-			const parent = content.findParent(selected.id),
-				target = (!isGroup(selected) && isGroup(parent)) ? parent : selected,
-				targetParent = content.findParent(target.id);
-			if (!targetParent || !targetParent.id) { return; }
-			beginEdit({ from: targetParent.id, to: target.id });
+			const connector = selectedConnector();
+			if (connector) { beginEdit(connector); }
+		},
+		// keyboard/menu paths for connector strength
+		strongerSelectedConnector() {
+			const connector = selectedConnector();
+			if (connector) { stepWidth(connector, 1); }
+		},
+		weakerSelectedConnector() {
+			const connector = selectedConnector();
+			if (connector) { stepWidth(connector, -1); }
 		}
 	};
 }

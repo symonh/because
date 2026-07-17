@@ -1,4 +1,4 @@
-/*global window*/
+/*global window, document*/
 /*
  * philmaps.com keyboard map (the one Simon's students learned):
  *   Enter  add reason under selected claim
@@ -26,6 +26,19 @@ export function bindShortcuts(engine, commands) {
 		if (!mapModel.getInputEnabled()) { return; } // editing a node title
 		const tag = (e.target && e.target.tagName) || '';
 		if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) { return; }
+		// map-scoped only (WCAG 2.1.1/2.1.4): with focus in the chrome —
+		// toolbar, menus, dialogs, popovers — Tab must move focus and
+		// Enter must activate the focused control, so nothing is
+		// intercepted there. Body counts as map scope ("open a map,
+		// press Enter" must keep working with nothing focused) EXCEPT
+		// for Tab: from the resting state Tab has to walk into the
+		// chrome, or the toolbar and menus are unreachable by keyboard.
+		// Nothing is lost — Tab-as-co-premise needs a selected node
+		// with a group parent, which only happens with focus in the map.
+		const container = document.getElementById('map-container'),
+			onBody = e.target === document.body;
+		if (!onBody && !(container && container.contains(e.target))) { return; }
+		if (onBody && e.key === 'Tab') { return; }
 		const alt = e.altKey && !e.metaKey && !e.ctrlKey,
 			bare = !e.altKey && !e.metaKey && !e.ctrlKey,
 			mod = (e.metaKey || e.ctrlKey) && !e.altKey;

@@ -15,7 +15,7 @@ export function makeLoading() {
 				overlay.className = 'loading-overlay';
 				overlay.setAttribute('role', 'status');
 				overlay.innerHTML =
-					'<div class="loading-card"><div class="loading-spinner"></div><span class="loading-text"></span></div>';
+					'<div class="loading-card"><div class="loading-spinner" aria-hidden="true"></div><span class="loading-text"></span></div>';
 				document.body.appendChild(overlay);
 			}
 			overlay.querySelector('.loading-text').textContent = message || 'Opening map…';

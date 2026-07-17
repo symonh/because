@@ -8,12 +8,40 @@ html, body {
 	color: #444;
 	overflow: hidden;
 }
+/* flex column so the chrome reflows (topbar/toolbar wrap) instead of
+ * clipping at 200% text zoom or narrow widths (WCAG 1.4.4, 1.4.10) */
+body {
+	display: flex;
+	flex-direction: column;
+}
+
+/* keyboard bypass link (WCAG 2.4.1): visually hidden until focused */
+#skip-link {
+	position: absolute;
+	left: 8px;
+	top: -48px;
+	z-index: 1200;
+	padding: 8px 14px;
+	background: #16749f;
+	color: #fff;
+	border-radius: 0 0 6px 6px;
+	font-size: 13px;
+	text-decoration: none;
+	transition: top 0.15s ease-out;
+}
+#skip-link:focus {
+	top: 0;
+	outline: 2px solid #fff;
+	outline-offset: -4px;
+}
 
 #topbar {
 	display: flex;
 	align-items: center;
+	flex-wrap: wrap;
+	flex: none;
 	gap: 14px;
-	height: 44px;
+	min-height: 44px;
 	padding: 0 12px;
 	background: #fff;
 	border-bottom: 1px solid #e3e3e3;
@@ -30,6 +58,11 @@ html, body {
 }
 #menubar { display: flex; gap: 2px; }
 .menu-title {
+	/* rendered as <button>; reset native button chrome to match the old span */
+	background: none;
+	border: none;
+	font: inherit;
+	text-align: left;
 	padding: 6px 10px;
 	font-size: 13px;
 	color: #555;
@@ -37,11 +70,11 @@ html, body {
 	cursor: pointer;
 	user-select: none;
 }
-.menu-title:hover, .menu-title.open { background: #eef6fb; color: #1a86b8; }
+.menu-title:hover, .menu-title.open { background: #eef6fb; color: #16749f; }
 #save-status {
 	margin-left: auto;
 	font-size: 12px;
-	color: #aaa;
+	color: #6e6e6e;
 	white-space: nowrap;
 }
 #theme-toggle {
@@ -58,7 +91,7 @@ html, body {
 	cursor: pointer;
 	padding: 0;
 }
-#theme-toggle:hover { background: #eef6fb; color: #1a86b8; }
+#theme-toggle:hover { background: #eef6fb; color: #16749f; }
 
 .menu-dropdown {
 	position: fixed;
@@ -71,20 +104,30 @@ html, body {
 	padding: 4px 0;
 }
 .menu-item {
+	/* rendered as <button>; reset native button chrome to match the old div */
+	background: none;
+	border: none;
+	font: inherit;
+	color: inherit;
+	text-align: left;
+	display: block;
+	width: 100%;
 	padding: 7px 16px;
 	font-size: 13px;
 	cursor: pointer;
 	user-select: none;
 	white-space: nowrap;
 }
-.menu-item:hover { background: #eef6fb; color: #1a86b8; }
+.menu-item:hover { background: #eef6fb; color: #16749f; }
 .menu-sep { border-top: 1px solid #eee; margin: 4px 0; }
 
 #toolbar {
 	display: flex;
 	align-items: center;
+	flex-wrap: wrap;
+	flex: none;
 	gap: 2px;
-	height: 40px;
+	min-height: 40px;
 	padding: 0 10px;
 	background: #fafafa;
 	border-bottom: 1px solid #e3e3e3;
@@ -113,12 +156,13 @@ html, body {
 
 #map-container {
 	position: relative;
-	height: calc(100% - 84px);
+	flex: 1 1 auto;
+	min-height: 0;
 	width: 100%;
 	background: #fff;
 	overflow: hidden;
 }
-#map-container:focus { outline: none; }
+#map-container:focus:not(:focus-visible) { outline: none; }
 
 .panel-overlay {
 	position: fixed;
@@ -141,7 +185,7 @@ html, body {
 	line-height: 1.5;
 }
 .panel h2 { margin-top: 0; font-size: 18px; }
-.panel a { color: #1a86b8; }
+.panel a { color: #16749f; }
 .panel-close { text-align: right; margin-top: 12px; }
 .panel-close button {
 	border: 1px solid #ccc;
@@ -162,8 +206,8 @@ html, body {
 	font-size: 13px;
 }
 .panel-actions button[data-act='save'] {
-	background: #1a86b8;
-	border-color: #1a86b8;
+	background: #16749f;
+	border-color: #16749f;
 	color: #fff;
 }
 .connector-label-editor {
@@ -171,7 +215,7 @@ html, body {
 	z-index: 500;
 	width: 220px;
 	padding: 4px 8px;
-	border: 1px solid #22aae0;
+	border: 1px solid #1987b5;
 	border-radius: 5px;
 	background: #fff;
 	color: #333;
@@ -245,7 +289,7 @@ body.dark .loading-card {
 	background: #fff;
 }
 .ns-swatch:hover { transform: scale(1.12); }
-.ns-swatch.current { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #1a86b8; }
+.ns-swatch.current { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #16749f; }
 .ns-none {
 	background:
 		linear-gradient(to top left,
@@ -274,7 +318,7 @@ body.dark .loading-card {
 	cursor: pointer;
 	padding: 0 7px;
 }
-.ns-btn:hover { background: #e8f2f8; color: #1a86b8; }
+.ns-btn:hover { background: #e8f2f8; color: #16749f; }
 .ns-btn small { font-size: 10px; font-weight: 700; }
 .ns-i { font-style: italic; }
 .ns-u { text-decoration: underline; }
@@ -315,18 +359,18 @@ body.dark .ns-sep { background: #4a5057; }
 	border: none;
 	border-radius: 6px;
 	background: transparent;
-	color: #1a86b8;
+	color: #16749f;
 	font: 12px 'NotoSans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 	cursor: pointer;
 }
-.cp-tile:hover { background: #1a86b8; color: #fff; }
+.cp-tile:hover { background: #16749f; color: #fff; }
 body.dark .connector-popover {
 	background: #2a2e33;
 	border-color: #3d4248;
 	box-shadow: 0 6px 24px rgba(0,0,0,0.5);
 }
 body.dark .cp-tile { color: #6cc4ee; }
-body.dark .cp-tile:hover { background: #1a86b8; color: #fff; }
+body.dark .cp-tile:hover { background: #16749f; color: #fff; }
 
 /* ---- first-visit welcome (intro.js) ---- */
 .intro-panel { max-width: 480px; }
@@ -340,15 +384,15 @@ body.dark .cp-tile:hover { background: #1a86b8; color: #fff; }
 }
 .intro-footer label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
 .intro-start {
-	border: 1px solid #1a86b8;
-	background: #1a86b8;
+	border: 1px solid #16749f;
+	background: #16749f;
 	color: #fff;
 	border-radius: 5px;
 	padding: 7px 18px;
 	cursor: pointer;
 	font-size: 13px;
 }
-.intro-start:hover { background: #16749f; }
+.intro-start:hover { background: #11577a; border-color: #11577a; }
 body.dark .intro-footer { color: #a7adb3; }
 
 .kbd td { padding: 3px 12px 3px 0; }
@@ -379,7 +423,7 @@ body.dark .menu-title:hover, body.dark .menu-title.open {
 	background: #31363c;
 	color: #6cc4ee;
 }
-body.dark #save-status { color: #7c8288; }
+body.dark #save-status { color: #a2a9b0; }
 body.dark #theme-toggle { color: #c3c8cd; }
 body.dark #theme-toggle:hover { background: #31363c; color: #6cc4ee; }
 body.dark .menu-dropdown {
@@ -411,8 +455,8 @@ body.dark .panel-actions button {
 	color: #d3d7db;
 }
 body.dark .panel-actions button[data-act='save'] {
-	background: #1a86b8;
-	border-color: #1a86b8;
+	background: #16749f;
+	border-color: #16749f;
 	color: #fff;
 }
 body.dark kbd {
@@ -421,7 +465,58 @@ body.dark kbd {
 	color: #d3d7db;
 }
 
+/* ---- focus visibility (WCAG 2.4.7) --------------------------------------
+ * Only :focus-visible (keyboard/AT focus), so mouse clicks don't draw rings.
+ * app.css loads last, so these win over the vendor stylesheet's outline:none.
+ * #skip-link:focus keeps its own id-specificity ring, untouched. */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+	outline: 2px solid #16749f;
+	outline-offset: 2px;
+}
+body.dark button:focus-visible,
+body.dark a:focus-visible,
+body.dark input:focus-visible {
+	outline-color: #6cc4ee;
+}
+
+/* map canvas: no ring on programmatic/mouse focus, visible ring for keyboard;
+ * inset so it stays inside the scroll viewport */
+#map-container:focus-visible {
+	outline: 2px solid #16749f;
+	outline-offset: -2px;
+}
+body.dark #map-container:focus-visible {
+	outline-color: #6cc4ee;
+}
+
+/* map nodes: override the vendor `.mapjs-node:focus { outline:none }`.
+ * This is ephemeral focus UI, not map content — never printed/serialized.
+ * .a11y-keyboard-selected marks the active item while the CONTAINER holds
+ * focus (arrow keys move selection, not DOM focus — a11y-canvas.js). */
+.mapjs-node:focus-visible,
+.mapjs-node.a11y-keyboard-selected {
+	outline: 3px solid #16749f !important;
+	outline-offset: 2px;
+}
+body.dark .mapjs-node:focus-visible,
+body.dark .mapjs-node.a11y-keyboard-selected {
+	outline-color: #6cc4ee !important;
+}
+@media print {
+	.mapjs-node.a11y-keyboard-selected { outline: none !important; }
+}
+
+/* ---- reduced motion (WCAG 2.3.3) ---- */
+@media (prefers-reduced-motion: reduce) {
+	.loading-spinner { animation: none; }
+	#skip-link { transition: none; }
+}
+
 @media print {
 	#topbar, #toolbar { display: none; }
-	#map-container { height: 100%; background: #fff !important; }
+	/* map-container is flex:1 1 auto in the column, so with the chrome hidden
+	 * it already fills the page height; keep the white background for print */
+	#map-container { background: #fff !important; }
 }

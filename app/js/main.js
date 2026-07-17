@@ -1,5 +1,6 @@
 /*global document, window*/
 import { initEngine } from './engine.js';
+import { initCanvasA11y } from './a11y-canvas.js';
 import { makeCommands } from './commands.js';
 import { makeFileIO } from './file-io.js';
 import { makeDrive } from './drive.js';
@@ -35,10 +36,15 @@ document.addEventListener('DOMContentLoaded', function () {
 	initAnalytics({ page: 'app' });
 
 	const engine = initEngine(document.getElementById('map-container')),
-		commands = makeCommands(engine),
-		// every command call becomes one GA event tagged with the surface
-		// that triggered it, so menu vs toolbar vs shortcut use is visible
-		instrument = function (method) {
+		commands = makeCommands(engine);
+	initCanvasA11y(engine, document.getElementById('map-container'));
+	document.getElementById('skip-link').addEventListener('click', function (e) {
+		e.preventDefault();
+		document.getElementById('map-container').focus();
+	});
+	// every command call becomes one GA event tagged with the surface
+	// that triggered it, so menu vs toolbar vs shortcut use is visible
+	const instrument = function (method) {
 			const wrapped = {};
 			Object.keys(commands).forEach(function (name) {
 				wrapped[name] = function () {
