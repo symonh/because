@@ -81,6 +81,38 @@ landing page with HTTP 200 (`curl -sI https://app.philmaps.com/`), keep
 the consent-screen home page set to `https://app.philmaps.com`, and
 resubmit branding verification from the Branding page.
 
+### Second attempt (still 2026-07-16)
+
+Two findings remained: "home page does not explain the purpose" and
+"app name does not match". Google's checker reads exactly the URL in
+the Branding page's **Application home page** field — nothing else. The
+decisive check is therefore that the field says
+`https://app.philmaps.com` verbatim. It must NOT say
+`https://philmaps.com`: that URL 301-redirects off-domain to
+`https://maps.simoncullen.org`, a Google Sites page whose title and
+visible name are "philmaps.com" — a page that reproduces both findings
+exactly. (Editing the philmaps.com site cannot fix this; the field has
+to point at the landing page.)
+
+Hardening shipped for the resubmission, since the automated checker is
+known to miss names that appear only in prose
+(<https://discuss.google.dev/t/-/379281> among others): the landing
+page now declares the name "Because" machine-readably (canonical URL,
+`application-name`, `og:site_name` / `og:title`, and a schema.org
+WebApplication JSON-LD block), and `site/robots.txt` explicitly allows
+all crawling. Search Console ownership is already in place —
+philmaps.com carries a `google-site-verification` DNS TXT record, which
+covers app.philmaps.com too.
+
+Then resubmit from
+<https://console.cloud.google.com/auth/branding?project=driveshare-446802>
+and expect the automated verdict within a few days. If it fails a third
+time with the same two findings while the field is verbatim
+`https://app.philmaps.com`, reply to the verification email and ask for
+manual review — at that point the page satisfies every published
+requirement and the loop matches the known checker false-negative
+threads.
+
 ## What instructors get once the ID is in
 
 - **File → Open from Google Drive…** — Google sign-in (first time only),
