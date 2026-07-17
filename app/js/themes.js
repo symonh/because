@@ -3,6 +3,14 @@
  * file saved by the MindMup product (files embed their resolved theme JSON).
  * argMappingHighImpact = the same theme plus default connector labels
  * ("because..." / "but...").
+ *
+ * One deliberate departure from the verbatim extraction: opposing-group
+ * carries "squareCorners" (a local key the connector.js LOCAL PATCH reads),
+ * so the objection bracket has a right-angle top instead of the rounded
+ * one reasons get — color is not the only cue distinguishing an objection.
+ * A map's own EMBEDDED theme JSON (mapJson.theme, see resolveThemeJson)
+ * still wins over this named theme, so historical files with a fully
+ * resolved theme keep rendering exactly as MindMup drew them.
  */
 export const argMappingSimple = {
  "name": "MindMup Top Down Argument Mapping",
@@ -463,6 +471,7 @@ export const argMappingSimple = {
   },
   "opposing-group": {
    "type": "vertical-quadratic-s-curve",
+   "squareCorners": true,
    "line": {
     "color": "#FF0000",
     "width": 3

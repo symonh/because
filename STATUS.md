@@ -7,6 +7,30 @@ bucket `argumentbase-app`, localStorage keys migrate on first load.
 Canonical URL: **https://app.philmaps.com** (custom domain on the same
 Firebase site; argumentbase.web.app serves identically).
 
+## 2026-07-17 evening — objection bracket: shape, not just color
+
+- Simon noticed reasons and objections were distinguished only by bracket
+  color (green/red) — a 1.4.1 gap for colorblind users. The objection
+  (opposing-group) bracket now has square corners; the reason
+  (supporting-group) bracket stays rounded. `appendOverLine` in the
+  vendored `engine/vendor/mapjs/src/core/theme/connector.js` (LOCAL
+  PATCH, engine/README.md) now branches on a new `squareCorners` theme
+  key, set on `opposing-group` in app/js/themes.js only — reasons are
+  untouched. Same start/end points and span as the rounded path, just
+  two straight segments instead of the quadratic-bezier corners, so it
+  holds at both connector widths (3 in Simple, 4 in High impact) and
+  with the high-impact theme's arrowhead/label.
+- A map's own EMBEDDED theme JSON still wins over this named theme
+  (resolveThemeJson), so a historical MindMup export with a fully
+  resolved theme keeps rendering exactly as saved — this only affects
+  this app's own argMappingSimple/argMappingHighImpact themes (the vast
+  majority of maps, which reference a theme by name).
+- Verified visually (lee-house.mup, both themes) and with a round-trip
+  serialization check — engine rebuilt via engine/build.sh, only
+  app/bundle.js changed (themes.js is a separate ES module, not
+  bundled). About panel copy and docs/accessibility.md updated. All six
+  e2e suites pass.
+
 ## 2026-07-17 — WCAG 2.2 AA remediation
 
 - Full accessibility pass over the app chrome (docs/accessibility.md has

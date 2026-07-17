@@ -14,6 +14,11 @@ recorded in `vendor/mapjs/LOCAL-PATCHES.diff`:
   straddles the top-right corner, like MindMup).
 - `dom-map-widget.js` / `hammer-draggable.js` — require the esbuild shims for
   jquery plugins (hotkeys / hammer).
+- `core/theme/connector.js` — a connector style can set `squareCorners: true`
+  to render a bracket's overline with right-angle turns instead of the
+  rounded default; the argument-mapping theme's `opposing-group` style uses
+  it, so an objection's bracket is square while a reason's stays rounded
+  (a non-color cue, not part of the verbatim MindMup theme extraction).
 
 ## Build
 

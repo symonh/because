@@ -68,15 +68,25 @@ for the same reasons.
 
 ## Documented exceptions
 
-1. **Map-canvas content rendering follows the MindMup theme verbatim.**
-   The colors of map content — for example the `#22aae0` claim-number
-   badges and the green/red group colors — come from the authentic theme
-   JSON embedded in `.mup` files, which is the project's fidelity anchor
-   and must not be changed for contrast. Color is not the only cue: the
-   high-impact theme labels groups with bracket text ("Because" / "But"),
-   implicit claims carry dashed borders, claims are numbered, and dark
-   mode offers an alternative luminance. Focus and selection are shown
-   with outlines and ARIA state, not color alone.
+1. **Map-canvas content rendering follows the MindMup theme verbatim,
+   with one deliberate exception for shape.** The colors of map content —
+   for example the `#22aae0` claim-number badges and the green/red group
+   colors — come from the authentic theme JSON embedded in `.mup` files,
+   which is the project's fidelity anchor and must not be changed for
+   contrast. Color is not the only cue: the high-impact theme labels
+   groups with bracket text ("Because" / "But"), implicit claims carry
+   dashed borders, claims are numbered, dark mode offers an alternative
+   luminance, and — since color alone previously distinguished a
+   reason's bracket from an objection's — the objection (opposing-group)
+   bracket now renders with square corners where a reason's stays
+   rounded (`app/js/themes.js`'s `squareCorners` flag, read by the
+   `appendOverLine` LOCAL PATCH in
+   `engine/vendor/mapjs/src/core/theme/connector.js`; see
+   `engine/README.md`). This one shape change is intentional and applies
+   only to this app's own named themes — a map with a fully embedded
+   theme (historical MindMup exports) still renders exactly as saved.
+   Focus and selection are shown with outlines and ARIA state, not color
+   alone.
 2. **Connector curves are thin click targets.** The connecting lines are
    narrow and can be hard to click precisely. Every connector action has a
    keyboard-reachable equivalent in the Argument Visualization menu — Edit
