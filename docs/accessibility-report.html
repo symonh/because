@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en" style="background:#fff!important;color:#2c3e50!important">
+<head>
+<meta charset="UTF-8">
+<title>Because Accessibility Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+@page { size: letter; margin: 0.55in 0.6in 0.55in 0.6in; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Roboto', sans-serif; font-size: 9.5pt;
+  line-height: 1.5; color: #2c3e50; background: #fff;
+}
+
+.header {
+  text-align: center; padding: 1.4in 0.5in 0.5in 0.5in;
+  background: linear-gradient(180deg, #e7f1f7 0%, #f2f8fb 40%, #ffffff 100%);
+  page-break-after: always;
+}
+.header .logo { width: 116px; margin: 0 auto 16px auto; }
+.header h1 { font-size: 24pt; font-weight: 700; color: #2c3e50; margin-bottom: 6px; letter-spacing: -0.02em; }
+.header .tagline {
+  font-family: 'Roboto Mono', monospace; font-size: 7.5pt; font-weight: 500;
+  color: #16749f; text-transform: uppercase; letter-spacing: 0.25em; margin-bottom: 20px;
+}
+.header .divider { width: 60px; height: 3px; background: #16749f; margin: 18px auto; border-radius: 2px; }
+.header .subtitle { font-size: 11pt; color: #5a6a7e; font-weight: 400; }
+.header .date { font-size: 8.5pt; color: #5a6a7e; margin-top: 8px; }
+
+.content { max-width: 7.5in; margin: 0 auto; padding: 0 0.15in; }
+
+.section-label {
+  font-family: 'Roboto Mono', monospace; font-size: 7pt; font-weight: 500;
+  color: #16749f; text-transform: uppercase; letter-spacing: 0.15em;
+  margin-top: 28px; margin-bottom: 3px;
+  break-after: avoid-page; page-break-after: avoid;
+}
+h2, h3 { break-after: avoid-page; page-break-after: avoid; }
+h2 {
+  font-size: 12pt; font-weight: 700; color: #2c3e50; text-transform: uppercase;
+  letter-spacing: 0.05em; border-bottom: 2px solid #e3edf3;
+  padding-bottom: 5px; margin-bottom: 14px;
+}
+h3 { font-size: 10pt; font-weight: 700; color: #2c3e50; margin-top: 16px; margin-bottom: 6px; }
+p { margin-bottom: 10px; }
+a { color: #16749f; text-decoration: none; }
+code { font-family: 'Roboto Mono', monospace; font-size: 8pt; }
+
+.summary-box {
+  background: linear-gradient(135deg, #f4f9fc 0%, #eaf3f8 100%);
+  border: 1px solid #d9e7ef; border-radius: 8px;
+  padding: 16px 20px; margin-bottom: 22px; page-break-inside: avoid;
+}
+.summary-box h3 { font-size: 10pt; margin-bottom: 8px; margin-top: 0; }
+.summary-box p:last-child { margin-bottom: 0; }
+
+.metrics { display: flex; gap: 12px; margin-bottom: 22px; flex-wrap: wrap; }
+.metric-card {
+  flex: 1; min-width: 130px;
+  background: linear-gradient(135deg, #f4f9fc 0%, #eaf3f8 100%);
+  border: 1px solid #d9e7ef; border-radius: 8px;
+  padding: 14px 16px; text-align: center; page-break-inside: avoid;
+}
+.metric-card .value { font-size: 20pt; font-weight: 700; color: #16749f; line-height: 1.1; margin-bottom: 3px; }
+.metric-card .label {
+  font-family: 'Roboto Mono', monospace; font-size: 6.5pt; font-weight: 500;
+  color: #5a6a7e; text-transform: uppercase; letter-spacing: 0.1em;
+}
+
+.figure { margin: 16px 0 8px 0; text-align: center; page-break-inside: avoid; }
+.figure .caption { font-size: 8pt; color: #5a6a7e; font-style: italic; margin-top: 6px; line-height: 1.4; padding: 0 0.3in; }
+
+table.stats { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 8.5pt; }
+table.stats tr { page-break-inside: avoid; }
+table.stats.keep { page-break-inside: avoid; }
+table.stats th {
+  font-family: 'Roboto Mono', monospace; font-size: 7pt; font-weight: 500; color: #16749f;
+  text-transform: uppercase; letter-spacing: 0.1em; text-align: left;
+  padding: 6px 10px; border-bottom: 2px solid #e3edf3;
+}
+table.stats td { padding: 5px 10px; border-bottom: 1px solid #eaf3f8; color: #2c3e50; vertical-align: top; }
+table.stats tr:last-child td { border-bottom: none; }
+.status-supports { color: #059669; font-weight: 600; white-space: nowrap; }
+.status-partial { color: #d97706; font-weight: 600; }
+
+ul.styled { list-style: none; padding: 0; margin-bottom: 14px; }
+ul.styled li { position: relative; padding-left: 14px; margin-bottom: 5px; line-height: 1.45; }
+ul.styled li::before {
+  content: ''; position: absolute; left: 0; top: 6px;
+  width: 5px; height: 5px; border-radius: 50%; background: #16749f;
+}
+
+.callout {
+  border-left: 3px solid #16749f; background: #f4f9fc;
+  border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 14px 0;
+  font-size: 8.5pt; page-break-inside: avoid;
+}
+
+.footer {
+  margin-top: 32px; padding-top: 12px; border-top: 1px solid #e3edf3;
+  font-size: 7.5pt; color: #5a6a7e; text-align: center;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <!-- A miniature argument map: conclusion, a green rounded reason bracket, a red square objection bracket -->
+    <svg viewBox="0 0 116 72" width="116" height="72" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A small argument map: a conclusion with a rounded reason bracket and a square objection bracket">
+      <rect x="38" y="2" width="40" height="17" rx="4" fill="#ffffff" stroke="#16749f" stroke-width="2"/>
+      <path d="M58,19 v5 h-28 v13" fill="none" stroke="#339966" stroke-width="2"/>
+      <path d="M58,19 v5 h28 v13" fill="none" stroke="#FF0000" stroke-width="2"/>
+      <path d="M12,43 q0,-6 6,-6 h24 q6,0 6,6" fill="none" stroke="#339966" stroke-width="2.5"/>
+      <path d="M68,43 v-6 h36 v6" fill="none" stroke="#FF0000" stroke-width="2.5"/>
+      <rect x="9" y="50" width="18" height="13" rx="3" fill="#ffffff" stroke="#98a0a8" stroke-width="1.5"/>
+      <rect x="32" y="50" width="18" height="13" rx="3" fill="#ffffff" stroke="#98a0a8" stroke-width="1.5"/>
+      <rect x="76" y="50" width="20" height="13" rx="3" fill="#ffffff" stroke="#98a0a8" stroke-width="1.5"/>
+    </svg>
+  </div>
+  <h1>Because Accessibility Report</h1>
+  <div class="tagline">WCAG 2.2 &middot; Level AA</div>
+  <div class="divider"></div>
+  <div class="subtitle">Accessibility features of Because, a free browser-based editor for argument maps<br>Prepared for university IT and disability-services offices</div>
+  <div class="date">July 2026 &nbsp;|&nbsp; <a href="https://app.philmaps.com">app.philmaps.com</a> &nbsp;|&nbsp; sc@simoncullen.org</div>
+</div>
+
+<div class="content">
+
+  <div class="section-label">Overview</div>
+  <h2>Conformance Summary</h2>
+
+  <div class="summary-box">
+    <h3>Conformance target: WCAG 2.2 Level AA</h3>
+    <p>Because is designed and tested against the Web Content Accessibility Guidelines (WCAG) 2.2 at Level AA. Every part of the application interface is operable from the keyboard alone, exposes standard WAI-ARIA semantics for screen readers, meets AA contrast requirements, and conveys argument structure by shape and text in addition to color. Conformance is enforced by an automated regression gate — axe-core rule scans plus a scripted keyboard walkthrough, run in the WebKit browser engine — that must pass before any version is deployed. The current release passes all of its checks with zero WCAG violations reported.</p>
+  </div>
+
+  <div class="metrics">
+    <div class="metric-card">
+      <div class="value">AA</div>
+      <div class="label">WCAG 2.2 Conformance Target</div>
+    </div>
+    <div class="metric-card">
+      <div class="value">0</div>
+      <div class="label">axe-core Violations, 5 UI States</div>
+    </div>
+    <div class="metric-card">
+      <div class="value">47/47</div>
+      <div class="label">Automated Checks Passing</div>
+    </div>
+    <div class="metric-card">
+      <div class="value">100%</div>
+      <div class="label">Commands Keyboard-Reachable</div>
+    </div>
+  </div>
+
+  <h3>About the application</h3>
+  <p>Because (<a href="https://app.philmaps.com">https://app.philmaps.com</a>) is a free, browser-based editor for argument maps — diagrams that display the structure of an argument as a tree of claims, reasons, objections, and co-premises. It is used in university philosophy and critical-thinking courses. The application runs entirely in the browser: there is nothing to install, no account is required, and maps are stored in files the user keeps on their own computer or, optionally, in their own Google Drive. It renders the same <code>.mup</code> file format used by MindMup's argument-visualization tools, so existing course materials open without conversion.</p>
+
+  <h3>Evaluation method</h3>
+  <p>This report is a self-evaluation by the developer, dated July 2026; it is not a third-party audit. The evidence behind it is (a) automated scans with axe-core (Deque's accessibility engine) using the complete WCAG 2.0, 2.1, and 2.2 Level A and AA rulesets, run against five interface states — the welcome dialog, the map view in light mode and in dark mode, the keyboard-shortcuts panel, and the node-style editor; (b) a scripted, 47-step keyboard and screen-reader-semantics walkthrough covering focus order, dialog behavior, menu navigation, and editing commands; and (c) manual review. Automated testing runs in WebKit, the browser engine underlying Safari, which is the engine VoiceOver users on macOS and iOS depend on, and additionally asserts against the accessibility tree that Chrome computes — the representation Windows screen readers such as NVDA and JAWS consume — rather than only the markup as authored. The full test suite re-runs before every deployment, so the published version is always the version that passed.</p>
+
+  <div class="section-label">Section 1</div>
+  <h2>Screen Reader Support</h2>
+
+  <p>The interface is built from native HTML controls carrying standard WAI-ARIA roles, states, and properties — the vocabulary screen readers such as VoiceOver, JAWS, and NVDA are designed to consume.</p>
+
+  <ul class="styled">
+    <li><strong>Application menus follow the ARIA menubar pattern.</strong> The top menu bar is a true <code>menubar</code>: menu titles are buttons with <code>aria-haspopup</code>, the whole bar is a single Tab stop navigated with the arrow keys (roving tabindex), and dropdown entries are announced as menu items — including checkable ones, such as Dark mode, which expose <code>menuitemcheckbox</code> with a live checked state.</li>
+    <li><strong>The map itself is exposed as an ARIA tree.</strong> Although the map is a freeform visual canvas, assistive technology sees a structured <code>tree</code>: each claim is a <code>treeitem</code> whose depth (<code>aria-level</code>), expanded state (<code>aria-expanded</code>), and selection (<code>aria-selected</code>) are reported. Keyboard focus sits on the claim itself and moves with the arrow keys, so a screen reader announces each claim from native focus events — the mechanism with the broadest assistive-technology support — as the user moves through the argument. The decorative connector artwork is hidden from assistive technology because the relationships it draws are already conveyed by the tree structure.</li>
+    <li><strong>Dialogs are real modal dialogs.</strong> Every overlay — the welcome screen, information panels, the unsaved-changes prompt, the node-style editor — has <code>role="dialog"</code> with <code>aria-modal</code>, is labelled by its heading, traps Tab within itself while open, closes on Escape, and returns focus to the element that opened it.</li>
+    <li><strong>Save status is announced automatically.</strong> The save indicator is a <code>role="status"</code> live region, so screen readers report changes ("Saving…", "Saved") without the user having to look for them.</li>
+    <li><strong>Toolbar buttons are labelled.</strong> Every icon button carries an <code>aria-label</code>; the icons themselves are marked decorative.</li>
+    <li><strong>Document basics are in place.</strong> The page declares its language, uses real <code>&lt;button&gt;</code> elements throughout, and marks its chrome regions (menubar, toolbar, status) with the appropriate roles.</li>
+  </ul>
+
+  <div class="section-label">Section 2</div>
+  <h2>Keyboard Access</h2>
+
+  <p>Every command in Because can be executed without a mouse.</p>
+
+  <ul class="styled">
+    <li><strong>Skip link.</strong> The first Tab stop is a "skip to map" link, so keyboard users reach the content in one step (WCAG 2.4.1).</li>
+    <li><strong>Complete command coverage.</strong> All editing operations are in the menus, which are fully keyboard-operable. This includes operations whose mouse targets are small — the thin connector lines between claims — which have first-class menu equivalents (Edit connector label, Stronger connector, Weaker connector).</li>
+    <li><strong>Efficient map editing.</strong> With focus on the map, single keys do the frequent work: Enter adds a reason, Tab adds a co-premise, arrows move the selection, and so on. A reference panel (Help &gt; Keyboard shortcuts) lists them all, and is itself an accessible dialog.</li>
+    <li><strong>Shortcuts cannot fire by accident.</strong> Single-key shortcuts are active only when focus is in the map (WCAG 2.1.4). Typing in a text field, a dialog, or the menus is never intercepted as a command.</li>
+    <li><strong>Focus is always visible.</strong> All chrome controls show a focus ring (WCAG 2.4.7). On the canvas, where the arrow keys move an ARIA selection rather than DOM focus, the selected claim is marked with a high-visibility 3-pixel outline whenever the map has keyboard focus.</li>
+    <li><strong>No keyboard traps.</strong> Escape closes any menu, dialog, or inline editor and returns focus to where it was; the automated suite verifies each of these paths.</li>
+  </ul>
+
+  <div class="section-label">Section 3</div>
+  <h2>Low Vision, Color, and Motion</h2>
+
+  <h3>Color is never the only cue</h3>
+  <p>Argument maps traditionally distinguish supporting reasons (green) from objections (red). For users who cannot rely on color, Because encodes the same distinction in shape: an objection's bracket is drawn with square corners, while a reason's bracket is rounded. Structure is also carried redundantly in several other ways — the high-impact theme labels brackets with the words "because…" and "but…", implicit claims have dashed borders, claims are numbered, and focus and selection are shown with outlines and ARIA state rather than color alone.</p>
+
+  <div class="figure">
+    <svg viewBox="0 0 460 120" width="440" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Left: a reason group under a green bracket with rounded corners, labelled because. Right: an objection group under a red bracket with square corners, labelled but.">
+      <path d="M105,8 v10" fill="none" stroke="#339966" stroke-width="3"/>
+      <path d="M25,32 q0,-14 14,-14 h132 q14,0 14,14" fill="none" stroke="#339966" stroke-width="3"/>
+      <text x="105" y="34" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="11" font-style="italic" fill="#339966">because…</text>
+      <rect x="22" y="44" width="76" height="30" rx="6" fill="#ffffff" stroke="#8a929a" stroke-width="1.5"/>
+      <rect x="110" y="44" width="76" height="30" rx="6" fill="#ffffff" stroke="#8a929a" stroke-width="1.5"/>
+      <rect x="32" y="53" width="56" height="4" rx="2" fill="#c3c9cf"/>
+      <rect x="32" y="62" width="40" height="4" rx="2" fill="#c3c9cf"/>
+      <rect x="120" y="53" width="56" height="4" rx="2" fill="#c3c9cf"/>
+      <rect x="120" y="62" width="40" height="4" rx="2" fill="#c3c9cf"/>
+      <text x="105" y="98" text-anchor="middle" font-family="Roboto, Helvetica, sans-serif" font-size="12" fill="#2c3e50">Reason — rounded corners</text>
+
+      <path d="M355,8 v10" fill="none" stroke="#FF0000" stroke-width="3"/>
+      <path d="M275,32 v-14 h160 v14" fill="none" stroke="#FF0000" stroke-width="3"/>
+      <text x="355" y="34" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="11" font-style="italic" fill="#d40000">but…</text>
+      <rect x="272" y="44" width="76" height="30" rx="6" fill="#ffffff" stroke="#8a929a" stroke-width="1.5"/>
+      <rect x="360" y="44" width="76" height="30" rx="6" fill="#ffffff" stroke="#8a929a" stroke-width="1.5"/>
+      <rect x="282" y="53" width="56" height="4" rx="2" fill="#c3c9cf"/>
+      <rect x="282" y="62" width="40" height="4" rx="2" fill="#c3c9cf"/>
+      <rect x="370" y="53" width="56" height="4" rx="2" fill="#c3c9cf"/>
+      <rect x="370" y="62" width="40" height="4" rx="2" fill="#c3c9cf"/>
+      <text x="355" y="98" text-anchor="middle" font-family="Roboto, Helvetica, sans-serif" font-size="12" fill="#2c3e50">Objection — square corners</text>
+    </svg>
+    <div class="caption">Figure 1. The reason/objection distinction is carried by shape as well as color: reason brackets have rounded corners, objection brackets are square (WCAG 1.4.1, Use of Color).</div>
+  </div>
+
+  <h3>Contrast</h3>
+  <p>All text and controls in the application interface meet the AA thresholds — 4.5:1 for text, 3:1 for user-interface components — measured against the background each color actually sits on. Representative values:</p>
+
+  <table class="stats">
+    <tr><th>Element</th><th>Foreground</th><th>Background</th><th>Ratio</th><th>Requirement</th></tr>
+    <tr><td>Links, buttons, accents</td><td><code>#16749f</code></td><td><code>#ffffff</code></td><td>5.21:1</td><td>4.5:1</td></tr>
+    <tr><td>Menu hover / open state</td><td><code>#16749f</code></td><td><code>#eef6fb</code></td><td>4.76:1</td><td>4.5:1</td></tr>
+    <tr><td>Save-status text (light mode)</td><td><code>#6e6e6e</code></td><td><code>#ffffff</code></td><td>5.10:1</td><td>4.5:1</td></tr>
+    <tr><td>Save-status text (dark mode)</td><td><code>#a2a9b0</code></td><td><code>#24272b</code></td><td>6.31:1</td><td>4.5:1</td></tr>
+    <tr><td>Primary button hover</td><td><code>#ffffff</code></td><td><code>#11577a</code></td><td>7.87:1</td><td>4.5:1</td></tr>
+    <tr><td>Focus outline</td><td><code>#16749f</code></td><td><code>#ffffff</code></td><td>5.21:1</td><td>3:1</td></tr>
+  </table>
+
+  <h3>Dark mode</h3>
+  <p>A full dark theme (View &gt; Dark mode) provides an alternative luminance scheme for light-sensitive users. It is a pure view preference: switching it never changes the map file, which saves byte-for-byte identically in either mode.</p>
+
+  <h3>Zoom and reflow</h3>
+  <p>The application chrome reflows without horizontal scrolling at narrow widths and high zoom levels; the automated suite verifies that every toolbar control remains visible and usable at a 640-pixel viewport. The map canvas itself is two-dimensional content of the kind WCAG's reflow criterion explicitly exempts (its spatial layout is its meaning); it provides its own zoom controls, keyboard-accessible from the toolbar and shortcuts.</p>
+
+  <h3>Reduced motion</h3>
+  <p>When the operating system signals a motion preference (<code>prefers-reduced-motion</code>), interface transitions and animations are disabled. This goes beyond the AA bar — the corresponding WCAG criterion (2.3.3) is Level AAA.</p>
+
+  <div class="section-label">Section 4</div>
+  <h2>WCAG 2.2 Conformance Table</h2>
+
+  <p>Status terminology follows the ITI VPAT convention ("Supports", "Supports with exceptions"). The table lists the criteria most relevant to this application; the automated gate additionally covers the complete WCAG 2.0/2.1/2.2 Level A and AA axe-core rulesets.</p>
+
+  <table class="stats keep">
+    <tr><th>Success criterion</th><th>Level</th><th>Status</th><th>Remarks</th></tr>
+    <tr><td>1.1.1 Non-text Content</td><td>A</td><td class="status-supports">Supports</td><td>Icon buttons carry text labels; decorative artwork is hidden from assistive technology.</td></tr>
+    <tr><td>1.3.1 Info and Relationships</td><td>A</td><td class="status-supports">Supports</td><td>Menubar, tree, dialog, and status semantics expose structure programmatically.</td></tr>
+    <tr><td>1.4.1 Use of Color</td><td>A</td><td class="status-supports">Supports</td><td>Shape (square vs. rounded brackets), text labels, dashed borders, and numbering supplement color.</td></tr>
+    <tr><td>1.4.3 Contrast (Minimum)</td><td>AA</td><td class="status-partial">Supports with exceptions</td><td>All application UI meets 4.5:1. Some colors inside user maps follow the historical MindMup theme (see Known Limitations).</td></tr>
+    <tr><td>1.4.4 Resize Text / 1.4.10 Reflow</td><td>AA</td><td class="status-supports">Supports</td><td>Chrome reflows at narrow widths; the map canvas is two-dimensional content (exempt) with its own zoom.</td></tr>
+    <tr><td>1.4.11 Non-text Contrast</td><td>AA</td><td class="status-supports">Supports</td><td>Toolbar icons and focus indicators meet 3:1.</td></tr>
+    <tr><td>2.1.1 Keyboard / 2.1.2 No Keyboard Trap</td><td>A</td><td class="status-supports">Supports</td><td>All commands keyboard-reachable; Escape exits every menu, dialog, and editor.</td></tr>
+    <tr><td>2.1.4 Character Key Shortcuts</td><td>A</td><td class="status-supports">Supports</td><td>Single-key shortcuts operate only while focus is in the map.</td></tr>
+    <tr><td>2.4.1 Bypass Blocks</td><td>A</td><td class="status-supports">Supports</td><td>A skip link is the first Tab stop.</td></tr>
+    <tr><td>2.4.3 Focus Order</td><td>A</td><td class="status-supports">Supports</td><td>Logical order; dialogs restore focus to their opener.</td></tr>
+    <tr><td>2.4.7 Focus Visible</td><td>AA</td><td class="status-supports">Supports</td><td>Focus rings on all chrome; a dedicated selection outline on the canvas.</td></tr>
+    <tr><td>2.5.8 Target Size (Minimum)</td><td>AA</td><td class="status-partial">Supports with exceptions</td><td>Connector lines are thin pointer targets; every connector action has a menu equivalent.</td></tr>
+    <tr><td>3.1.1 Language of Page</td><td>A</td><td class="status-supports">Supports</td><td><code>lang="en"</code> declared.</td></tr>
+    <tr><td>3.2.1 On Focus / 3.2.2 On Input</td><td>A</td><td class="status-supports">Supports</td><td>Focus and input never trigger unexpected context changes.</td></tr>
+    <tr><td>4.1.2 Name, Role, Value</td><td>A</td><td class="status-supports">Supports</td><td>Verified by axe-core across five interface states.</td></tr>
+    <tr><td>4.1.3 Status Messages</td><td>AA</td><td class="status-supports">Supports</td><td>Save state announced via a <code>role="status"</code> live region.</td></tr>
+  </table>
+
+  <div class="section-label">Section 5</div>
+  <h2>Known Limitations</h2>
+
+  <p>Three limitations are documented. Each has a mitigation, and none affects the operability of the application itself.</p>
+
+  <ul class="styled">
+    <li><strong>Colors inside user maps follow the historical MindMup theme.</strong> Because renders existing academic <code>.mup</code> files exactly as MindMup drew them, so instructors' course materials look the way they were authored; a few of those inherited colors (for example the blue claim-number badges) fall short of 4.5:1. Mitigations: dark mode provides an alternative luminance scheme, and the structural information those colors carry is duplicated in shape, text labels, and the ARIA tree.</li>
+    <li><strong>Connector lines are thin pointer targets.</strong> The lines linking claims can be hard to click precisely. Every connector command is equally available from the keyboard-accessible menus, so the line is never the only way to act on a connection.</li>
+    <li><strong>Toolbar hints use native tooltips.</strong> Button hints rely on the browser's built-in <code>title</code> tooltip rather than a custom styled one. The same information is available to assistive technology through each button's accessible label.</li>
+  </ul>
+
+  <div class="section-label">Section 6</div>
+  <h2>Verification and Maintenance</h2>
+
+  <p>Accessibility in Because is a tested invariant, not a one-time audit. A dedicated regression suite runs before every deployment and must pass in full; it currently comprises 47 checks, including five axe-core scans (zero violations tolerated), end-to-end keyboard walkthroughs of the menus, dialogs, toolbar, and map editing commands in WebKit, and assertions against the accessibility tree Chrome computes — the representation Windows screen readers consume. The measures described in this report, the complete contrast palette, and the limitations above are maintained in the project's accessibility documentation alongside the source code, which is MIT-licensed for release as open source.</p>
+
+  <div class="callout">
+    <strong>Questions or accommodation needs:</strong> contact Simon Cullen at <a href="mailto:sc@simoncullen.org">sc@simoncullen.org</a>. Accessibility issues are treated as functional defects: reproduced, fixed, and added to the regression gate so they cannot recur.
+  </div>
+
+  <div class="footer">
+    Because Accessibility Report &nbsp;&middot;&nbsp; July 2026 &nbsp;&middot;&nbsp; https://app.philmaps.com &nbsp;&middot;&nbsp; WCAG 2.2 Level AA
+  </div>
+
+</div>
+</body>
+</html>

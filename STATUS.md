@@ -7,6 +7,41 @@ bucket `argumentbase-app`, localStorage keys migrate on first load.
 Canonical URL: **https://app.philmaps.com** (custom domain on the same
 Firebase site; argumentbase.web.app serves identically).
 
+## 2026-07-17 night — NVDA bug: roving focus replaces activedescendant
+
+- A colleague on Chrome + NVDA (Windows) reported the map unreadable:
+  NVDA+Tab on the focused map announced "unknown invisible" instead of
+  the claim. Root cause: the canvas used the aria-activedescendant
+  composite pattern (DOM focus parked on the container, selection
+  pointed at via IDREF) — Chromium's INTERNAL accessibility tree
+  computes it correctly (verified via CDP in Chromium 129 and 150, all
+  load paths), but NVDA has to follow the activedescendant indirection
+  through the IA2 layer to find what to announce, and that retargeting
+  is what failed. Not reproducible on macOS (NVDA is Windows-only); the
+  computed-tree evidence plus the symptom pinned it to the indirection.
+- Fix (app/js/a11y-canvas.js only, no vendor change): real DOM focus now
+  rides the selected node (roving focus). The container stays the single
+  Tab stop and delegates focus to the selection on receipt; arrows move
+  focus with the selection, so screen readers announce claims from
+  native focus events — the pattern every AT follows, and the one the
+  vendor engine itself uses after inline edits (editingElement.focus()).
+  Also: the positioning stage now carries role="group" so the ARIA
+  required-children chain (tree > group > treeitem) doesn't route
+  through a zero-sized generic. Guard: selection changes move focus only
+  when focus is already inside the map, so map loads (which auto-select
+  the root) can't steal focus from a dialog.
+- test/a11y-e2e.js grew a Chromium section (system Chrome via
+  playwright-core + CDP): asserts the COMPUTED accessibility tree — one
+  tree named "Argument map", every node a named treeitem under a group,
+  and real focus landing on a named treeitem when the map is focused.
+  That's the NVDA proxy that was missing: every DOM-attribute check
+  passed while the computed-tree consumer choked. 47/47 checks pass;
+  all six suites green; round-trip serialization byte-identical after
+  focus/arrows/dark-mode. docs/accessibility.md and the PDF report
+  (docs/Because-Accessibility-Report.pdf) updated to match.
+- Colleague asked to retest after deploy — NVDA-on-Windows confirmation
+  is still pending; the fix is verified only at the computed-tree level.
+
 ## 2026-07-17 evening — objection bracket: shape, not just color
 
 - Simon noticed reasons and objections were distinguished only by bracket

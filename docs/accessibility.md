@@ -26,13 +26,21 @@ regression gate is `test/a11y-e2e.js`.
   element on close.
 - **Canvas tree semantics.** `app/js/a11y-canvas.js` layers WAI-ARIA tree
   semantics onto the DOM the engine draws: the container is
-  `role="tree"` and the single Tab stop, nodes are `role="treeitem"`
-  reached with the arrow keys, `aria-level` / `aria-expanded` /
-  `aria-selected` track structure and state, and `aria-activedescendant`
-  follows selection. The SVG connector/bracket layer is
-  `aria-hidden="true"` because the relationships it draws are already in
-  the tree. None of this touches map data — attributes go on DOM the
-  engine already rendered, so a `.mup` still serializes byte-identical.
+  `role="tree"` and the single Tab stop, the positioning stage is its
+  `role="group"` child (an intact required-children chain), nodes are
+  `role="treeitem"` reached with the arrow keys, and `aria-level` /
+  `aria-expanded` / `aria-selected` track structure and state. Real DOM
+  focus rides on the selected node (roving focus): the container
+  delegates focus to the selection the moment it receives it, and the
+  arrow keys move focus with the selection, so screen readers announce
+  each claim from native focus events. An earlier version kept focus on
+  the container and pointed `aria-activedescendant` at the selection;
+  NVDA + Chrome failed to follow that indirection and announced the map
+  as "unknown invisible", so activedescendant is no longer used anywhere
+  on the canvas. The SVG connector/bracket layer is `aria-hidden="true"`
+  because the relationships it draws are already in the tree. None of
+  this touches map data — attributes go on DOM the engine already
+  rendered, so a `.mup` still serializes byte-identical.
 - **Live save status.** `#save-status` is a `role="status"` live region,
   so screen readers announce save-state changes.
 - **Focus visibility.** `:focus-visible` outlines are drawn on chrome
@@ -99,4 +107,13 @@ for the same reasons.
 ## Testing
 
 `test/a11y-e2e.js` is the regression gate for the measures above; run it
-alongside the other e2e suites before deploying.
+alongside the other e2e suites before deploying. Most of the suite runs
+in WebKit (the Safari rule); a final section launches the installed
+Chrome and asserts against the accessibility tree Chromium computes
+(via CDP), not just the DOM attributes we author — the two can diverge,
+and the computed tree is what Windows screen readers such as NVDA
+consume. That section exists because every DOM-level check passed while
+an NVDA user heard "unknown invisible": it asserts the map is exactly
+one tree named "Argument map", every node is a named treeitem under a
+`group` child of the tree, and focusing the map lands real focus on a
+named treeitem.

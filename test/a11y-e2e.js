@@ -4,7 +4,8 @@
 // menubar, dialogs trap and restore focus, and the philmaps keys still
 // work with focus in the map. Expects `python3 -m http.server 8871`
 // at the repo root (same as the other suites).
-const { webkit } = require('playwright-core');
+const { webkit, chromium } = require('playwright-core');
+const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const fs = require('fs');
 const path = require('path');
 const axeSource = fs.readFileSync(path.join(__dirname, 'node_modules', 'axe-core', 'axe.min.js'), 'utf8');
@@ -80,7 +81,9 @@ const AXE_OPTS = {
 	await page.keyboard.press('Tab');
 	ok((await active()).indexOf('skip-link') >= 0, 'first Tab stop is the skip link');
 	await page.keyboard.press('Enter');
-	ok((await active()).indexOf('map-container') >= 0, 'skip link focuses the map');
+	// roving focus: the container delegates to the selected claim, so the
+	// skip link lands REAL focus on a treeitem (what a screen reader reads)
+	ok((await active()).indexOf('mapjs-node') >= 0, 'skip link focuses the selected claim');
 
 	await page.evaluate(() => { document.activeElement.blur(); });
 	await page.keyboard.press('Tab'); // skip link
@@ -170,22 +173,23 @@ const AXE_OPTS = {
 	await page.waitForTimeout(250);
 	ok(await page.evaluate(() => document.querySelectorAll('.mapjs-node').length) > n1,
 		'Enter in the map still adds a reason');
-	// arrows move the SELECTION while the container keeps DOM focus
-	// (activedescendant pattern) — the visible indicator must sit on the
-	// selected node whenever the container is focused
+	// arrows move the selection AND real DOM focus rides along on the
+	// selected node (roving focus — the activedescendant indirection is
+	// what NVDA+Chrome failed to follow); the visible indicator sits on
+	// the focused node
 	await page.evaluate(() => document.getElementById('map-container').focus());
 	await page.keyboard.press('ArrowRight');
 	await page.waitForTimeout(250);
 	const nodeOutline = await page.evaluate(() => {
-		if (document.activeElement !== document.getElementById('map-container')) { return 'container-not-focused'; }
 		const el = document.querySelector('.mapjs-node.a11y-keyboard-selected');
 		if (!el) { return 'no-marked-node'; }
+		if (document.activeElement !== el) { return 'focus-not-on-selected-node'; }
 		const c = getComputedStyle(el);
 		return c.outlineStyle + ' ' + c.outlineWidth;
 	});
-	ok(/solid/.test(nodeOutline), 'keyboard selection shows a visible outline (' + nodeOutline + ')');
-	// and the indicator leaves with container focus
-	await page.evaluate(() => document.getElementById('map-container').blur());
+	ok(/solid/.test(nodeOutline), 'keyboard focus rides the selected node with a visible outline (' + nodeOutline + ')');
+	// and the indicator leaves with focus
+	await page.evaluate(() => document.activeElement && document.activeElement.blur());
 	ok(await page.evaluate(() => !document.querySelector('.a11y-keyboard-selected')),
 		'indicator clears when the map loses focus');
 	// selection state is exposed
@@ -272,6 +276,48 @@ const AXE_OPTS = {
 
 	ok(errors.length === 0, 'no page errors (' + errors.join('; ').slice(0, 200) + ')');
 	await browser.close();
+
+	// ---- NVDA proxy: Chromium's COMPUTED accessibility tree ----
+	// The attributes checked above are what we author; a Windows screen
+	// reader consumes the tree Chromium computes from them, which can
+	// diverge (an NVDA user got "unknown invisible" from the old
+	// activedescendant indirection while every DOM check here passed).
+	// Real Chrome, real computed tree: focusing the map must land actual
+	// focus on a NAMED treeitem — no indirection for the AT to follow.
+	const cr = await chromium.launch({ executablePath: CHROME });
+	const cpage = await cr.newPage({ viewport: { width: 1500, height: 950 } });
+	await cpage.goto(BASE + '/app/index.html');
+	await cpage.evaluate(() => localStorage.setItem('because.intro.dismissed', '1'));
+	await cpage.goto(BASE + '/app/index.html?src=../samples/death.mup');
+	await cpage.waitForSelector('.mapjs-node', { timeout: 8000 });
+	await cpage.waitForTimeout(900);
+	await cpage.evaluate(() => document.getElementById('map-container').focus());
+	await cpage.waitForTimeout(200);
+	const cdp = await cpage.context().newCDPSession(cpage);
+	await cdp.send('Accessibility.enable');
+	const axNodes = (await cdp.send('Accessibility.getFullAXTree')).nodes,
+		axById = new Map(axNodes.map(n => [n.nodeId, n])),
+		axTrees = axNodes.filter(n => n.role && n.role.value === 'tree'),
+		axItems = axNodes.filter(n => n.role && n.role.value === 'treeitem'),
+		domNodeCount = await cpage.evaluate(() => document.querySelectorAll('.mapjs-node').length);
+	ok(axTrees.length === 1 && axTrees[0].name && axTrees[0].name.value === 'Argument map',
+		'computed AX tree exposes one tree named "Argument map"');
+	ok(axItems.length === domNodeCount && axItems.every(i => i.name && i.name.value),
+		'every map node is a named treeitem in the computed AX tree (' +
+			axItems.length + '/' + domNodeCount + ')');
+	ok(axTrees.length === 1 && (axTrees[0].childIds || []).some(id => {
+		const n = axById.get(id);
+		return n && n.role && n.role.value === 'group';
+	}), 'treeitems hang off a group child of the tree (required-children chain)');
+	const axFocused = axNodes.filter(n =>
+		(n.properties || []).some(p => p.name === 'focused' && p.value.value) &&
+		n.role && n.role.value !== 'RootWebArea');
+	ok(axFocused.length === 1 && axFocused[0].role.value === 'treeitem' &&
+		axFocused[0].name && !!axFocused[0].name.value,
+		'focusing the map lands real focus on a named treeitem (' +
+			(axFocused.length ? axFocused.map(n => n.role.value).join(',') : 'none') + ')');
+	await cr.close();
+
 	console.log(failures ? 'FAILURES: ' + failures : 'ALL PASS');
 	process.exit(failures ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });
