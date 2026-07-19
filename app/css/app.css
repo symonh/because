@@ -531,35 +531,26 @@ body.dark #map-container:focus-visible {
 	outline-color: #6cc4ee;
 }
 
-/* map nodes: override the vendor `.mapjs-node:focus { outline:none }`.
- * This is ephemeral focus UI, not map content — never printed/serialized.
- * .a11y-keyboard-selected marks the active item while the CONTAINER holds
- * focus (arrow keys move selection, not DOM focus — a11y-canvas.js). */
-.mapjs-node:focus-visible,
-.mapjs-node.a11y-keyboard-selected {
-	outline: 3px solid #16749f !important;
-	outline-offset: 2px;
-}
-body.dark .mapjs-node:focus-visible,
-body.dark .mapjs-node.a11y-keyboard-selected {
-	outline-color: #6cc4ee !important;
-}
-@media print {
-	.mapjs-node.a11y-keyboard-selected { outline: none !important; }
-}
-/* A selected node already carries the solid focus ring above; mapjs also
- * paints its own dotted "activated" border (from the theme CSS, injected
- * after this file, hence !important to override). Shown together they read
- * as two concentric selection outlines. While the ring is present, hide the
- * dotted border by making it transparent — the 3px width stays and the theme
- * pairs it with margin:-3px, so nothing reflows. When focus leaves the map
- * the ring is gone and the dotted border returns as the sole selection cue.
- * Keyed to the same condition as the ring above, and covers the dashed
- * implicit/sticky and the group brackets too (border-color hits them all). */
-.mapjs-node:focus-visible.activated,
-.mapjs-node.a11y-keyboard-selected.activated {
-	border-color: transparent !important;
-}
+/* Map nodes show selection AND keyboard focus through mapjs's own theme
+ * "activated" border — dotted for an explicit claim, dashed for an implicit
+ * one (the "t" toggle), dotted green/red for a reason/objection bracket —
+ * so the single indicator also reveals the claim's implicit/explicit state
+ * and a bracket's kind. A former version drew a solid ring on top; it
+ * duplicated this border as a second concentric outline and, being one flat
+ * colour, masked the dotted/dashed cue underneath (you could not see a
+ * selected claim's implicit state). The theme paints the border from the
+ * CSS it injects after this file, and the vendor's
+ * `.mapjs-node:focus { outline:none }` means no browser ring competes — so
+ * no rule is needed here, only the deliberate absence of one. The border
+ * colour is the authentic theme #22AAE0 (the fidelity anchor, the same blue
+ * as the number badge — a documented exception in docs/accessibility.md);
+ * the cues that are NOT colour are the 1px→3px width jump, the dotted/dashed
+ * style, and aria-selected. It stays #22AAE0 in dark mode (bright on the
+ * dark canvas) and persists when focus leaves the map, so the current
+ * selection is always visible. Chrome controls and the map container keep
+ * their #16749f :focus-visible outlines (above). a11y-canvas.js still tracks
+ * the focused selection with .a11y-keyboard-selected for its roving-focus
+ * bookkeeping; that class no longer carries a style of its own. */
 
 /* ---- reduced motion (WCAG 2.3.3) ---- */
 @media (prefers-reduced-motion: reduce) {

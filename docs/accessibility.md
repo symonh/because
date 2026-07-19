@@ -43,10 +43,19 @@ regression gate is `test/a11y-e2e.js`.
   rendered, so a `.mup` still serializes byte-identical.
 - **Live save status.** `#save-status` is a `role="status"` live region,
   so screen readers announce save-state changes.
-- **Focus visibility.** `:focus-visible` outlines are drawn on chrome
-  buttons/links/inputs, the map container, and map nodes (the last
-  overrides the vendor stylesheet's `outline:none`). These are ephemeral
-  focus UI, never printed or serialized.
+- **Focus visibility.** `:focus-visible` outlines (`#16749f`, 5.21:1) are
+  drawn on chrome buttons/links/inputs and the map container. A map node
+  instead shows selection and keyboard focus through the theme's own
+  "activated" border — 3px, dotted for an explicit claim, dashed for an
+  implicit one, dotted green/red for a reason/objection bracket — so one
+  indicator also carries the claim's implicit/explicit state and the
+  bracket's kind. (An earlier build layered a solid ring on top; it read as
+  two concentric outlines and, being a single flat colour, hid the
+  dotted/dashed state cue.) The border's colour is the authentic theme
+  `#22aae0`, covered by the fidelity exception below; the cues that are not
+  colour are the 1px→3px width jump, the dotted/dashed style, and
+  `aria-selected`. The border is part of the rendered map, so it is the one
+  focus-affordance that does print.
 
 ## Contrast palette
 
@@ -93,8 +102,8 @@ for the same reasons.
    `engine/README.md`). This one shape change is intentional and applies
    only to this app's own named themes — a map with a fully embedded
    theme (historical MindMup exports) still renders exactly as saved.
-   Focus and selection are shown with outlines and ARIA state, not color
-   alone.
+   Focus and selection are shown with border style and width (dotted vs
+   dashed, 1px vs 3px) and ARIA state, not color alone.
 2. **Connector curves are thin click targets.** The connecting lines are
    narrow and can be hard to click precisely. Every connector action has a
    keyboard-reachable equivalent in the Argument Visualization menu — Edit

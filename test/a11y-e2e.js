@@ -180,28 +180,39 @@ const AXE_OPTS = {
 	await page.evaluate(() => document.getElementById('map-container').focus());
 	await page.keyboard.press('ArrowRight');
 	await page.waitForTimeout(250);
-	const nodeOutline = await page.evaluate(() => {
-		const el = document.querySelector('.mapjs-node.a11y-keyboard-selected');
-		if (!el) { return 'no-marked-node'; }
-		if (document.activeElement !== el) { return 'focus-not-on-selected-node'; }
+	// real DOM focus rides the selected node (roving focus — this is what a
+	// screen reader follows); the VISIBLE indicator is the node's own theme
+	// "activated" border, dotted+3px, not a separate drawn outline
+	const focusState = await page.evaluate(() => {
+		const id = window.__because.engine.mapModel.getSelectedNodeId();
+		const el = document.getElementById(('node_' + id).replace(/[^A-Za-z0-9_-]/g, '_'));
+		if (!el) { return { err: 'no-el-for-selection' }; }
 		const c = getComputedStyle(el);
-		return c.outlineStyle + ' ' + c.outlineWidth;
+		return {
+			focusRides: document.activeElement === el,
+			borderStyle: c.borderTopStyle, borderWidth: c.borderTopWidth, borderColor: c.borderTopColor,
+			outlineStyle: c.outlineStyle
+		};
 	});
-	ok(/solid/.test(nodeOutline), 'keyboard focus rides the selected node with a visible outline (' + nodeOutline + ')');
-	// exactly one selection indicator: while the solid ring shows, mapjs's own
-	// dotted "activated" border is suppressed (transparent), so a focused
-	// selected node is not double-ringed (dotted border + solid outline)
-	const activatedBorder = await page.evaluate(() => {
-		const el = document.querySelector('.mapjs-node.a11y-keyboard-selected.activated');
-		if (!el) { return 'no-activated-node'; }
-		return getComputedStyle(el).borderTopColor;
-	});
-	ok(activatedBorder === 'rgba(0, 0, 0, 0)' || activatedBorder === 'transparent',
-		'focused selection shows only the ring, not the dotted activated border too (' + activatedBorder + ')');
-	// and the indicator leaves with focus
+	ok(focusState.focusRides, 'keyboard focus rides the selected node (roving focus)');
+	// the border is 3px and dotted (explicit) or dashed (implicit) — the style
+	// itself carries the claim's state, which is the whole point of using it
+	ok((focusState.borderStyle === 'dotted' || focusState.borderStyle === 'dashed') &&
+		focusState.borderWidth === '3px' && focusState.borderColor !== 'rgba(0, 0, 0, 0)',
+		'the selection indicator is the 3px activated border (' + focusState.borderStyle + ' ' + focusState.borderWidth + ')');
+	// single indicator: no solid ring is drawn on top of that border
+	ok(focusState.outlineStyle !== 'solid',
+		'no second solid outline is layered over the activated border (outline: ' + focusState.outlineStyle + ')');
+	// the border is a SELECTION cue, so it persists when focus leaves the map
+	// (unlike the old ring), keeping the current selection visible
 	await page.evaluate(() => document.activeElement && document.activeElement.blur());
-	ok(await page.evaluate(() => !document.querySelector('.a11y-keyboard-selected')),
-		'indicator clears when the map loses focus');
+	await page.waitForTimeout(100);
+	ok(await page.evaluate(() => {
+		const id = window.__because.engine.mapModel.getSelectedNodeId();
+		const el = document.getElementById(('node_' + id).replace(/[^A-Za-z0-9_-]/g, '_'));
+		const s = el && getComputedStyle(el).borderTopStyle;
+		return s === 'dotted' || s === 'dashed';
+	}), 'the selection border stays after the map loses focus');
 	// selection state is exposed
 	ok(await page.evaluate(() => {
 		const id = window.__because.engine.mapModel.getSelectedNodeId();

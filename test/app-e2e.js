@@ -78,17 +78,37 @@ function ok(cond, name) {
 	}));
 	ok(counts.groups === 1 && counts.nodes === 3, `Tab adds co-premise in same group (groups=${counts.groups} nodes=${counts.nodes})`);
 
+	// selected node's own theme border IS the selection indicator (no solid
+	// ring on top), so its style must read as the current state while active
+	const borderOfSelected = () => page.evaluate(() => {
+		const el = document.querySelector('.mapjs-node.activated:not(.attr_group)');
+		if (!el) { return null; }
+		const c = getComputedStyle(el);
+		return { style: c.borderTopStyle, width: c.borderTopWidth, color: c.borderTopColor, outline: c.outlineStyle };
+	});
+
 	// implicit toggle on the selected premise
 	await page.keyboard.down('Alt');
 	await page.keyboard.press('t');
 	await page.keyboard.up('Alt');
 	await new Promise(r => setTimeout(r, 300));
 	ok(await page.$('.mapjs-node.attr_implicit_claim') !== null, 'Alt+T marks claim implicit (dashed)');
+	// the implicit state must stay VISIBLE while the claim is selected: the
+	// selection indicator is the theme border, which goes dashed when implicit
+	// (regression — a solid focus ring used to sit on top and hide this)
+	let selBorder = await borderOfSelected();
+	ok(selBorder && selBorder.style === 'dashed' && selBorder.width === '3px' && selBorder.color !== 'rgba(0, 0, 0, 0)',
+		`selected implicit claim shows a dashed 3px border (${selBorder && selBorder.style + ' ' + selBorder.width + ' ' + selBorder.color})`);
+	ok(selBorder && selBorder.outline !== 'solid', 'no second solid ring is drawn over the selected claim');
 
 	// bare T toggles the same way: back to explicit, then implicit again
 	await page.keyboard.press('t');
 	await new Promise(r => setTimeout(r, 300));
 	ok(await page.$('.mapjs-node.attr_implicit_claim') === null, 'T toggles the claim back to explicit');
+	// and the selected border flips back to dotted — the toggle is visible live
+	selBorder = await borderOfSelected();
+	ok(selBorder && selBorder.style === 'dotted' && selBorder.color !== 'rgba(0, 0, 0, 0)',
+		`selected explicit claim shows a dotted border (${selBorder && selBorder.style + ' ' + selBorder.color})`);
 	await page.keyboard.press('t');
 	await new Promise(r => setTimeout(r, 300));
 	ok(await page.$('.mapjs-node.attr_implicit_claim') !== null, 'T toggles implicit again');
