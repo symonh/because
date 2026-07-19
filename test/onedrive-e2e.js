@@ -124,7 +124,13 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 		target.click();
 	}, [menu, item]);
 
-	// the shipped config has no Entra client id: items explain setup
+	// unconfigured deployment: OneDrive items explain setup (the shipped
+	// config now has a real client id, so blank it first — the config
+	// module is a singleton and isConfigured() reads it live)
+	await page.evaluate(async () => {
+		const mod = await import('./js/config.js');
+		mod.onedriveConfig.clientId = '';
+	});
 	await clickMenu('File', 'Open from OneDrive');
 	ok(await page.$eval('.panel', el => el.textContent.indexOf('OneDrive is not connected') >= 0).catch(() => false),
 		'unconfigured OneDrive shows the setup panel');

@@ -9,31 +9,44 @@ task (~3 minutes).
 
 ## Register the Entra app (Simon)
 
-1. Sign in at <https://entra.microsoft.com> (or portal.azure.com).
-   A personal Microsoft account or the CMU account both work, provided
-   the tenant allows user app registrations; a personal account gets a
-   free default tenant.
-2. **Identity → Applications → App registrations → New registration**
+App registrations now require the account to be inside a directory
+(tenant): Microsoft deprecated directory-less personal-account
+registrations in 2025, so entra.microsoft.com shows "The ability to
+create applications outside of a directory has been deprecated" until
+one exists. Signing up for a free Azure account fixes that by creating
+a "Default Directory" (done 2026-07-19 with simon@discursively.org →
+`simondiscursively.onmicrosoft.com`). App registrations themselves are
+free; no Azure resources (App Service etc.) are needed.
+
+1. Sign in at <https://portal.azure.com> and open **Microsoft Entra
+   ID** from the left menu (NOT "App Services" — that is unrelated web
+   hosting).
+2. **Manage → App registrations → New registration**
    - Name: `Because`
    - Supported account types: **Accounts in any organizational
-     directory and personal Microsoft accounts** (instructors may be
-     on either).
+     directory (Any Microsoft Entra ID tenant - Multitenant) and
+     personal Microsoft accounts (e.g. Skype, Xbox)** — the third
+     option; instructors may be on either kind of account.
    - Redirect URI: platform **Single-page application (SPA)**, value
      `https://app.philmaps.com/app/auth-popup.html`
-3. After creation, under **Authentication → Single-page application →
-   Add URI**, add the local test URIs:
-   - `http://localhost:8871/app/auth-popup.html`
-   - `http://127.0.0.1:8871/app/auth-popup.html`
 
    The SPA platform is what enables CORS on the token endpoint; the
-   flow breaks if these are registered under the "Web" platform.
-4. **API permissions**: Microsoft Graph → Delegated →
-   `Files.ReadWrite`. (The default `User.Read` can stay; the app never
-   calls it.) openid, profile and offline_access are consented by the
-   user at sign-in — nothing here needs admin consent.
-5. Copy the **Application (client) ID** from Overview into
+   flow breaks if the URI is registered under the "Web" platform.
+3. Copy the **Application (client) ID** from Overview into
    `onedriveConfig.clientId` in `app/js/config.js`, run the test
    suites, deploy — or just give the ID to Claude.
+
+Optional, only for live end-to-end testing against real OneDrive from
+a dev server (the e2e suites stub Microsoft and don't need it): under
+**Authentication → Single-page application → Add URI** also add
+`http://localhost:8871/app/auth-popup.html` and
+`http://127.0.0.1:8871/app/auth-popup.html`.
+
+No API-permission configuration is required: the app requests
+`Files.ReadWrite`, `openid`, `profile` and `offline_access` at sign-in
+and the user consents there (dynamic consent); none of these need
+admin consent. The Azure CLI path (`az ad app create` + a Graph PATCH
+for the SPA redirect URIs) works too if a browser is unavailable.
 
 ## Implementation notes
 

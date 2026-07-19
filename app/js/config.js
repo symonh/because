@@ -26,7 +26,9 @@ export const driveConfig = {
  * steps: docs/onedrive-setup.md.
  */
 export const onedriveConfig = {
-	clientId: ''
+	// "Because" app registration, Default Directory
+	// (simondiscursively.onmicrosoft.com), personal + org accounts
+	clientId: '96bd75f8-ec63-49ac-a20e-00d7245842a0'
 };
 
 /*
