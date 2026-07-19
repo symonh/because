@@ -15,8 +15,11 @@
  * batch, so no empty bracket is left behind and a single undo restores both.
  */
 
-const GROUP_ATTR = { contentLocked: true, group: 'supporting' },
-	isGroup = n => !!(n && n.attr && n.attr.group),
+// the attr that makes a child render as a fresh supporting (reason) bracket;
+// exported so the clipboard's paste-as-reason uses the same grammar as a drag
+export const GROUP_ATTR = { contentLocked: true, group: 'supporting' };
+
+const isGroup = n => !!(n && n.attr && n.attr.group),
 	isSticky = n => !!(n && n.attr && Array.isArray(n.attr.styleNames) &&
 		n.attr.styleNames.indexOf('sticky_note') >= 0),
 	isClaim = n => n && !isGroup(n) && !isSticky(n),

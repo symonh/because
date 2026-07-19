@@ -6,18 +6,34 @@
  * co-premises, never bare mind-map children — except sticky notes.
  */
 
+import { GROUP_ATTR } from './drop-policy.js';
+import { isStickyNode } from './numbering.js';
+
 const SOURCE = 'ui',
 	FONT_STEP = 1.2,
 	FONT_MIN = 0.4,
-	FONT_MAX = 4;
+	FONT_MAX = 4,
+	// a pasted subtree always lays out under its new parent; drop any manual
+	// positions (a copied root claim carries one) so nothing lands off in
+	// absolute space — the detached case is reached by dragging, not pasting
+	stripPositions = function (node) {
+		if (!node) { return; }
+		if (node.attr && node.attr.position) { delete node.attr.position; }
+		if (node.ideas) { Object.keys(node.ideas).forEach(k => stripPositions(node.ideas[k])); }
+	};
 
 export function makeCommands(engine) {
+	// in-memory clipboard: the JSON subtree copied by the last Copy. Kept in
+	// the app layer because mapjs exposes clone/paste on content but no
+	// clipboard of its own (MindMup's cut/copy/paste lived in its closed app).
+	let clipboard = null;
 	const mapModel = engine.mapModel,
 		idea = () => mapModel.getIdea(),
 		selectedId = () => mapModel.getSelectedNodeId(),
 		selectedIdea = () => mapModel.findIdeaById(selectedId()),
 		findParent = id => idea() && idea().findParent(id),
 		isGroup = n => n && n.attr && n.attr.group,
+		isSticky = n => isStickyNode(n),
 		// whole-title formatting for a selected node (while editing, the
 		// text editor applies these to the text selection instead)
 		toggleTitleFormat = function (tag) {
@@ -67,6 +83,38 @@ export function makeCommands(engine) {
 			}
 		},
 		insertParentReason() { mapModel.insertIntermediateGroup(SOURCE, { group: 'supporting' }); },
+		// Copy the selected claim and everything beneath it (a deep snapshot,
+		// so it survives the source being edited or deleted). Groups (bare
+		// brackets) and sticky notes are structure/annotation, not portable
+		// argument units, so they are not copied.
+		copy() {
+			const node = selectedIdea();
+			if (!node || isGroup(node) || isSticky(node)) { return; }
+			const clone = idea().clone(node.id);
+			if (clone) { stripPositions(clone); clipboard = clone; }
+		},
+		// Paste the clipboard onto the selection, exactly as dragging it there
+		// would (drop-policy grammar): onto a claim it becomes a new reason in
+		// its own fresh green group; onto a bracket it joins as a co-premise.
+		// There is always a selection (the model falls back to the root), so
+		// paste always attaches — detaching is done afterwards by dragging the
+		// pasted subtree to a blank area. One undo reverts the whole paste.
+		paste() {
+			const content = idea();
+			if (!clipboard || !content) { return; }
+			const targetId = selectedId(),
+				target = content.findSubIdeaById(targetId) || content;
+			let newId = null;
+			content.batch(function () {
+				if (isGroup(target)) {
+					newId = content.paste(target.id, clipboard);
+				} else if (!isSticky(target)) {
+					const groupId = content.addSubIdea(targetId, 'group', undefined, GROUP_ATTR);
+					if (groupId) { newId = content.paste(groupId, clipboard); }
+				}
+			});
+			if (newId) { mapModel.selectNode(newId); }
+		},
 		editNode() { mapModel.editNode(SOURCE, false, false); },
 		deleteNode() { mapModel.removeSubIdea(SOURCE); },
 		undo() { mapModel.undo(SOURCE); },

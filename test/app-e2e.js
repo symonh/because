@@ -215,6 +215,77 @@ function ok(cond, name) {
 	ok(all.some(n => n.attr && n.attr.group === 'opposing'), 'saved .mup contains opposing group');
 	ok(all.some(n => n.attr && (n.attr.styleNames || []).includes('attr_implicit_claim')), 'saved .mup keeps implicit styleName');
 
+	// ---- copy / paste: ⌘C copies the selected claim and everything beneath
+	// it; ⌘V grafts that copy as a new reason under the selection (the same
+	// grammar a drag uses), one ⌘Z reverts the whole graft. There is always a
+	// selection, so paste always attaches — detaching is done by dragging.
+	await page.evaluate(() => {
+		window.__because.engine.loadMap({ formatVersion: 3, id: 'root', attr: { theme: 'argMappingSimple' }, ideas: {
+			1: { id: 2, title: 'Claim C', ideas: {
+				1: { id: 11, title: 'group', attr: { group: 'supporting', contentLocked: true }, ideas: {
+					1: { id: 12, title: 'Reason A', ideas: {
+						1: { id: 13, title: 'group', attr: { group: 'supporting', contentLocked: true }, ideas: {
+							1: { id: 14, title: 'Reason A1' }
+						} }
+					} }
+				} }
+			} }
+		} });
+	});
+	await page.waitForFunction(() => document.querySelector('#node_14'), { timeout: 5000 });
+	await new Promise(r => setTimeout(r, 300));
+	const groupsUnder = id => page.evaluate(nid => Object.values(window.__because.engine.mapModel
+		.getIdea().findSubIdeaById(nid).ideas).filter(k => k.attr && k.attr.group).length, id);
+	// select Reason A, copy it with the keyboard; select Claim C, paste
+	await page.evaluate(() => { window.__because.engine.mapModel.selectNode(12); document.getElementById('map-container').focus(); });
+	await metaPress('c');
+	await page.evaluate(() => { window.__because.engine.mapModel.selectNode(2); document.getElementById('map-container').focus(); });
+	await metaPress('v');
+	const cp = await page.evaluate(() => {
+		const content = window.__because.engine.mapModel.getIdea(),
+			c = content.findSubIdeaById(2),
+			groups = Object.values(c.ideas).filter(k => k.attr && k.attr.group === 'supporting'),
+			aClaims = groups.map(g => Object.values(g.ideas)).flat().filter(k => k.title === 'Reason A'),
+			pasted = aClaims.find(a => a.id !== 12),
+			a1 = pasted && Object.values(pasted.ideas || {}).filter(g => g.attr && g.attr.group)
+				.map(g => Object.values(g.ideas)).flat().find(k => k.title === 'Reason A1');
+		return { groups: groups.length, aCount: aClaims.length, fresh: !!pasted && pasted.id !== 12,
+			hasA1: !!a1, selected: window.__because.engine.mapModel.getSelectedNodeId(), pastedId: pasted && pasted.id };
+	});
+	ok(cp.groups === 2, `⌘V grafts a new reason group onto the selection (${cp.groups})`);
+	ok(cp.aCount === 2 && cp.fresh, 'the pasted reason is a fresh-id copy of the copied subtree');
+	ok(cp.hasA1, 'the pasted subtree keeps its nested sub-reason');
+	ok(cp.selected === cp.pastedId, 'paste selects the pasted node');
+	await metaPress('z');
+	ok(await groupsUnder(2) === 1, 'one ⌘Z reverts the whole paste');
+
+	// ⌘V while editing a title must NOT graft a reason (the contenteditable
+	// and input-disabled guards keep text editing from being hijacked)
+	await page.evaluate(() => { window.__because.engine.mapModel.selectNode(2); document.getElementById('map-container').focus(); window.__because.commands.editNode(); });
+	await new Promise(r => setTimeout(r, 400));
+	const groupsBeforeEditPaste = await groupsUnder(2);
+	await metaPress('v');
+	ok(await groupsUnder(2) === groupsBeforeEditPaste, '⌘V while editing a title does not graft a reason');
+	await page.keyboard.press('Escape');
+	await new Promise(r => setTimeout(r, 200));
+
+	// copying a bracket is a no-op (a group is structure, not a portable unit),
+	// so the clipboard keeps the last claim and ⌘V still pastes that claim
+	await page.evaluate(() => {
+		const g = Object.values(window.__because.engine.mapModel.getIdea().findSubIdeaById(2).ideas).find(k => k.attr && k.attr.group);
+		window.__because.engine.mapModel.selectNode(g.id);
+		document.getElementById('map-container').focus();
+	});
+	await metaPress('c');
+	await page.evaluate(() => { window.__because.engine.mapModel.selectNode(2); document.getElementById('map-container').focus(); });
+	await metaPress('v');
+	const afterGroupCopy = await page.evaluate(() => {
+		const node = window.__because.engine.mapModel.getIdea().findSubIdeaById(window.__because.engine.mapModel.getSelectedNodeId());
+		return { title: node && node.title, isGroup: !!(node && node.attr && node.attr.group) };
+	});
+	ok(afterGroupCopy.title === 'Reason A' && !afterGroupCopy.isGroup,
+		`copying a bracket is ignored — ⌘V still pastes the last copied claim (${afterGroupCopy.title})`);
+
 	// drag-and-drop grammar: dropNode is what the drag controller calls on
 	// mm:stop-dragging, so drive it directly with a known map
 	const drop = await page.evaluate(() => {

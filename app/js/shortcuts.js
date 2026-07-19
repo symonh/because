@@ -9,6 +9,8 @@
  *   z / Shift+z  zoom in / out
  *   ⌘B / ⌘I / ⌘U  bold / italic / underline the selected claim's title
  *   (inside the text editor the same keys format the text selection)
+ *   ⌘C / ⌘V  copy the selected claim + its subtree; paste it as a reason
+ *   under the selection (inside the text editor the same keys copy/paste text)
  *   ⌘⇧. / ⌘⇧,  bigger / smaller claim text (attr.style.fontMultiplier)
  *   ⌘Z / ⌘⇧Z  undo / redo — mapjs never bound these (undo lived in the
  *   MindMup app layer); unconsumed ⌘Z reaches Safari's own Edit > Undo,
@@ -56,6 +58,12 @@ export function bindShortcuts(engine, commands) {
 			command = commands.toggleItalic;
 		} else if (mod && !e.shiftKey && e.code === 'KeyU') {
 			command = commands.toggleUnderline;
+		} else if (mod && !e.shiftKey && e.code === 'KeyC') {
+			// on a selected node this copies the claim + subtree; while editing
+			// the contenteditable guard above lets ⌘C copy the text selection
+			command = commands.copy;
+		} else if (mod && !e.shiftKey && e.code === 'KeyV') {
+			command = commands.paste;
 		} else if (mod && e.shiftKey && e.code === 'Period') {
 			command = commands.fontBigger;
 		} else if (mod && e.shiftKey && e.code === 'Comma') {

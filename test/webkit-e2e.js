@@ -144,6 +144,61 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 	}), 'swatch click writes attr.style.background in WebKit');
 	await page.keyboard.press('Escape');
 
+	// ---- copy / paste in real WebKit: ⌘C copies the selected claim + its
+	// subtree, ⌘V grafts it as a new reason under the selection. Keyboard +
+	// selection quirks are exactly what bite in Safari, so it must pass here.
+	await page.evaluate(() => {
+		window.__because.engine.loadMap({ formatVersion: 3, id: 'root', attr: { theme: 'argMappingSimple' }, ideas: {
+			1: { id: 2, title: 'Claim C', ideas: {
+				1: { id: 11, title: 'group', attr: { group: 'supporting', contentLocked: true }, ideas: {
+					1: { id: 12, title: 'Reason A', ideas: {
+						1: { id: 13, title: 'group', attr: { group: 'supporting', contentLocked: true }, ideas: {
+							1: { id: 14, title: 'Reason A1' }
+						} }
+					} }
+				} }
+			} }
+		} });
+	});
+	await page.waitForSelector('#node_14', { timeout: 8000 });
+	await page.waitForTimeout(300);
+	const boxOf = id => page.evaluate(nid => {
+		const r = document.querySelector('#node_' + nid).getBoundingClientRect();
+		return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+	}, id);
+	// click Reason A to select+focus it (real Safari selection), then ⌘C
+	let cb = await boxOf(12);
+	await page.mouse.click(cb.x, cb.y);
+	await page.waitForTimeout(200);
+	await page.keyboard.press('Meta+c');
+	await page.waitForTimeout(150);
+	// click Claim C and paste
+	cb = await boxOf(2);
+	await page.mouse.click(cb.x, cb.y);
+	await page.waitForTimeout(200);
+	await page.keyboard.press('Meta+v');
+	await page.waitForTimeout(400);
+	const wp = await page.evaluate(() => {
+		const content = window.__because.engine.mapModel.getIdea(),
+			c = content.findSubIdeaById(2),
+			groups = Object.values(c.ideas).filter(k => k.attr && k.attr.group === 'supporting'),
+			aClaims = groups.map(g => Object.values(g.ideas)).flat().filter(k => k.title === 'Reason A'),
+			pasted = aClaims.find(a => a.id !== 12),
+			a1 = pasted && Object.values(pasted.ideas || {}).filter(g => g.attr && g.attr.group)
+				.map(g => Object.values(g.ideas)).flat().find(k => k.title === 'Reason A1');
+		return { groups: groups.length, aCount: aClaims.length, fresh: !!pasted && pasted.id !== 12,
+			hasA1: !!a1, selected: window.__because.engine.mapModel.getSelectedNodeId(), pastedId: pasted && pasted.id };
+	});
+	ok(wp.groups === 2 && wp.aCount === 2 && wp.fresh,
+		`⌘C/⌘V grafts a copied reason in WebKit (groups=${wp.groups}, A=${wp.aCount})`);
+	ok(wp.hasA1, 'the pasted subtree keeps its nested reason in WebKit');
+	ok(wp.selected === wp.pastedId, 'paste selects the pasted node in WebKit');
+	await page.keyboard.press('Meta+z');
+	await page.waitForTimeout(300);
+	ok(await page.evaluate(() => Object.values(window.__because.engine.mapModel.getIdea()
+		.findSubIdeaById(2).ideas).filter(k => k.attr && k.attr.group).length) === 1,
+		'one ⌘Z reverts the whole paste in WebKit');
+
 	// ---- auto-save in WebKit: no File System Access API, so a local map
 	// has no writable target — enabling must explain itself and edits must
 	// never trigger a download (the download fallback is manual-save only)

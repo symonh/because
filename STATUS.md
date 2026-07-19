@@ -7,6 +7,32 @@ bucket `argumentbase-app`, localStorage keys migrate on first load.
 Canonical URL: **https://app.philmaps.com** (custom domain on the same
 Firebase site; argumentbase.web.app serves identically).
 
+## 2026-07-19 — Copy / paste subtrees as reasons (⌘C / ⌘V)
+
+- ⌘C (⌃C) copies the selected claim and everything beneath it into an
+  in-memory clipboard (a deep JSON snapshot via `content.clone`, so it
+  survives the source being edited or deleted). ⌘V (⌃V) grafts that copy
+  onto the current selection using the same argument grammar a drag uses
+  (drop-policy): onto a claim it becomes a new reason in its own fresh
+  green supporting group; onto a bracket it joins as a co-premise. One
+  undo reverts the whole paste; the pasted node is selected afterwards.
+- There is always a selection (the model falls back to the root idea), so
+  paste always attaches — a pasted subtree is separated afterwards by
+  dragging it to a blank area, so there is no "paste detached" branch.
+- Groups (bare brackets) and sticky notes are not copyable (structure /
+  annotation, not portable argument units); manual positions are stripped
+  from the clipboard so a pasted subtree always lays out under its parent.
+- App layer only: mapjs exposes `clone`/`paste` on content but no
+  clipboard of its own (MindMup's cut/copy/paste lived in its closed app).
+  `commands.js` holds the clipboard + `copy`/`paste`; `shortcuts.js` binds
+  the keys (inert while a title editor is open, so ⌘C/⌘V copy/paste text
+  there); Edit menu gained Copy / Paste as reason; `GROUP_ATTR` is now
+  exported from `drop-policy.js` so paste and drag share one grammar.
+- Tests: app-e2e drives ⌘C/⌘V (reason graft, fresh ids, nested subtree
+  kept, pasted node selected, one-undo revert, no graft while editing,
+  bracket-copy ignored); webkit-e2e repeats it with real Safari mouse
+  selection + ⌘C/⌘V. All seven suites pass.
+
 ## 2026-07-19 — Microsoft OneDrive open/save/share (needs Entra app id)
 
 - `app/js/onedrive.js` mirrors drive.js: Open from OneDrive… (in-app
