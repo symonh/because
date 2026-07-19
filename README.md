@@ -27,6 +27,9 @@ open http://127.0.0.1:8871/app/
 - Google Drive open/save is built in (`drive.file` scope, Picker-based);
   enabling it on a deployment takes one OAuth client — see
   [docs/drive-setup.md](docs/drive-setup.md).
+- Microsoft OneDrive open/save is built in too (Graph `Files.ReadWrite`,
+  PKCE popup auth, in-app picker); enabling it takes one Entra app
+  registration — see [docs/onedrive-setup.md](docs/onedrive-setup.md).
 - Work is autosaved to the browser's localStorage as crash recovery; the
   status text tracks whether the map is saved to its file.
 
@@ -73,14 +76,14 @@ engine/        vendored mapjs source + build script (see engine/README.md)
 engine-demo/   raw engine playground (drag a .mup onto it; ?src=&labels=0)
 samples/       synthetic .mup fixtures safe for a public repo
 samples-local/ real course maps — gitignored, never commit
-test/          six e2e suites (Chrome + real WebKit) and render-map.js (headless renders)
+test/          seven e2e suites (Chrome + real WebKit) and render-map.js (headless renders)
 docs/          rendered proofs
 ```
 
 Tests: `cd test && npm ci`, serve the repo root (`python3 -m http.server
-8871`), then run all six suites — `node app-e2e.js`, `node
-click-select-e2e.js`, `node drive-e2e.js`, `node features-e2e.js` (Chrome
-via puppeteer-core), `node webkit-e2e.js` (Playwright WebKit, the
-Safari-engine check) and `node a11y-e2e.js` (WCAG 2.2 AA gate: axe-core
-scans plus the keyboard model, also WebKit — see docs/accessibility.md).
-All six must pass before deploying.
+8871`), then run all seven suites — `node app-e2e.js`, `node
+click-select-e2e.js`, `node drive-e2e.js`, `node onedrive-e2e.js`,
+`node features-e2e.js` (Chrome via puppeteer-core), `node webkit-e2e.js`
+(Playwright WebKit, the Safari-engine check) and `node a11y-e2e.js`
+(WCAG 2.2 AA gate: axe-core scans plus the keyboard model, also WebKit —
+see docs/accessibility.md). All seven must pass before deploying.

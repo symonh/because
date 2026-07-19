@@ -10,9 +10,12 @@
 import { track } from './analytics.js';
 import { initModal } from './a11y.js';
 
-export function buildMenus(el, commands, io, engine, drive, darkMode, labelEdit, nodeStyle, intro) {
+export function buildMenus(el, commands, io, engine, drive, onedrive, darkMode, labelEdit, nodeStyle, intro) {
 	const driveItem = run => () => {
 			if (drive && drive.isConfigured()) { run(); } else { showDriveSetup(); }
+		},
+		oneDriveItem = run => () => {
+			if (onedrive && onedrive.isConfigured()) { run(); } else { showOneDriveSetup(); }
 		},
 		spec = [
 		['File', () => [
@@ -32,6 +35,13 @@ export function buildMenus(el, commands, io, engine, drive, darkMode, labelEdit,
 			['Share from Google Drive…', driveItem(shareFromDrive)],
 			['Switch Google Drive account…' + (drive && drive.account && drive.account() ?
 				' (' + drive.account() + ')' : ''), driveItem(() => drive.switchAccount())],
+			['—'],
+			['Open from OneDrive…', oneDriveItem(() => onedrive.open())],
+			[(onedrive && onedrive.currentFile() ? '✓ ' : '') + 'Save to OneDrive', oneDriveItem(() => onedrive.save(false))],
+			['Save a copy in OneDrive…', oneDriveItem(() => onedrive.save(true))],
+			['Share from OneDrive…', oneDriveItem(shareFromOneDrive)],
+			['Switch Microsoft account…' + (onedrive && onedrive.account && onedrive.account() ?
+				' (' + onedrive.account() + ')' : ''), oneDriveItem(() => onedrive.switchAccount())],
 			['—'],
 			['Print / Save as PDF', () => window.print()]
 		]],
@@ -283,38 +293,51 @@ export function buildMenus(el, commands, io, engine, drive, darkMode, labelEdit,
 		return 'https://drive.google.com/file/d/' + encodeURIComponent(id) + '/view';
 	}
 
-	// Sharing happens on the file's own drive.google.com page (first-party,
-	// native Share button there). The embedded gapi sharing dialog is not
-	// an option: it requires third-party cookies, which Safari blocks by
-	// default, and it fails there with no error callback to fall back on.
+	// Sharing happens on the file's own page at the cloud service
+	// (first-party, native Share button there). The embedded sharing
+	// widgets (Google's gapi dialog, Microsoft's picker-style embeds)
+	// are not an option: they require third-party cookies, which Safari
+	// blocks by default, and fail with no error callback to fall back on.
 	function shareFromDrive() {
-		const current = drive.currentFile();
-		if (current) {
+		shareFromCloud('Google Drive', 'drive_share',
+			() => { const f = drive.currentFile(); return f && { name: f.name, url: driveFileUrl(f.id) }; },
+			() => drive.save(false));
+	}
+
+	function shareFromOneDrive() {
+		shareFromCloud('OneDrive', 'onedrive_share',
+			() => { const f = onedrive.currentFile(); return f && f.webUrl && { name: f.name, url: f.webUrl }; },
+			() => onedrive.save(false));
+	}
+
+	function shareFromCloud(service, event, current, save) {
+		const file = current();
+		if (file) {
 			// synchronously inside the menu click — a popup opened after an
 			// await has lost the user gesture and gets blocked in Safari
-			window.open(driveFileUrl(current.id), '_blank');
-			track('drive_share', { method: 'direct' });
+			window.open(file.url, '_blank');
+			track(event, { method: 'direct' });
 			return;
 		}
-		if (!window.confirm('“' + io.fileName() + '” isn’t in Google Drive yet.\n\n' +
-				'Save it to Drive now? You can then share it from Google Drive.')) {
+		if (!window.confirm('“' + io.fileName() + '” isn’t in ' + service + ' yet.\n\n' +
+				'Save it to ' + service + ' now? You can then share it from ' + service + '.')) {
 			return;
 		}
-		drive.save(false).then(function (saved) {
-			const file = drive.currentFile();
-			if (saved && file) { showSharePanel(file); }
+		save().then(function (saved) {
+			const f = current();
+			if (saved && f) { showSharePanel(service, event, f); }
 		});
 	}
 
-	function showSharePanel(file) {
-		track('drive_share', { method: 'after_save' });
+	function showSharePanel(service, event, file) {
+		track(event, { method: 'after_save' });
 		const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])),
 			// a real link, not window.open: the save above was async, so the
 			// menu-click gesture is spent and Safari would block a popup
 			ref = showPanel(
-				'<h2>Share from Google Drive</h2>' +
-				'<p>“' + esc(file.name) + '” is now saved in your Google Drive.</p>' +
-				'<p><a href="' + driveFileUrl(file.id) + '" target="_blank">Open it in Google Drive</a> ' +
+				'<h2>Share from ' + service + '</h2>' +
+				'<p>“' + esc(file.name) + '” is now saved in ' + service + '.</p>' +
+				'<p><a href="' + esc(file.url) + '" target="_blank">Open it in ' + service + '</a> ' +
 				'and use the <b>Share</b> button there to invite people or copy a link.</p>'
 			);
 		ref.overlay.querySelector('a[target]').addEventListener('click', () => ref.modal.close());
@@ -365,6 +388,18 @@ export function buildMenus(el, commands, io, engine, drive, darkMode, labelEdit,
 			'To enable it, create an OAuth 2.0 Web client in the Google Cloud Console and put its ' +
 			'client ID in <code>app/js/config.js</code> — the exact steps are in ' +
 			'<code>docs/drive-setup.md</code> in the repository.</p>' +
+			'<p>Local files keep working: use <b>File &gt; Open…</b> and <b>Save</b>.</p>'
+		);
+	}
+
+	function showOneDriveSetup() {
+		track('help_open', { panel: 'onedrive_setup' });
+		showPanel(
+			'<h2>OneDrive is not connected yet</h2>' +
+			'<p>This deployment has no Microsoft Entra app configured, so OneDrive open/save is ' +
+			'switched off. To enable it, register a free Entra app with a Single-page application ' +
+			'platform and put its Application (client) ID in <code>app/js/config.js</code> — the ' +
+			'exact steps are in <code>docs/onedrive-setup.md</code> in the repository.</p>' +
 			'<p>Local files keep working: use <b>File &gt; Open…</b> and <b>Save</b>.</p>'
 		);
 	}

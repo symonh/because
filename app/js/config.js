@@ -16,6 +16,20 @@ export const driveConfig = {
 };
 
 /*
+ * Microsoft OneDrive integration config.
+ *
+ * clientId is the Application (client) ID of a Microsoft Entra app
+ * registration with a Single-page application platform — a public
+ * identifier by design; no client secret exists anywhere (the app uses
+ * the authorization-code + PKCE flow). An empty clientId leaves the
+ * OneDrive menu items pointing at setup instructions. Registration
+ * steps: docs/onedrive-setup.md.
+ */
+export const onedriveConfig = {
+	clientId: ''
+};
+
+/*
  * Google Analytics 4. An empty measurementId disables analytics entirely
  * (the app works identically). The philmaps UA property (UA-106489762-1)
  * is Universal Analytics, which Google shut down in July 2023, so it

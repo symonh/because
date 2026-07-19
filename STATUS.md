@@ -7,6 +7,29 @@ bucket `argumentbase-app`, localStorage keys migrate on first load.
 Canonical URL: **https://app.philmaps.com** (custom domain on the same
 Firebase site; argumentbase.web.app serves identically).
 
+## 2026-07-19 — Microsoft OneDrive open/save/share (needs Entra app id)
+
+- `app/js/onedrive.js` mirrors drive.js: Open from OneDrive… (in-app
+  folder browser over Graph listings), Save writes back to the same
+  file, Save a copy in OneDrive…, Share from OneDrive… (the file's own
+  OneDrive page, popup-safe), Switch Microsoft account…, auto-save via
+  the same save-override hook. Scope `Files.ReadWrite`, one code path
+  for personal + work/school accounts.
+- Auth: hand-rolled authorization-code + PKCE popup
+  (`app/auth-popup.html` relays the code) — Microsoft's CDN stopped
+  hosting MSAL at v2, so there is nothing to lazy-load; refresh token
+  persists in localStorage (`because.onedrive.refresh`), account pinned
+  via `login_hint` (`because.onedrive.account`). Microsoft's embedded
+  picker was rejected (cross-site cookies — breaks in Safari). Content
+  reads use `@microsoft.graph.downloadUrl` because `/content` 302s and
+  CORS forbids that for Authorization-carrying browser requests.
+- SHIPPED DARK: `onedriveConfig.clientId` is empty until Simon
+  registers the Entra app (docs/onedrive-setup.md, ~3 min, portal
+  login required); until then the OneDrive items show setup
+  instructions. Seventh suite `test/onedrive-e2e.js` (Microsoft side
+  stubbed); webkit-e2e covers the OneDrive picker panel + share popup
+  in real WebKit.
+
 ## 2026-07-19 — File > Share from Google Drive
 
 - New File menu item. On a Drive-bound map it opens the file's own

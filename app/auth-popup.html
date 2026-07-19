@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Signing in…</title>
+</head>
+<body>
+<p>Signing in… you can close this window.</p>
+<script>
+/*
+ * OAuth redirect target for the Microsoft sign-in popup (onedrive.js).
+ * Hands the authorization code (or error) back to the opener and closes.
+ * Registered as a Single-page application redirect URI in the Entra app.
+ */
+(function () {
+	var q = new URLSearchParams(window.location.search);
+	if (window.opener) {
+		window.opener.postMessage({
+			msAuth: true,
+			code: q.get('code'),
+			state: q.get('state'),
+			error: q.get('error'),
+			errorDescription: q.get('error_description')
+		}, window.location.origin);
+	}
+	window.close();
+})();
+</script>
+</body>
+</html>

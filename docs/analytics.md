@@ -55,8 +55,8 @@ GA4 is the replacement and its web streams use `G-…` measurement ids.
 | Event | Parameters | Fired when |
 |---|---|---|
 | `app_open` | — | the editor boots (site pages send only `page_view`) |
-| `map_open` | `method` (`new`, `file_picker`, `drag_drop`, `drive`, `url`, `autosave_restore`, `unknown`), `node_count`, `node_bucket`, `map_theme` | any map replaces the current one |
-| `map_save` | `destination` (`file`, `download`, `drive`), `mode` (`save`, `save_as`, `save_copy`, `guard`, `auto`) | a save completes (`guard` = via the unsaved-changes dialog, `auto` = auto-save wrote the map's own file) |
+| `map_open` | `method` (`new`, `file_picker`, `drag_drop`, `drive`, `onedrive`, `url`, `autosave_restore`, `unknown`), `node_count`, `node_bucket`, `map_theme` | any map replaces the current one |
+| `map_save` | `destination` (`file`, `download`, `drive`, `onedrive`), `mode` (`save`, `save_as`, `save_copy`, `guard`, `auto`) | a save completes (`guard` = via the unsaved-changes dialog, `auto` = auto-save wrote the map's own file) |
 | `auto_save_toggle` | `enabled` (`on`/`off`) | File > Auto-save toggled |
 | `auto_save_error` | `description` (truncated) | an auto-save attempt failed; auto-save pauses until the next successful save |
 | `map_print` | — | print / save-as-PDF starts |
@@ -67,8 +67,11 @@ GA4 is the replacement and its web streams use `G-…` measurement ids.
 | `theme_select` | `theme` (`simple`, `high_impact`) | View-menu theme switch |
 | `dark_mode_toggle` | `enabled` (`on`/`off`) | any dark-mode toggle (also kept as the `dark_mode` user property) |
 | `intro_shown` / `intro_dismissed` | `trigger` (`first_visit`, `menu`); `dont_show_again` (`yes`/`no`) | welcome modal |
-| `help_open` | `panel` (`shortcuts`, `about`, `drive_setup`) | Help panels |
+| `help_open` | `panel` (`shortcuts`, `about`, `drive_setup`, `onedrive_setup`) | Help panels |
+| `drive_share` | `method` (`direct`, `after_save`) | File > Share from Google Drive — opens the file's own Drive page (`after_save` = the map was saved to Drive first) |
+| `onedrive_share` | `method` (`direct`, `after_save`) | File > Share from OneDrive — same pattern as `drive_share` |
 | `drive_error` | `description` (truncated) | non-benign Drive failure shown to the user |
+| `onedrive_error` | `description` (truncated) | non-benign OneDrive failure shown to the user |
 | `exception` | `description`, `fatal: false` | uncaught error / unhandled rejection; deduplicated, max 10 per session |
 
 Every `config` call also carries `app_version` — deploy.sh stamps the git

@@ -187,7 +187,23 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 	await ctx.route('**://apis.google.com/**', r => r.fulfill(stubJs));
 	await ctx.route('**://drive.google.com/**', r => r.fulfill(
 		{ status: 200, contentType: 'text/html', body: '<title>drive stub</title>' }));
+	await ctx.route('**://onedrive.live.com/**', r => r.fulfill(
+		{ status: 200, contentType: 'text/html', body: '<title>onedrive stub</title>' }));
 	await page.addInitScript(function (deathMup) {
+		// Microsoft auth popup: intercept ONLY the authorize URL (the Drive
+		// tests need real window.open) and post a code straight back
+		const realOpen = window.open.bind(window);
+		window.open = function (url, target, feats) {
+			const u = String(url);
+			if (u.indexOf('login.microsoftonline.com') >= 0 && u.indexOf('/authorize') >= 0) {
+				const state = new URLSearchParams(u.split('?')[1]).get('state');
+				window.setTimeout(function () {
+					window.postMessage({ msAuth: true, code: 'FAKE_CODE', state: state }, '*');
+				}, 30);
+				return { closed: false, close() { this.closed = true; } };
+			}
+			return realOpen(url, target, feats);
+		};
 		window.google = window.google || {};
 		window.google.accounts = { oauth2: { initTokenClient(cfg) {
 			return { callback: cfg.callback,
@@ -213,6 +229,28 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 		const realFetch = window.fetch.bind(window);
 		window.fetch = function (url, options) {
 			const u = String(url);
+			if (u.indexOf('login.microsoftonline.com') >= 0 && u.indexOf('/token') >= 0) {
+				return Promise.resolve(new Response(JSON.stringify({
+					access_token: 'FAKE_MS', expires_in: 3600, refresh_token: 'FAKE_RT',
+					id_token: 'x.' + window.btoa(JSON.stringify({ preferred_username: 'sc@ms.test' })) + '.y'
+				}), { status: 200 }));
+			}
+			if (u.indexOf('graph.microsoft.com') >= 0) {
+				if (u.indexOf('/me/drive/root/children') >= 0) {
+					return Promise.resolve(new Response(JSON.stringify({ value: [
+						{ id: 'odfile1', name: 'OD map.mup', file: {}, webUrl: 'https://onedrive.live.com/x/odfile1' }
+					] }), { status: 200 }));
+				}
+				if (u.indexOf('downloadUrl') >= 0) {
+					return Promise.resolve(new Response(JSON.stringify({
+						id: 'odfile1', name: 'OD map.mup', webUrl: 'https://onedrive.live.com/x/odfile1',
+						'@microsoft.graph.downloadUrl': 'https://download.test/odfile1'
+					}), { status: 200 }));
+				}
+			}
+			if (u.indexOf('download.test') >= 0) {
+				return Promise.resolve(new Response(deathMup, { status: 200 }));
+			}
 			if (u.indexOf('googleapis.com') >= 0 && u.indexOf('/drive/v3/') >= 0) {
 				if (u.indexOf('/drive/v3/about') >= 0) {
 					return Promise.resolve(new Response(JSON.stringify({ user: { emailAddress: 'sc@test' } }), { status: 200 }));
@@ -273,6 +311,30 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 	ok(await page.evaluate(() => !document.querySelector('.panel-overlay')),
 		'following the share link closes the panel');
 	await drivePage2.close();
+
+	// ---- OneDrive in real WebKit: in-app picker (no popup) + share tab ----
+	await page.evaluate(async () => {
+		const mod = await import('./js/config.js');
+		mod.onedriveConfig.clientId = 'test-ms-client';
+	});
+	await clickMenu('File', 'Open from OneDrive');
+	await page.waitForSelector('.od-list .od-item', { timeout: 8000 });
+	ok(true, 'OneDrive sign-in + picker panel open in WebKit (no embedded widget)');
+	await page.evaluate(() => {
+		Array.from(document.querySelectorAll('.od-list .od-item'))
+			.find(b => b.textContent.indexOf('OD map.mup') >= 0).click();
+	});
+	await page.waitForFunction(() => document.getElementById('map-title').textContent === 'OD map.mup', { timeout: 8000 });
+	ok(true, 'picked OneDrive file loads in WebKit');
+	await page.click('.menu-title:text-is("File")');
+	const [odPage] = await Promise.all([
+		page.waitForEvent('popup'),
+		page.click('.menu-item:has-text("Share from OneDrive")')
+	]);
+	await odPage.waitForLoadState();
+	ok(odPage.url() === 'https://onedrive.live.com/x/odfile1',
+		`OneDrive share opens the file's page in a new tab (${odPage.url()})`);
+	await odPage.close();
 
 	await page.screenshot({ path: '/tmp/webkit_open.png' });
 	if (errors.length) { console.log('PAGE ERRORS:', errors.join(' | ')); failures += 1; }

@@ -210,6 +210,38 @@ body {
 	border-color: #16749f;
 	color: #fff;
 }
+.od-panel { width: 420px; }
+.od-crumb { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.od-crumb .od-path { color: #666; font-size: 13px; }
+.od-up {
+	border: 1px solid #ccc;
+	background: #f6f6f6;
+	border-radius: 5px;
+	padding: 3px 10px;
+	cursor: pointer;
+	font-size: 13px;
+}
+.od-status { color: #888; font-size: 13px; margin: 8px 0; }
+.od-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	max-height: 320px;
+	overflow-y: auto;
+}
+.od-list .od-item {
+	display: block;
+	width: 100%;
+	text-align: left;
+	border: none;
+	background: none;
+	padding: 7px 8px;
+	border-radius: 5px;
+	cursor: pointer;
+	font: inherit;
+}
+.od-list .od-item:hover,
+.od-list .od-item:focus { background: #eef6fa; }
 .connector-label-editor {
 	position: absolute;
 	z-index: 500;
@@ -459,6 +491,14 @@ body.dark .panel-actions button[data-act='save'] {
 	border-color: #16749f;
 	color: #fff;
 }
+body.dark .od-up {
+	background: #34393f;
+	border-color: #4a5057;
+	color: #d3d7db;
+}
+body.dark .od-list .od-item { color: #d3d7db; }
+body.dark .od-list .od-item:hover,
+body.dark .od-list .od-item:focus { background: #32373d; }
 body.dark kbd {
 	background: #34393f;
 	border-color: #4a5057;
