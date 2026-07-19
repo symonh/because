@@ -2,6 +2,7 @@
 // uses. WebKit has no File System Access API, so this exercises the real
 // fallback path: DOM-attached picker input + unsaved-changes guard.
 const { webkit } = require('playwright-core');
+const fs = require('fs');
 const path = require('path');
 const BASE = process.env.BASE || 'http://127.0.0.1:8871';
 let failures = 0;
@@ -164,6 +165,114 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 	ok(await page.evaluate(() => document.getElementById('save-status').textContent) === 'Unsaved changes',
 		'edits stay merely Unsaved — auto-save never fires without a target');
 	ok(downloads.length === 0, 'no download was triggered by auto-save');
+
+	// ---- Share from Google Drive: the popup paths, in the real WebKit ----
+	// popups are exactly what Safari polices, so this must pass here
+	await page.evaluate(() => {
+		window.__confirms = [];
+		window.confirm = m => { window.__confirms.push(String(m)); return false; };
+	});
+	await clickMenu('File', 'Share from Google Drive');
+	await page.waitForTimeout(300);
+	ok(await page.evaluate(() => window.__confirms.length === 1 &&
+		window.__confirms[0].indexOf('isn’t in Google Drive yet') >= 0),
+		'share on a local map offers to save to Drive first');
+	ok(await page.evaluate(() => !document.querySelector('.panel-overlay a[target]')),
+		'declining the offer shows no share panel');
+
+	// stub Google's side (as drive-e2e does) so the Drive paths run for real
+	const stubJs = { status: 200, contentType: 'application/javascript', body: '/* stubbed */' };
+	const ctx = page.context();
+	await ctx.route('**://accounts.google.com/**', r => r.fulfill(stubJs));
+	await ctx.route('**://apis.google.com/**', r => r.fulfill(stubJs));
+	await ctx.route('**://drive.google.com/**', r => r.fulfill(
+		{ status: 200, contentType: 'text/html', body: '<title>drive stub</title>' }));
+	await page.addInitScript(function (deathMup) {
+		window.google = window.google || {};
+		window.google.accounts = { oauth2: { initTokenClient(cfg) {
+			return { callback: cfg.callback,
+				requestAccessToken() { this.callback({ access_token: 'FAKE_TOKEN', expires_in: 3600 }); } };
+		} } };
+		const chain = obj => new Proxy(obj || {}, { get: (t, k) => (k in t ? t[k] : () => chain(t)) });
+		window.gapi = { load: (name, cb) => cb() };
+		window.google.picker = {
+			ViewId: { DOCS: 'docs' },
+			Response: { ACTION: 'action', DOCUMENTS: 'docs' },
+			Action: { PICKED: 'picked', CANCEL: 'cancel' },
+			Feature: { SUPPORT_DRIVES: 'supportDrives' },
+			DocsView: function () { return chain({}); },
+			PickerBuilder: function () {
+				const self = {}, builder = chain(self);
+				self.setCallback = function (cb) { self.cb = cb; return builder; };
+				self.build = function () {
+					return { setVisible() { self.cb({ action: 'picked', docs: [{ id: 'drive-file-1', name: 'Drive map.mup' }] }); } };
+				};
+				return builder;
+			}
+		};
+		const realFetch = window.fetch.bind(window);
+		window.fetch = function (url, options) {
+			const u = String(url);
+			if (u.indexOf('googleapis.com') >= 0 && u.indexOf('/drive/v3/') >= 0) {
+				if (u.indexOf('/drive/v3/about') >= 0) {
+					return Promise.resolve(new Response(JSON.stringify({ user: { emailAddress: 'sc@test' } }), { status: 200 }));
+				}
+				if (u.indexOf('fields=trashed') >= 0) {
+					return Promise.resolve(new Response(JSON.stringify({ trashed: false, capabilities: { canEdit: true } }), { status: 200 }));
+				}
+				if (u.indexOf('alt=media') >= 0) {
+					return Promise.resolve(new Response(deathMup, { status: 200 }));
+				}
+				if (u.indexOf('uploadType=media') >= 0) {
+					return Promise.resolve(new Response('{}', { status: 200 }));
+				}
+				if (u.indexOf('uploadType=multipart') >= 0) {
+					return Promise.resolve(new Response(JSON.stringify({ id: 'new-drive-file', name: 'Shared map.mup' }), { status: 200 }));
+				}
+			}
+			return realFetch(url, options);
+		};
+		window.prompt = () => 'Shared map';
+	}, fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.mup'), 'utf8'));
+	page.on('dialog', d => d.accept()); // the beforeunload prompt on reload
+	await page.evaluate(() => {
+		window.__because.io.markSaved('vegetarian.mup');
+		window.__because.io.autosave(); // persist the clean flag for restore
+	});
+	await page.reload();
+	await page.waitForSelector('.mapjs-node', { timeout: 8000 });
+
+	await clickMenu('File', 'Open from Google Drive');
+	await page.waitForFunction(() => document.getElementById('map-title').textContent === 'Drive map.mup', { timeout: 8000 });
+
+	// direct share: a real user click must survive WebKit's popup policing
+	await page.click('.menu-title:text-is("File")');
+	const [drivePage] = await Promise.all([
+		page.waitForEvent('popup'),
+		page.click('.menu-item:has-text("Share from Google Drive")')
+	]);
+	await drivePage.waitForLoadState();
+	ok(drivePage.url() === 'https://drive.google.com/file/d/drive-file-1/view',
+		`share opens the file's Drive page in a new tab (${drivePage.url()})`);
+	await drivePage.close();
+
+	// save-first share: the panel's real link must open Drive too
+	await clickMenu('File', 'New');
+	await page.waitForFunction(() => document.getElementById('map-title').textContent === 'untitled.mup', { timeout: 8000 });
+	await page.evaluate(() => { window.confirm = () => true; });
+	await page.click('.menu-title:text-is("File")');
+	await page.click('.menu-item:has-text("Share from Google Drive")');
+	await page.waitForSelector('.panel a[target="_blank"]', { timeout: 8000 });
+	const [drivePage2] = await Promise.all([
+		page.waitForEvent('popup'),
+		page.click('.panel a[target="_blank"]')
+	]);
+	await drivePage2.waitForLoadState();
+	ok(drivePage2.url().indexOf('drive.google.com/file/d/new-drive-file/view') >= 0,
+		'the save-first share panel link opens the new Drive file');
+	ok(await page.evaluate(() => !document.querySelector('.panel-overlay')),
+		'following the share link closes the panel');
+	await drivePage2.close();
 
 	await page.screenshot({ path: '/tmp/webkit_open.png' });
 	if (errors.length) { console.log('PAGE ERRORS:', errors.join(' | ')); failures += 1; }

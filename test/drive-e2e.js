@@ -318,6 +318,62 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 	ok(await page.evaluate(() => window.__alerts[0].indexOf('sc@test') >= 0),
 		'the switch names the connected account');
 
+	// ---- Share from Google Drive ----
+	// on a Drive-bound map: one synchronous window.open to the file's page
+	await page.evaluate(() => {
+		window.__opened = [];
+		window.open = (u, t) => { window.__opened.push({ url: String(u), target: String(t) }); return {}; };
+	});
+	await clickMenu('File', 'Share from Google Drive');
+	ok(await page.evaluate(() => window.__opened.length === 1 &&
+		window.__opened[0].url === 'https://drive.google.com/file/d/drive-file-1/view' &&
+		window.__opened[0].target === '_blank'),
+		'Share on a Drive map opens that file’s Drive page in a new tab');
+	ok(await page.evaluate(() => window.__because.analytics.events().some(e =>
+		e.name === 'drive_share' && e.params.method === 'direct')),
+		'direct share is tracked as drive_share method=direct');
+
+	// on a map that is NOT in Drive: offer to save there first
+	await clickMenu('File', 'New');
+	await page.waitForFunction(() => document.getElementById('map-title').textContent === 'untitled.mup', { timeout: 5000 });
+	await page.evaluate(() => {
+		window.__confirms = [];
+		window.confirm = m => { window.__confirms.push(String(m)); return false; };
+		window.__opened = [];
+	});
+	await clickMenu('File', 'Share from Google Drive');
+	await new Promise(r => setTimeout(r, 300));
+	ok(await page.evaluate(() => window.__confirms.length === 1 &&
+		window.__confirms[0].indexOf('isn’t in Google Drive yet') >= 0),
+		'Share without a Drive file asks to save to Drive first');
+	ok(await page.evaluate(() => window.__opened.length === 0 && !document.querySelector('.panel')),
+		'declining the save-to-Drive offer does nothing');
+
+	// accepting: files.create, then a link panel (never a blockable popup)
+	const sharePostsBefore = await page.evaluate(() =>
+		window.__driveCalls.filter(c => c.method === 'POST' && c.url.indexOf('uploadType=multipart') >= 0).length);
+	await page.evaluate(() => { window.confirm = () => true; });
+	await clickMenu('File', 'Share from Google Drive');
+	await page.waitForSelector('.panel a[target="_blank"]', { timeout: 6000 });
+	const sharePanel = await page.evaluate(() => ({
+		href: document.querySelector('.panel a[target="_blank"]').getAttribute('href'),
+		text: document.querySelector('.panel').textContent,
+		posts: window.__driveCalls.filter(c => c.method === 'POST' && c.url.indexOf('uploadType=multipart') >= 0).length,
+		opened: window.__opened.length
+	}));
+	ok(sharePanel.posts === sharePostsBefore + 1, 'accepting saves the map to Drive (files.create)');
+	ok(sharePanel.href === 'https://drive.google.com/file/d/new-drive-file/view' &&
+		sharePanel.text.indexOf('Copy of map.mup') >= 0,
+		'the share panel links the newly created Drive file by name');
+	ok(sharePanel.opened === 0, 'no popup is attempted after the async save (Safari would block it)');
+	ok(await page.evaluate(() => window.__because.analytics.events().some(e =>
+		e.name === 'drive_share' && e.params.method === 'after_save')),
+		'save-then-share is tracked as drive_share method=after_save');
+	ok(await page.evaluate(() => !window.__because.analytics.events().some(ev =>
+		/[\w-]{25,}/.test(JSON.stringify(ev.params)))),
+		'still no Drive-id-sized token in any analytics event');
+	await page.click('.panel-close button');
+
 	if (errors.length) { console.log('PAGE ERRORS:', errors.join(' | ')); failures += 1; }
 	await browser.close();
 	console.log(failures === 0 ? 'ALL PASS (drive)' : failures + ' FAILURES (drive)');

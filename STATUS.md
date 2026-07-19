@@ -7,6 +7,23 @@ bucket `argumentbase-app`, localStorage keys migrate on first load.
 Canonical URL: **https://app.philmaps.com** (custom domain on the same
 Firebase site; argumentbase.web.app serves identically).
 
+## 2026-07-19 — File > Share from Google Drive
+
+- New File menu item. On a Drive-bound map it opens the file's own
+  drive.google.com page in a new tab — synchronously inside the menu
+  click, so Safari's popup rules are satisfied — where the native Share
+  button lives. On a local map it offers to save to Drive first, then
+  shows a panel with a real link (a popup opened after the async save
+  would be blocked in Safari).
+- The embedded gapi sharing dialog (ShareClient) was rejected
+  deliberately: Google documents it as requiring third-party cookies,
+  which Safari blocks by default, and it fails there with no error
+  callback to fall back on (google-api-javascript-client issue #514).
+- Analytics: `drive_share` with `method` = `direct` / `after_save`
+  (docs/analytics.md). Tests: drive-e2e covers all three paths
+  (direct, decline, save-then-link); webkit-e2e now stubs Google's side
+  and verifies both popups open in real WebKit via genuine clicks.
+
 ## 2026-07-17 night — NVDA bug: roving focus replaces activedescendant
 
 - A colleague on Chrome + NVDA (Windows) reported the map unreadable:

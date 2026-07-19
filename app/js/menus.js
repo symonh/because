@@ -29,6 +29,7 @@ export function buildMenus(el, commands, io, engine, drive, darkMode, labelEdit,
 			['Open from Google Drive…', driveItem(() => drive.open())],
 			[(drive && drive.currentFile() ? '✓ ' : '') + 'Save to Google Drive', driveItem(() => drive.save(false))],
 			['Save a copy in Drive…', driveItem(() => drive.save(true))],
+			['Share from Google Drive…', driveItem(shareFromDrive)],
 			['Switch Google Drive account…' + (drive && drive.account && drive.account() ?
 				' (' + drive.account() + ')' : ''), driveItem(() => drive.switchAccount())],
 			['—'],
@@ -275,6 +276,48 @@ export function buildMenus(el, commands, io, engine, drive, darkMode, labelEdit,
 		const modal = initModal(overlay);
 		overlay.querySelector('button').addEventListener('click', () => modal.close());
 		overlay.addEventListener('click', e => { if (e.target === overlay) { modal.close(); } });
+		return { overlay, modal };
+	}
+
+	function driveFileUrl(id) {
+		return 'https://drive.google.com/file/d/' + encodeURIComponent(id) + '/view';
+	}
+
+	// Sharing happens on the file's own drive.google.com page (first-party,
+	// native Share button there). The embedded gapi sharing dialog is not
+	// an option: it requires third-party cookies, which Safari blocks by
+	// default, and it fails there with no error callback to fall back on.
+	function shareFromDrive() {
+		const current = drive.currentFile();
+		if (current) {
+			// synchronously inside the menu click — a popup opened after an
+			// await has lost the user gesture and gets blocked in Safari
+			window.open(driveFileUrl(current.id), '_blank');
+			track('drive_share', { method: 'direct' });
+			return;
+		}
+		if (!window.confirm('“' + io.fileName() + '” isn’t in Google Drive yet.\n\n' +
+				'Save it to Drive now? You can then share it from Google Drive.')) {
+			return;
+		}
+		drive.save(false).then(function (saved) {
+			const file = drive.currentFile();
+			if (saved && file) { showSharePanel(file); }
+		});
+	}
+
+	function showSharePanel(file) {
+		track('drive_share', { method: 'after_save' });
+		const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])),
+			// a real link, not window.open: the save above was async, so the
+			// menu-click gesture is spent and Safari would block a popup
+			ref = showPanel(
+				'<h2>Share from Google Drive</h2>' +
+				'<p>“' + esc(file.name) + '” is now saved in your Google Drive.</p>' +
+				'<p><a href="' + driveFileUrl(file.id) + '" target="_blank">Open it in Google Drive</a> ' +
+				'and use the <b>Share</b> button there to invite people or copy a link.</p>'
+			);
+		ref.overlay.querySelector('a[target]').addEventListener('click', () => ref.modal.close());
 	}
 
 	function showShortcuts() {
