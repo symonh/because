@@ -1,7 +1,7 @@
 # Because
 
 A standalone editor and renderer for MindMup argument visualizations (`.mup`
-files). MindMup discontinued free argument-visualization access in June 2026;
+files). MindMup discontinued free argument-visualization access through Google Drive in June 2026;
 Because runs the same MIT-licensed rendering engine
 ([mindmup/mapjs](https://github.com/mindmup/mapjs)) with the product's own
 argument-mapping theme, so existing course maps open unchanged and render the
