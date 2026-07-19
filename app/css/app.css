@@ -547,6 +547,19 @@ body.dark .mapjs-node.a11y-keyboard-selected {
 @media print {
 	.mapjs-node.a11y-keyboard-selected { outline: none !important; }
 }
+/* A selected node already carries the solid focus ring above; mapjs also
+ * paints its own dotted "activated" border (from the theme CSS, injected
+ * after this file, hence !important to override). Shown together they read
+ * as two concentric selection outlines. While the ring is present, hide the
+ * dotted border by making it transparent — the 3px width stays and the theme
+ * pairs it with margin:-3px, so nothing reflows. When focus leaves the map
+ * the ring is gone and the dotted border returns as the sole selection cue.
+ * Keyed to the same condition as the ring above, and covers the dashed
+ * implicit/sticky and the group brackets too (border-color hits them all). */
+.mapjs-node:focus-visible.activated,
+.mapjs-node.a11y-keyboard-selected.activated {
+	border-color: transparent !important;
+}
 
 /* ---- reduced motion (WCAG 2.3.3) ---- */
 @media (prefers-reduced-motion: reduce) {

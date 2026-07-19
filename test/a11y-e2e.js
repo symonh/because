@@ -188,6 +188,16 @@ const AXE_OPTS = {
 		return c.outlineStyle + ' ' + c.outlineWidth;
 	});
 	ok(/solid/.test(nodeOutline), 'keyboard focus rides the selected node with a visible outline (' + nodeOutline + ')');
+	// exactly one selection indicator: while the solid ring shows, mapjs's own
+	// dotted "activated" border is suppressed (transparent), so a focused
+	// selected node is not double-ringed (dotted border + solid outline)
+	const activatedBorder = await page.evaluate(() => {
+		const el = document.querySelector('.mapjs-node.a11y-keyboard-selected.activated');
+		if (!el) { return 'no-activated-node'; }
+		return getComputedStyle(el).borderTopColor;
+	});
+	ok(activatedBorder === 'rgba(0, 0, 0, 0)' || activatedBorder === 'transparent',
+		'focused selection shows only the ring, not the dotted activated border too (' + activatedBorder + ')');
 	// and the indicator leaves with focus
 	await page.evaluate(() => document.activeElement && document.activeElement.blur());
 	ok(await page.evaluate(() => !document.querySelector('.a11y-keyboard-selected')),
