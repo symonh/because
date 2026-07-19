@@ -11,6 +11,15 @@ import { installDropPolicy } from './drop-policy.js';
 const MAPJS = window.MAPJS,
 	jQuery = window.jQuery;
 
+// A new map's conclusion claim carries this as real title text. Listing it
+// in the MapModel's selectAllTitles (below) makes editNode select the whole
+// title on every open path — Space, F2, double-click, or the menu — so the
+// first keystroke replaces the placeholder instead of appending to it. This
+// is the mechanism MindMup used for its own 'Press Space or double-click to
+// edit' root. file-io.js imports it for the new-map title so the title and
+// this list can never drift apart.
+export const CONCLUSION_PLACEHOLDER = 'Type your conclusion here';
+
 export function initEngine(container) {
 	let baseThemeJson = augmentThemeJson(resolveThemeJson(null)),
 		themeFilter = null, // view-time transform (dark mode); never saved
@@ -19,7 +28,7 @@ export function initEngine(container) {
 		currentMapJson = null,
 		labelsOn = true,
 		loadToken = 0; // invalidates deferred work when another map loads first
-	const mapModel = new MAPJS.MapModel([]),
+	const mapModel = new MAPJS.MapModel([CONCLUSION_PLACEHOLDER]),
 		// above this, loading is deferred behind an overlay; a 68-node map
 		// measured ~140ms of layout, so only genuinely huge maps qualify
 		LARGE_MAP_NODES = 100,
@@ -93,7 +102,10 @@ export function initEngine(container) {
 	const api = {
 		mapModel,
 		on(name, fn) { listeners[name].push(fn); },
-		loadMap(mapJson) {
+		loadMap(mapJson, options) {
+			// New maps ask to keep the auto-selected conclusion selected and
+			// focused; every other load clears it so the map opens clean.
+			const selectRoot = !!(options && options.selectRoot);
 			baseThemeJson = augmentThemeJson(resolveThemeJson(mapJson));
 			applyTheme(false);
 			applyLabels();
@@ -119,7 +131,21 @@ export function initEngine(container) {
 						const rootId = mapModel.getSelectedNodeId();
 						if (rootId) { mapModel.centerOnNode(rootId); }
 						mapModel.resetView();
-						deselectAll();
+						if (selectRoot) {
+							// leave the conclusion selected (skip deselectAll) and
+							// hand it keyboard focus, so Space opens it — with the
+							// placeholder text selected — and Enter adds a reason.
+							// Never pull focus out of an open dialog: the first-visit
+							// welcome modal shows alongside the very first new map and
+							// its own focus trap must win (a11y.js). Skip the grab
+							// while it is open; dismissing it restores focus to the
+							// container, which delegates to this same selected node.
+							if (!document.querySelector('.panel-overlay')) {
+								container.focus();
+							}
+						} else {
+							deselectAll();
+						}
 						emit('loadFinished');
 					}, 250);
 				};

@@ -41,6 +41,18 @@ function ok(cond, name) {
 	ok(await page.$$eval('.menu-title', els => els.length) === 6, 'six menus render');
 	ok(await page.$$eval('.mapjs-node', els => els.length) === 1, 'new map has a single conclusion');
 
+	// a new map opens with the conclusion already selected; opening it (Space
+	// works only because focus rides the selected node) selects the whole
+	// placeholder, so the first keystroke replaces it rather than appending
+	ok(await page.evaluate(() => window.__because.engine.mapModel.getSelectedNodeId()) === 1,
+		'new map starts with the conclusion selected');
+	await page.keyboard.press('Space');
+	await new Promise(r => setTimeout(r, 250));
+	ok(await page.evaluate(() => ((window.getSelection && window.getSelection().toString()) || '')) === 'Type your conclusion here',
+		'opening the fresh conclusion selects the placeholder text');
+	await page.keyboard.press('Escape'); // cancel — leave the placeholder intact
+	await new Promise(r => setTimeout(r, 200));
+
 	// select the root, add a reason with Enter, type the premise text
 	await page.click('.mapjs-node');
 	await page.keyboard.press('Enter');

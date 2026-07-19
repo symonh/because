@@ -9,6 +9,7 @@
 
 import { track, noteMapSource } from './analytics.js';
 import { initModal } from './a11y.js';
+import { CONCLUSION_PLACEHOLDER } from './engine.js';
 
 const AUTOSAVE_KEY = 'because.autosave',
 	NAME_KEY = 'because.autosave.name',
@@ -225,8 +226,8 @@ export function makeFileIO(engine, status) {
 					id: 'root',
 					title: 'New argument',
 					attr: { theme: 'argMappingSimple' },
-					ideas: { 1: { id: 1, title: 'Type your conclusion here', attr: {} } }
-				});
+					ideas: { 1: { id: 1, title: CONCLUSION_PLACEHOLDER, attr: {} } }
+				}, { selectRoot: true });
 				setName('untitled.mup');
 				setDirty(false);
 			});
