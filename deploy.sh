@@ -9,6 +9,23 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# Keep GitHub in lockstep with what goes live. Push the current branch to
+# origin BEFORE building/deploying, so a push that can't fast-forward
+# (diverged, or the local branch is behind) aborts the whole deploy under
+# `set -e` — the live site can never get ahead of the repo again. The deploy
+# stamps HEAD as APP_VERSION, so the commit that identifies the live build is
+# the same commit that's on GitHub. (Firebase + GCS ship, but never git — a
+# 37-commit drift once built up exactly this way.)
+branch=$(git rev-parse --abbrev-ref HEAD)
+if [ -n "$(git status --porcelain)" ]; then
+	echo "warning: working tree has uncommitted changes. The live site rsyncs"
+	echo "         the working tree, but only committed history is pushed, so"
+	echo "         GitHub will not match what ships. Commit first to keep them"
+	echo "         in sync."
+fi
+echo "Pushing ${branch} to origin before deploy…"
+git push origin "$branch"
+
 rm -rf deploy
 mkdir -p deploy
 rsync -a app deploy/
