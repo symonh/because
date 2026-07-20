@@ -45,24 +45,33 @@ export function bindShortcuts(engine, commands) {
 			bare = !e.altKey && !e.metaKey && !e.ctrlKey,
 			mod = (e.metaKey || e.ctrlKey) && !e.altKey;
 		let command = null;
-		if (mod && e.code === 'KeyZ') {
+		// ⌘/⌃ + letter shortcuts key off the CHARACTER the pressed key
+		// produces (e.key), not its physical QWERTY slot (e.code). macOS binds
+		// Cmd shortcuts to the character, so on a non-QWERTY layout (Colemak-DH,
+		// Dvorak…) ⌘C/⌘V/⌘Z/⌘B/⌘I/⌘U must follow wherever those letters are
+		// typed — exactly as every native app does. e.code pinned them to the
+		// QWERTY position, so they silently died once the layout moved a letter.
+		// (Punctuation shortcuts below stay on e.code: ,./ don't move in these
+		// layouts and a shifted-punctuation e.key is layout-noisy.)
+		const modLetter = (e.key && e.key.length === 1) ? e.key.toLowerCase() : '';
+		if (mod && modLetter === 'z') {
 			command = e.shiftKey ? commands.redo : commands.undo;
-		} else if (mod && !e.shiftKey && e.code === 'KeyY') {
+		} else if (mod && !e.shiftKey && modLetter === 'y') {
 			command = commands.redo;
-		} else if (mod && !e.shiftKey && e.code === 'KeyB') {
+		} else if (mod && !e.shiftKey && modLetter === 'b') {
 			// on a selected node these format the whole title; while editing
 			// they never reach here (contenteditable guard above) and the
 			// text editor applies them to the selection instead
 			command = commands.toggleBold;
-		} else if (mod && !e.shiftKey && e.code === 'KeyI') {
+		} else if (mod && !e.shiftKey && modLetter === 'i') {
 			command = commands.toggleItalic;
-		} else if (mod && !e.shiftKey && e.code === 'KeyU') {
+		} else if (mod && !e.shiftKey && modLetter === 'u') {
 			command = commands.toggleUnderline;
-		} else if (mod && !e.shiftKey && e.code === 'KeyC') {
+		} else if (mod && !e.shiftKey && modLetter === 'c') {
 			// on a selected node this copies the claim + subtree; while editing
 			// the contenteditable guard above lets ⌘C copy the text selection
 			command = commands.copy;
-		} else if (mod && !e.shiftKey && e.code === 'KeyV') {
+		} else if (mod && !e.shiftKey && modLetter === 'v') {
 			command = commands.paste;
 		} else if (mod && e.shiftKey && e.code === 'Period') {
 			command = commands.fontBigger;

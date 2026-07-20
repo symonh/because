@@ -7,6 +7,29 @@ bucket `argumentbase-app`, localStorage keys migrate on first load.
 Canonical URL: **https://app.philmaps.com** (custom domain on the same
 Firebase site; argumentbase.web.app serves identically).
 
+## 2026-07-19 — Keyboard shortcuts follow the character, not the QWERTY key
+
+- Bug (Simon, Colemak-DH): ⌘C / ⌘V / ⌘Z did nothing in Because under a
+  Colemak-DH layout though they worked in every other app. Cause:
+  `shortcuts.js` matched ⌘/⌃+letter on `e.code` (the physical QWERTY
+  slot), but macOS binds Cmd shortcuts to the CHARACTER — so once a
+  layout moves c/v/z (and b/i/u/y) onto other physical keys, the `e.code`
+  test missed and the shortcut silently died.
+- Fix (`app/js/shortcuts.js` only): the ⌘/⌃+letter shortcuts (copy,
+  paste, undo/redo, bold/italic/underline) now match on `e.key` (the
+  character), so they follow wherever those letters are typed, exactly as
+  native apps do. No QWERTY regression — `e.key` is the same letter there.
+  Punctuation shortcuts (⌘⇧. / ⌘⇧,) stay on `e.code`: ,./ don't move in
+  these layouts and a shifted-punctuation `e.key` is layout-noisy.
+- Still physical-key-bound (separate, harder cases; menu/toolbar cover
+  them): Alt+O / Alt+N (macOS Option rewrites `e.key` to a diacritic, so
+  neither `e.key` nor `e.code` is clean) and the in-editor ⌘B/⌘I/⌘U/⌘Z
+  applied to a text selection while typing (vendored `edit-node.js` keys
+  off `e.which`/keyCode — would need a vendor patch + engine rebuild).
+- Test: app-e2e fires ⌘C/⌘V/⌘Z with a `code` deliberately different from
+  the `key` character (as a moved layout produces) and asserts they still
+  fire. All seven suites pass.
+
 ## 2026-07-19 — Copy / paste subtrees as reasons (⌘C / ⌘V)
 
 - ⌘C (⌃C) copies the selected claim and everything beneath it into an

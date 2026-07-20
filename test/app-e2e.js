@@ -487,6 +487,45 @@ function ok(cond, name) {
 	ok(await page.evaluate(() => !document.body.classList.contains('dark')),
 		'dark mode toggles back to light');
 
+	// keyboard-layout independence (kept last so it can't shift the timing of
+	// the checks above): ⌘C/⌘V/⌘Z must follow the CHARACTER, not the physical
+	// QWERTY key. On Colemak-DH / Dvorak the c/v/z characters are typed from
+	// other physical keys, and macOS binds Cmd shortcuts to the char (native
+	// apps work; keying off e.code silently lost them). Simulate a moved layout
+	// by firing events whose `code` is a DIFFERENT physical key than the `key`.
+	await page.evaluate(() => {
+		window.__because.engine.loadMap({ formatVersion: 3, id: 'root', attr: { theme: 'argMappingSimple' }, ideas: {
+			1: { id: 2, title: 'Root C', ideas: {
+				1: { id: 11, title: 'group', attr: { group: 'supporting', contentLocked: true }, ideas: {
+					1: { id: 12, title: 'Prem' }
+				} }
+			} }
+		} });
+	});
+	await page.waitForFunction(() => document.querySelector('#node_12'), { timeout: 5000 });
+	await new Promise(r => setTimeout(r, 300));
+	const layoutIndep = await page.evaluate(() => {
+		const mm = window.__because.engine.mapModel,
+			content = mm.getIdea(),
+			container = document.getElementById('map-container'),
+			fire = (key, code) => container.dispatchEvent(new KeyboardEvent('keydown',
+				{ key: key, code: code, metaKey: true, bubbles: true, cancelable: true })),
+			groupsUnder = id => Object.values(content.findSubIdeaById(id).ideas).filter(k => k.attr && k.attr.group).length;
+		mm.selectNode(12); container.focus();
+		fire('c', 'KeyJ');                 // ⌘C with 'c' arriving from a non-KeyC slot
+		mm.selectNode(2); container.focus();
+		const before = groupsUnder(2);
+		fire('v', 'KeyB');                 // ⌘V with 'v' from the QWERTY-B slot (Colemak-DH)
+		const afterPaste = groupsUnder(2);
+		fire('z', 'KeyX');                 // ⌘Z with 'z' from a moved slot
+		const afterUndo = groupsUnder(2);
+		return { before, afterPaste, afterUndo };
+	});
+	ok(layoutIndep.afterPaste === layoutIndep.before + 1,
+		`⌘V follows the character, not the QWERTY slot (${layoutIndep.before} -> ${layoutIndep.afterPaste})`);
+	ok(layoutIndep.afterUndo === layoutIndep.before,
+		'⌘Z follows the character too — undo reverts the layout-independent paste');
+
 	// screenshot the full app for visual review
 	await page.screenshot({ path: '/tmp/app_ui.png' });
 
