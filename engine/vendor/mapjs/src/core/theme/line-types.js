@@ -1,6 +1,42 @@
-/*global module*/
+/*global module, require*/
 
-const straight = function (calculatedConnector, position) {
+/* LOCAL PATCH: geometry helpers for arrowhead joins — see the `arrowStems`
+   note on vertical-quadratic-s-curve below. */
+const arrowPath = require('./arrow-path'),
+	HEAD = arrowPath.axisLength,
+	lerp = function (a, b, t) {
+		'use strict';
+		return {x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t};
+	},
+	distance = function (a, b) {
+		'use strict';
+		return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
+	},
+	quadPoint = function (p0, c, p1, t) {
+		'use strict';
+		return lerp(lerp(p0, c, t), lerp(c, p1, t), t);
+	},
+	// parameter at which the quadratic sits a head-length (straight line) away
+	// from p0; null when the whole segment is too short to give the head room
+	// without swallowing the line. Distance from p0 grows monotonically along
+	// these half-curves, so a bisection settles it.
+	headSplit = function (p0, c, p1) {
+		'use strict';
+		let lo = 0, hi = 1, i, mid;
+		if (distance(p0, p1) < HEAD + 4) {
+			return null;
+		}
+		for (i = 0; i < 24; i++) {
+			mid = (lo + hi) / 2;
+			if (distance(p0, quadPoint(p0, c, p1, mid)) < HEAD) {
+				lo = mid;
+			} else {
+				hi = mid;
+			}
+		}
+		return (lo + hi) / 2;
+	},
+	straight = function (calculatedConnector, position) {
 	'use strict';
 	return {
 		'd': 'M' + Math.round(calculatedConnector.from.x - position.left) + ',' + Math.round(calculatedConnector.from.y - position.top) + 'L' + Math.round(calculatedConnector.to.x - position.left) + ',' + Math.round(calculatedConnector.to.y - position.top),
@@ -106,68 +142,79 @@ module.exports = {
 	},
 	'vertical-quadratic-s-curve': function (calculatedConnector, position) {
 		'use strict';
-		/* LOCAL PATCH (arrowStems): alongside the path, report the point ~20px
-		   along the curve from each end (computed from the same quadratics the
-		   path is built from). Arrowheads drawn at an end use that point as
-		   their stem, so the head continues the curve's actual direction
-		   instead of assuming the line arrives vertically — on a wide fan the
-		   curve is well off vertical within the head's own length. */
+		/* LOCAL PATCH (arrowStems): a connector style carrying an `arrow` gets a
+		   solid head drawn at that end (theme/connector.js). The curve meets a
+		   node vertically and then hooks hard, so a straight head laid over the
+		   last 13px had the line running THROUGH it — poking out of the head's
+		   side on the outside of the bend, and past the apex (a 4px stroke with a
+		   square cap). End the line where the head begins instead: split the
+		   quadratic at the point whose chord to the endpoint is the head's own
+		   length, draw the shortened curve, and report that point as the head's
+		   base, so the two meet edge to edge along one axis. */
 		const from = calculatedConnector.from,
 			to = calculatedConnector.to,
 			dx = Math.round(to.x - from.x),
 			dy = Math.round(to.y - from.y),
 			dxIncrement = dx / 2,
 			dyIncrement = dy / 2,
-			STEM = 20,
-			quadPoint = function (p0, c, p1, t) {
-				const u = 1 - t;
-				return {
-					x: u * u * p0.x + 2 * u * t * c.x + t * t * p1.x,
-					y: u * u * p0.y + 2 * u * t * c.y + t * t * p1.y
-				};
-			},
-			stemPoint = function (p0, c, p1) {
-				// first point along the quadratic (from p0) ~STEM away from p0
-				let t, pt;
-				for (t = 0.05; t < 1; t += 0.05) {
-					pt = quadPoint(p0, c, p1, t);
-					if (Math.sqrt(Math.pow(pt.x - p0.x, 2) + Math.pow(pt.y - p0.y, 2)) >= STEM) {
-						return pt;
-					}
-				}
-				return p1;
+			arrow = calculatedConnector.connectorTheme && calculatedConnector.connectorTheme.arrow,
+			xy = function (p) {
+				return (p.x - position.left) + ',' + (p.y - position.top);
 			};
 
 		if (Math.abs(dx) < 20) {
-			const len = Math.sqrt(dx * dx + dy * dy) || 1,
-				ux = dx / len,
-				uy = dy / len;
+			const end = {x: from.x + dx, y: from.y + dy},
+				span = distance(from, end),
+				room = span > HEAD + 4,
+				unit = {x: dx / (span || 1), y: dy / (span || 1)},
+				lineStart = (arrow === 'from' && room) ? {x: from.x + unit.x * HEAD, y: from.y + unit.y * HEAD} : from,
+				lineEnd = (arrow === 'to' && room) ? {x: end.x - unit.x * HEAD, y: end.y - unit.y * HEAD} : end;
 			return {
-				'd': 'M' + (calculatedConnector.from.x - position.left) + ',' + (calculatedConnector.from.y - position.top) +
-					'l' + dx + ',' + dy,
+				'd': 'M' + xy(lineStart) + 'L' + xy(lineEnd) +
+					((arrow === 'to' && room) ? 'M' + xy(end) : ''),
 				initialRadius: 10,
 				'position': position,
-				arrowStems: {
-					from: {x: from.x + ux * STEM, y: from.y + uy * STEM},
-					to: {x: to.x - ux * STEM, y: to.y - uy * STEM}
-				}
+				arrowStems: {from: room ? lineStart : end, to: room ? lineEnd : from}
 			};
 		}
+		// the two quadratics the path is drawn from: the first leaves `from` with
+		// its control directly below, the second meets `to` with its control
+		// directly above (which is why both ends arrive vertically)
+		const mid = {x: from.x + dxIncrement, y: from.y + dyIncrement},
+			fromControl = {x: from.x, y: from.y + Math.round(dyIncrement / 2)},
+			toControl = {x: mid.x + dxIncrement, y: mid.y + Math.round(dyIncrement / 2)},
+			end = {x: mid.x + dxIncrement, y: mid.y + dyIncrement};
+		let lineStart = from, startControl = fromControl,
+			lineEnd = end, endControl = toControl,
+			stemFrom = mid, stemTo = mid, restoreEnd = '';
+		if (arrow === 'from') {
+			const t = headSplit(from, fromControl, mid);
+			if (t) {
+				startControl = lerp(fromControl, mid, t);
+				lineStart = lerp(lerp(from, fromControl, t), startControl, t);
+				stemFrom = lineStart;
+			}
+		} else if (arrow === 'to') {
+			// walk the second quadratic from its far end, then split the original
+			// at the mirrored parameter
+			const s = headSplit(end, toControl, mid);
+			if (s) {
+				const t = 1 - s;
+				endControl = lerp(mid, toControl, t);
+				lineEnd = lerp(endControl, lerp(toControl, end, t), t);
+				stemTo = lineEnd;
+				// the bracket overline is appended relative to the path's current
+				// point, so hand it back the true end (a moveto draws nothing)
+				restoreEnd = 'M' + xy(end);
+			}
+		}
 		return {
-			'd': 'M' + (calculatedConnector.from.x - position.left) + ',' + (calculatedConnector.from.y - position.top) +
-				'q0,' + Math.round(dyIncrement / 2) + ' ' + dxIncrement + ',' + dyIncrement +
-				'q' + dxIncrement + ',' + Math.round(dyIncrement / 2) + ' ' + dxIncrement + ',' +  dyIncrement,
+			'd': 'M' + xy(lineStart) +
+				'Q' + xy(startControl) + ' ' + xy(mid) +
+				'Q' + xy(endControl) + ' ' + xy(lineEnd) + restoreEnd,
 			initialRadius: 10,
 			'position': position,
-			arrowStems: {
-				// segment 1 runs from `from` (control directly below it);
-				// segment 2 ends at `to` (control directly above it) — the
-				// reversed quadratic traces the same curve, so walk it from `to`
-				from: stemPoint(from, {x: from.x, y: from.y + dyIncrement / 2},
-					{x: from.x + dxIncrement, y: from.y + dyIncrement}),
-				to: stemPoint(to, {x: to.x, y: to.y - dyIncrement / 2},
-					{x: from.x + dxIncrement, y: from.y + dyIncrement})
-			}
+			arrowStems: {from: stemFrom, to: stemTo}
 		};
 	},
 	'vertical-s-curve': function (calculatedConnector, position) {

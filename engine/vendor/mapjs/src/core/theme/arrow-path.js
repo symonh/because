@@ -30,3 +30,8 @@ module.exports = function arrowPath(lineFrom, lineTo, offset) {
 		'L' + Math.round(a2x - offset.left) + ',' + Math.round(a2y - offset.top) +
 		'Z';
 };
+/* LOCAL ADDITION: apex-to-base distance of the head drawn above — the barbs
+   sit 14 from the apex at ±20°, so their midpoint is 14*cos(20°) back along
+   the axis. Line types read it to end the line exactly where the head begins,
+   so the stroke never runs through the head. */
+module.exports.axisLength = 14 * Math.cos(Math.PI / 9);

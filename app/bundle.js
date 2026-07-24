@@ -16503,7 +16503,7 @@
         textElement.text(labelText.trim());
         dimensions = textDOM.getBBox && textDOM.getBBox() || textDOM.getClientRects()[0];
         translate.x = Math.round(centrePoint.x - dimensions.width / 2);
-        translate.y = Math.round(centrePoint.y - dimensions.height - 2);
+        translate.y = Math.round(labelTheme.position && labelTheme.position.centerOnLine ? centrePoint.y - dimensions.height / 2 : centrePoint.y - dimensions.height - 2);
         g[0].style.transform = `translate(${translate.x}px, ${translate.y}px)`;
         textDOM.setAttribute("x", 0);
         textDOM.setAttribute("y", 2);
@@ -16579,9 +16579,68 @@
     }
   });
 
+  // vendor/mapjs/src/core/theme/arrow-path.js
+  var require_arrow_path = __commonJS({
+    "vendor/mapjs/src/core/theme/arrow-path.js"(exports, module) {
+      module.exports = function arrowPath(lineFrom, lineTo, offset) {
+        "use strict";
+        const n = Math.tan(Math.PI / 9), dx = lineTo.x - lineFrom.x, dy = lineTo.y - lineFrom.y;
+        let len = 14, iy, a1x, a2x, a1y, a2y, m;
+        if (dx === 0) {
+          iy = dy < 0 ? -1 : 1;
+          a1x = lineTo.x + len * Math.sin(n) * iy;
+          a2x = lineTo.x - len * Math.sin(n) * iy;
+          a1y = lineTo.y - len * Math.cos(n) * iy;
+          a2y = lineTo.y - len * Math.cos(n) * iy;
+        } else {
+          m = dy / dx;
+          if (lineFrom.x < lineTo.x) {
+            len = -len;
+          }
+          a1x = lineTo.x + (1 - m * n) * len / Math.sqrt((1 + m * m) * (1 + n * n));
+          a1y = lineTo.y + (m + n) * len / Math.sqrt((1 + m * m) * (1 + n * n));
+          a2x = lineTo.x + (1 + m * n) * len / Math.sqrt((1 + m * m) * (1 + n * n));
+          a2y = lineTo.y + (m - n) * len / Math.sqrt((1 + m * m) * (1 + n * n));
+        }
+        return "M" + Math.round(a1x - offset.left) + "," + Math.round(a1y - offset.top) + "L" + Math.round(lineTo.x - offset.left) + "," + Math.round(lineTo.y - offset.top) + "L" + Math.round(a2x - offset.left) + "," + Math.round(a2y - offset.top) + "Z";
+      };
+      module.exports.axisLength = 14 * Math.cos(Math.PI / 9);
+    }
+  });
+
   // vendor/mapjs/src/core/theme/line-types.js
   var require_line_types = __commonJS({
     "vendor/mapjs/src/core/theme/line-types.js"(exports, module) {
+      var arrowPath = require_arrow_path();
+      var HEAD = arrowPath.axisLength;
+      var lerp = function(a, b, t) {
+        "use strict";
+        return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+      };
+      var distance = function(a, b) {
+        "use strict";
+        return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
+      };
+      var quadPoint = function(p0, c, p1, t) {
+        "use strict";
+        return lerp(lerp(p0, c, t), lerp(c, p1, t), t);
+      };
+      var headSplit = function(p0, c, p1) {
+        "use strict";
+        let lo = 0, hi = 1, i, mid;
+        if (distance(p0, p1) < HEAD + 4) {
+          return null;
+        }
+        for (i = 0; i < 24; i++) {
+          mid = (lo + hi) / 2;
+          if (distance(p0, quadPoint(p0, c, p1, mid)) < HEAD) {
+            lo = mid;
+          } else {
+            hi = mid;
+          }
+        }
+        return (lo + hi) / 2;
+      };
       var straight = function(calculatedConnector, position) {
         "use strict";
         return {
@@ -16647,53 +16706,42 @@
         },
         "vertical-quadratic-s-curve": function(calculatedConnector, position) {
           "use strict";
-          const from = calculatedConnector.from, to = calculatedConnector.to, dx = Math.round(to.x - from.x), dy = Math.round(to.y - from.y), dxIncrement = dx / 2, dyIncrement = dy / 2, STEM = 20, quadPoint = function(p0, c, p1, t) {
-            const u = 1 - t;
-            return {
-              x: u * u * p0.x + 2 * u * t * c.x + t * t * p1.x,
-              y: u * u * p0.y + 2 * u * t * c.y + t * t * p1.y
-            };
-          }, stemPoint = function(p0, c, p1) {
-            let t, pt;
-            for (t = 0.05; t < 1; t += 0.05) {
-              pt = quadPoint(p0, c, p1, t);
-              if (Math.sqrt(Math.pow(pt.x - p0.x, 2) + Math.pow(pt.y - p0.y, 2)) >= STEM) {
-                return pt;
-              }
-            }
-            return p1;
+          const from = calculatedConnector.from, to = calculatedConnector.to, dx = Math.round(to.x - from.x), dy = Math.round(to.y - from.y), dxIncrement = dx / 2, dyIncrement = dy / 2, arrow = calculatedConnector.connectorTheme && calculatedConnector.connectorTheme.arrow, xy = function(p) {
+            return p.x - position.left + "," + (p.y - position.top);
           };
           if (Math.abs(dx) < 20) {
-            const len = Math.sqrt(dx * dx + dy * dy) || 1, ux = dx / len, uy = dy / len;
+            const end2 = { x: from.x + dx, y: from.y + dy }, span = distance(from, end2), room = span > HEAD + 4, unit = { x: dx / (span || 1), y: dy / (span || 1) }, lineStart2 = arrow === "from" && room ? { x: from.x + unit.x * HEAD, y: from.y + unit.y * HEAD } : from, lineEnd2 = arrow === "to" && room ? { x: end2.x - unit.x * HEAD, y: end2.y - unit.y * HEAD } : end2;
             return {
-              "d": "M" + (calculatedConnector.from.x - position.left) + "," + (calculatedConnector.from.y - position.top) + "l" + dx + "," + dy,
+              "d": "M" + xy(lineStart2) + "L" + xy(lineEnd2) + (arrow === "to" && room ? "M" + xy(end2) : ""),
               initialRadius: 10,
               "position": position,
-              arrowStems: {
-                from: { x: from.x + ux * STEM, y: from.y + uy * STEM },
-                to: { x: to.x - ux * STEM, y: to.y - uy * STEM }
-              }
+              arrowStems: { from: room ? lineStart2 : end2, to: room ? lineEnd2 : from }
             };
           }
+          const mid = { x: from.x + dxIncrement, y: from.y + dyIncrement }, fromControl = { x: from.x, y: from.y + Math.round(dyIncrement / 2) }, toControl = { x: mid.x + dxIncrement, y: mid.y + Math.round(dyIncrement / 2) }, end = { x: mid.x + dxIncrement, y: mid.y + dyIncrement };
+          let lineStart = from, startControl = fromControl, lineEnd = end, endControl = toControl, stemFrom = mid, stemTo = mid, restoreEnd = "";
+          if (arrow === "from") {
+            const t = headSplit(from, fromControl, mid);
+            if (t) {
+              startControl = lerp(fromControl, mid, t);
+              lineStart = lerp(lerp(from, fromControl, t), startControl, t);
+              stemFrom = lineStart;
+            }
+          } else if (arrow === "to") {
+            const s = headSplit(end, toControl, mid);
+            if (s) {
+              const t = 1 - s;
+              endControl = lerp(mid, toControl, t);
+              lineEnd = lerp(endControl, lerp(toControl, end, t), t);
+              stemTo = lineEnd;
+              restoreEnd = "M" + xy(end);
+            }
+          }
           return {
-            "d": "M" + (calculatedConnector.from.x - position.left) + "," + (calculatedConnector.from.y - position.top) + "q0," + Math.round(dyIncrement / 2) + " " + dxIncrement + "," + dyIncrement + "q" + dxIncrement + "," + Math.round(dyIncrement / 2) + " " + dxIncrement + "," + dyIncrement,
+            "d": "M" + xy(lineStart) + "Q" + xy(startControl) + " " + xy(mid) + "Q" + xy(endControl) + " " + xy(lineEnd) + restoreEnd,
             initialRadius: 10,
             "position": position,
-            arrowStems: {
-              // segment 1 runs from `from` (control directly below it);
-              // segment 2 ends at `to` (control directly above it) — the
-              // reversed quadratic traces the same curve, so walk it from `to`
-              from: stemPoint(
-                from,
-                { x: from.x, y: from.y + dyIncrement / 2 },
-                { x: from.x + dxIncrement, y: from.y + dyIncrement }
-              ),
-              to: stemPoint(
-                to,
-                { x: to.x, y: to.y - dyIncrement / 2 },
-                { x: from.x + dxIncrement, y: from.y + dyIncrement }
-              )
-            }
+            arrowStems: { from: stemFrom, to: stemTo }
           };
         },
         "vertical-s-curve": function(calculatedConnector, position) {
@@ -16718,34 +16766,6 @@
             "position": position
           };
         }
-      };
-    }
-  });
-
-  // vendor/mapjs/src/core/theme/arrow-path.js
-  var require_arrow_path = __commonJS({
-    "vendor/mapjs/src/core/theme/arrow-path.js"(exports, module) {
-      module.exports = function arrowPath(lineFrom, lineTo, offset) {
-        "use strict";
-        const n = Math.tan(Math.PI / 9), dx = lineTo.x - lineFrom.x, dy = lineTo.y - lineFrom.y;
-        let len = 14, iy, a1x, a2x, a1y, a2y, m;
-        if (dx === 0) {
-          iy = dy < 0 ? -1 : 1;
-          a1x = lineTo.x + len * Math.sin(n) * iy;
-          a2x = lineTo.x - len * Math.sin(n) * iy;
-          a1y = lineTo.y - len * Math.cos(n) * iy;
-          a2y = lineTo.y - len * Math.cos(n) * iy;
-        } else {
-          m = dy / dx;
-          if (lineFrom.x < lineTo.x) {
-            len = -len;
-          }
-          a1x = lineTo.x + (1 - m * n) * len / Math.sqrt((1 + m * m) * (1 + n * n));
-          a1y = lineTo.y + (m + n) * len / Math.sqrt((1 + m * m) * (1 + n * n));
-          a2x = lineTo.x + (1 + m * n) * len / Math.sqrt((1 + m * m) * (1 + n * n));
-          a2y = lineTo.y + (m - n) * len / Math.sqrt((1 + m * m) * (1 + n * n));
-        }
-        return "M" + Math.round(a1x - offset.left) + "," + Math.round(a1y - offset.top) + "L" + Math.round(lineTo.x - offset.left) + "," + Math.round(lineTo.y - offset.top) + "L" + Math.round(a2x - offset.left) + "," + Math.round(a2y - offset.top) + "Z";
       };
     }
   });

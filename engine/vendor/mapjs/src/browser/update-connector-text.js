@@ -50,7 +50,15 @@ const createSVG = require('./create-svg'),
 		   background rect sized wrongly. */
 		dimensions = (textDOM.getBBox && textDOM.getBBox()) || textDOM.getClientRects()[0];
 		translate.x = Math.round(centrePoint.x - dimensions.width / 2);
-		translate.y = Math.round(centrePoint.y - dimensions.height - 2);
+		/* LOCAL PATCH: a label position can ask to sit centred ON the line
+		   (`centerOnLine`) instead of resting above it, so the connector runs
+		   through the middle of the text and is masked by it — the high-impact
+		   themes' "Because" / "But" / "Therefore" labels. Themes without the
+		   key (the verbatim MindMup one, and any map's own embedded theme)
+		   keep the historical above-the-line placement. */
+		translate.y = Math.round((labelTheme.position && labelTheme.position.centerOnLine) ?
+			centrePoint.y - dimensions.height / 2 :
+			centrePoint.y - dimensions.height - 2);
 		// textDOM.style.left = Math.round(centrePoint.x - dimensions.width / 2);
 		// textDOM.style.top = Math.round(centrePoint.y - dimensions.height);
 		g[0].style.transform = `translate(${translate.x}px, ${translate.y}px)`;

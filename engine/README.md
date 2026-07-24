@@ -22,10 +22,15 @@ recorded in `vendor/mapjs/LOCAL-PATCHES.diff`:
   A connector style can also set `arrow` (drawn via `theme/arrow-path.js`,
   extracted from `theme/link.js`): `'to'` puts the head at the child end
   pointing down into the group (High-impact downward), `'from'` puts it at
-  the parent end pointing up into the claim (High-impact upward). The head's
-  angle follows the curve — `line-types.js` reports `arrowStems` (the point
-  ~20px along the curve from each end) and the head is drawn along that
-  chord, so it stays aligned when the curve fans away from vertical.
+  the parent end pointing up into the claim (High-impact upward).
+  `line-types.js` ends the curve where the head begins (splitting the
+  quadratic at a head length from the endpoint) and reports that point as
+  `arrowStems`, so the stroke never runs through the head and the head's
+  angle follows the curve. `arrow-path.js` exports `axisLength` for it.
+- `update-connector-text.js` — a label position can carry
+  `centerOnLine: true` so the connector runs through the middle of its label
+  (masked behind the text) instead of resting on top of the line; only the
+  high-impact themes set it.
 - `calc-label-center-point.js` — `aboveEnd` labels sit on the actual curve
   at label height (binary search) instead of a node-centre interpolation;
   new `belowStart` position hangs the label a fixed offset below the

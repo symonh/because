@@ -26,16 +26,36 @@
   arrows at the parent end, label position, attr.theme round-trip).
   Verified visually against Simon's reference screenshot (Harrell Ch.3
   Ex.31), light + dark. All seven suites pass.
-- Follow-up (same day, Simon's screenshot): the heads were drawn with a
+- Follow-up 1 (same day, Simon's screenshot): the heads were drawn with a
   fixed vertical stem, but on a wide fan the S-curve is well off vertical
-  within the head's own 14px, so the join kinked. line-types.js
-  vertical-quadratic-s-curve now reports `arrowStems` — the point ~20px
-  along the actual curve from each end, computed from the same quadratics
-  the path is built from — and connector.js draws the head along that
-  chord (vertical fallback for types without stems). Fixes both themes'
-  arrows (the downward ones had the same latent kink at the bracket end);
-  a vertical connector still gets a straight head. features-e2e asserts
-  the head is within 15° of the path chord at the join (measures 2°).
+  within the head's own 14px, so the join kinked. The head's angle now
+  comes from the curve itself.
+- Follow-up 2 (Simon's zoom, the fix above was not enough): measured the
+  join — the line's direction there was still 47-52° off the head's axis,
+  because the curve leaves a node VERTICALLY and only then hooks, and the
+  4px square-capped stroke was running through the head: poking out of the
+  head's side on the outside of the bend (the notch) and standing 2px past
+  the apex over the node's border (the blunt tip). Fix: end the line where
+  the head starts. line-types.js splits the quadratic at the point whose
+  chord to the endpoint is one head length (`arrow-path.js` now exports
+  `axisLength`), draws the shortened curve, and reports that point as the
+  head's base, so head and line meet edge to edge along one axis. Seam
+  mismatch is now 17-22°, the stroke no longer enters the head at all, and
+  a vertical connector gets a clean sharp point. When the `to` end is
+  trimmed the path ends with an absolute moveto back to the true endpoint,
+  because the bracket overline is appended relative to the current point —
+  features-e2e asserts the bracket sits identically in the trimmed
+  (downward) and untrimmed (upward) themes, which is the guard for that.
+- Follow-up 3 (Simon): the "Because" / "But" / "Therefore" labels grazed
+  the underside of their lines instead of intersecting them. New label
+  position key `centerOnLine` (update-connector-text.js) centres the text
+  ON the anchor point, so the connector runs through the middle of the
+  label and is masked behind it, as in the reference screenshot. Both
+  high-impact themes set it, with the anchor moved half a label further
+  along the curve (aboveEnd 15→23, belowStart 35→27) so the text keeps
+  the position it had and still clears the arrowhead. The verbatim Simple
+  theme and any map's own embedded theme are untouched — they never set
+  the key, so their labels keep the historical placement.
 - GCS mirror note: deploy.sh's Firebase deploy + git push succeeded, but
   the legacy GCS mirror step failed — active gcloud account is
   support@swaybeta.ai (no bucket access) and sc@simoncullen.org's gcloud

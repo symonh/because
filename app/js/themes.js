@@ -554,6 +554,12 @@ export const argMappingHighImpact = (() => {
 	t.connector['opposing-group'].line.width = 4;
 	t.connector['supporting-group'].arrow = 'to';
 	t.connector['opposing-group'].arrow = 'to';
+	// the connector runs through the middle of its label (which masks the line
+	// behind the text) instead of grazing its underside; the anchor rides half
+	// a label further up the curve, so the text keeps the place it had and
+	// still clears the arrowhead below it
+	t.connector['supporting-group'].label.position = {aboveEnd: 23, ratio: 0.8, centerOnLine: true};
+	t.connector['opposing-group'].label.position = {aboveEnd: 23, ratio: 0.8, centerOnLine: true};
 	t.connectorEditingContext.defaults.width = 4;
 	return t;
 })();
@@ -564,11 +570,12 @@ export const argMappingHighImpactUpward = (() => {
 	// same weight as the downward high-impact theme, but the arrowheads point
 	// up into the claim being supported/attacked and the labels read
 	// premises-first ("Therefore" / "Therefore, it is false that"), hanging
-	// below the parent claim (belowStart) instead of above the bracket
+	// below the parent claim (belowStart) instead of above the bracket, with
+	// the line running through the middle of the text as in the downward theme
 	['supporting-group', 'opposing-group'].forEach(k => {
 		t.connector[k].line.width = 4;
 		t.connector[k].arrow = 'from';
-		t.connector[k].label.position = {belowStart: 35, ratio: 0.2};
+		t.connector[k].label.position = {belowStart: 27, ratio: 0.2, centerOnLine: true};
 	});
 	t.connector['supporting-group'].label.defaultText = 'Therefore';
 	t.connector['opposing-group'].label.defaultText = 'Therefore, it is false that';

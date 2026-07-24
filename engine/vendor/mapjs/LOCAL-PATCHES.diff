@@ -641,3 +641,54 @@ diff --git a/src/core/theme/connector.js b/src/core/theme/connector.js
  				)];
  		}
 +		delete result.arrowStems;
+
+diff --git a/src/core/theme/arrow-path.js b/src/core/theme/arrow-path.js
+--- a/src/core/theme/arrow-path.js
++++ b/src/core/theme/arrow-path.js
+@@ export the head's axis length so line types can stop the line at its base
+ 		'Z';
+ };
++/* LOCAL ADDITION: apex-to-base distance of the head drawn above — the barbs
++   sit 14 from the apex at ±20°, so their midpoint is 14*cos(20°) back along
++   the axis. Line types read it to end the line exactly where the head begins,
++   so the stroke never runs through the head. */
++module.exports.axisLength = 14 * Math.cos(Math.PI / 9);
+
+diff --git a/src/core/theme/line-types.js b/src/core/theme/line-types.js
+--- a/src/core/theme/line-types.js
++++ b/src/core/theme/line-types.js
+@@ vertical-quadratic-s-curve: trim the arrow end, report the head's base
+ (module gains `require('./arrow-path')` plus lerp / distance / quadPoint /
+  headSplit helpers — headSplit bisects for the parameter whose chord to the
+  end is one head length.)
+ 	'vertical-quadratic-s-curve': function (calculatedConnector, position) {
++		/* LOCAL PATCH (arrowStems): a connector style carrying an `arrow` gets
++		   a solid head at that end. The curve meets a node vertically and then
++		   hooks hard, so a straight head laid over the last 13px had the line
++		   running THROUGH it — poking out of the bend's outside and past the
++		   apex (4px stroke, square cap). End the line where the head begins
++		   instead: split the quadratic at the point whose chord to the
++		   endpoint is the head's own length, draw the shortened curve, and
++		   report that point as the head's base. */
+-		(single relative-command path, no arrow awareness)
++		(absolute two-quadratic path built from the same control points, with
++		 the arrow end split off; when the `to` end is trimmed the path ends
++		 with an absolute moveto back to the true end, because the bracket
++		 overline is appended relative to the current point. Returns
++		 arrowStems: {from, to} — the head's base at each end.)
+
+diff --git a/src/browser/update-connector-text.js b/src/browser/update-connector-text.js
+--- a/src/browser/update-connector-text.js
++++ b/src/browser/update-connector-text.js
+@@ label can sit centred on the line
+ 		translate.x = Math.round(centrePoint.x - dimensions.width / 2);
+-		translate.y = Math.round(centrePoint.y - dimensions.height - 2);
++		/* LOCAL PATCH: a label position can ask to sit centred ON the line
++		   (`centerOnLine`) instead of resting above it, so the connector runs
++		   through the middle of the text and is masked by it — the high-impact
++		   themes' "Because" / "But" / "Therefore" labels. Themes without the
++		   key (the verbatim MindMup one, and any map's own embedded theme)
++		   keep the historical above-the-line placement. */
++		translate.y = Math.round((labelTheme.position && labelTheme.position.centerOnLine) ?
++			centrePoint.y - dimensions.height / 2 :
++			centrePoint.y - dimensions.height - 2);

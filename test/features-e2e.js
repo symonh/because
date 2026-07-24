@@ -366,9 +366,32 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 			return t ? t.textContent : null;
 		};
 		// arrow d = "M barb1 L apex L barb2 Z" (arrow-path.js)
-		const arrowD = document.querySelector('#connector_2_11 path.mapjs-arrow').getAttribute('d'),
-			n = arrowD.match(/-?\d+(?:\.\d+)?/g).map(Number);
+		const path = document.querySelector('#connector_2_11 path.mapjs-connector'),
+			arrowD = document.querySelector('#connector_2_11 path.mapjs-arrow').getAttribute('d'),
+			n = arrowD.match(/-?\d+(?:\.\d+)?/g).map(Number),
+			// this head sits at the bracket end, so the curve is trimmed there;
+			// the bracket overline is appended relative to the path's current
+			// point, so it must still be drawn at the group's top edge
+			groupTop = document.querySelector('#node_11').getBoundingClientRect().top;
 		return {
+			labelOnLine: (function () {
+				// the connector must pass through the MIDDLE of its label
+				// (masked behind the text), not graze its underside
+				const t = document.querySelector('#connector_2_11 .mapjs-connector-text text');
+				if (!t) { return null; }
+				const r = t.getBoundingClientRect(),
+					cx = r.x + r.width / 2,
+					cy = r.y + r.height / 2,
+					len = path.getTotalLength();
+				let best = 1e9, i, pt, sp;
+				for (i = 0; i <= 400; i++) {
+					pt = path.getPointAtLength(len * i / 400);
+					sp = new DOMPoint(pt.x, pt.y).matrixTransform(path.getScreenCTM());
+					best = Math.min(best, Math.hypot(sp.x - cx, sp.y - cy));
+				}
+				return Math.round(best);
+			}()),
+			bracketOffsetFromGroupTop: Math.round(Math.abs(path.getBoundingClientRect().bottom - groupTop)),
 			width: document.querySelector('#connector_2_11 path.mapjs-connector').getAttribute('stroke-width'),
 			arrows: Array.from(document.querySelectorAll('[data-mapjs-role=connector] path.mapjs-arrow'))
 				.filter(a => a.style.display !== 'none').length,
@@ -383,6 +406,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 	ok(impactState.arrows === 2, `High-impact downward: arrows on both group connectors (${impactState.arrows})`);
 	ok(impactState.arrowFill === '#339966', `arrow fill matches the supporting line (${impactState.arrowFill})`);
 	ok(impactState.pointsDown, 'downward arrowheads point down into the bracket');
+	ok(impactState.labelOnLine <= 4,
+		`the connector runs through the middle of the Because label (${impactState.labelOnLine}px from its centre)`);
 	ok(impactState.reasonLabel === 'Because' && impactState.objectionLabel === 'But',
 		`reasons say Because, objections say But (${impactState.reasonLabel}/${impactState.objectionLabel})`);
 	ok(impactState.themeAttr === 'argMappingHighImpact', 'theme choice is recorded in the map');
@@ -401,16 +426,40 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 			aRect = arrow.getBoundingClientRect(),
 			lRect = label.getBoundingClientRect(),
 			n = arrow.getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number),
-			// head angle must continue the curve: compare the head's direction
-			// (barb midpoint -> apex) with the path chord over its first 20px
-			// (the path starts at the parent end, where the 'from' arrow sits)
+			// the stroke must stop where the head begins (otherwise the 4px
+			// line runs through the head and pokes out of the bend's outside
+			// and past the apex), and leave it at close to the head's angle.
+			// The path starts at the parent end, where the 'from' head sits.
+			baseMid = {x: (n[0] + n[4]) / 2, y: (n[1] + n[5]) / 2},
 			p0 = path.getPointAtLength(0),
-			p1 = path.getPointAtLength(20),
-			chord = Math.atan2(p1.y - p0.y, p1.x - p0.x),
-			head = Math.atan2(n[3] - (n[1] + n[5]) / 2, n[2] - (n[0] + n[4]) / 2),
-			misalignment = Math.abs((head + Math.PI - chord + Math.PI * 3) % (Math.PI * 2) - Math.PI);
+			p4 = path.getPointAtLength(4),
+			seam = Math.atan2(p4.y - p0.y, p4.x - p0.x),
+			axis = Math.atan2(n[3] - baseMid.y, n[2] - baseMid.x),
+			kink = Math.abs(((axis + Math.PI - seam + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
 		return {
-			alignedDeg: Math.round(misalignment * 180 / Math.PI),
+			labelOnLine: (function () {
+				// the connector must pass through the MIDDLE of its label
+				// (masked behind the text), not graze its underside
+				const t = document.querySelector('#connector_2_11 .mapjs-connector-text text');
+				if (!t) { return null; }
+				const r = t.getBoundingClientRect(),
+					cx = r.x + r.width / 2,
+					cy = r.y + r.height / 2,
+					len = path.getTotalLength();
+				let best = 1e9, i, pt, sp;
+				for (i = 0; i <= 400; i++) {
+					pt = path.getPointAtLength(len * i / 400);
+					sp = new DOMPoint(pt.x, pt.y).matrixTransform(path.getScreenCTM());
+					best = Math.min(best, Math.hypot(sp.x - cx, sp.y - cy));
+				}
+				return Math.round(best);
+			}()),
+			// same measure as the downward theme's bracket check, but taken
+			// where the bracket end is NOT trimmed — the two must agree
+			bracketOffsetFromGroupTop: Math.round(Math.abs(path.getBoundingClientRect().bottom -
+				document.querySelector('#node_11').getBoundingClientRect().top)),
+			baseGap: Math.round(Math.hypot(p0.x - baseMid.x, p0.y - baseMid.y) * 10) / 10,
+			seamKinkDeg: Math.round(kink * 180 / Math.PI),
 			width: path.getAttribute('stroke-width'),
 			arrows: Array.from(document.querySelectorAll('[data-mapjs-role=connector] path.mapjs-arrow'))
 				.filter(a => a.style.display !== 'none').length,
@@ -425,9 +474,18 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 	ok(upState.width === '4', `High-impact upward: thicker connector/bracket stroke (${upState.width})`);
 	ok(upState.arrows === 2, `High-impact upward: arrows on both group connectors (${upState.arrows})`);
 	ok(upState.pointsUp, 'upward arrowheads point up');
-	ok(upState.alignedDeg <= 15, `arrowhead angle follows the curve at the join (${upState.alignedDeg}° off the chord)`);
+	// the downward head is at the bracket end, so that curve is trimmed there;
+	// the upward theme leaves the same end alone, so the bracket must sit
+	// identically in both — the overline is appended relative to the path's
+	// current point and would slide if trimming didn't hand back the true end
+	ok(impactState.bracketOffsetFromGroupTop === upState.bracketOffsetFromGroupTop,
+		`trimming the curve for the head leaves the bracket where it was (${impactState.bracketOffsetFromGroupTop}px vs ${upState.bracketOffsetFromGroupTop}px untrimmed)`);
+	ok(upState.baseGap <= 1.5, `the line stops at the head's base instead of running through it (${upState.baseGap}px)`);
+	ok(upState.seamKinkDeg <= 25, `head continues the line's direction at the join (${upState.seamKinkDeg}°)`);
 	ok(upState.arrowAtTop, 'upward arrowhead sits at the parent-claim end of the connector');
 	ok(upState.labelAtTop, 'upward label hangs below the parent claim, not above the bracket');
+	ok(upState.labelOnLine <= 4,
+		`the connector runs through the middle of the Therefore label (${upState.labelOnLine}px from its centre)`);
 	ok(upState.reasonLabel === 'Therefore' && upState.objectionLabel === 'Therefore, it is false that',
 		`reasons say Therefore, objections say Therefore-it-is-false-that (${upState.reasonLabel}/${upState.objectionLabel})`);
 	ok(upState.themeAttr === 'argMappingHighImpactUpward', 'upward theme choice is recorded in the map');
