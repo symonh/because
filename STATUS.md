@@ -1,5 +1,52 @@
 # Because (formerly ArgumentBase) — status (2026-07-24)
 
+## 2026-07-24 — Editable claim numbers
+
+- The number badges keep computing themselves as before (level.index,
+  breadth-first, groups and stickies skipped). New: clicking a badge opens
+  a small editor on it, and whatever is typed there — up to 10 characters —
+  replaces the number on that claim. The override is stored on the claim as
+  `attr.claimLabel`, so it round-trips through .mup like any other node
+  attribute and undo/redo covers it (it goes through the content
+  aggregate's command processor). Clearing the text, or typing back the
+  number the structure would give the claim anyway, removes the attribute.
+- Overriding one badge never renumbers the map: the walk in numbering.js
+  still counts the overridden claim, so its siblings and everything below
+  keep the numbers the structure gives them.
+- Two things had to give way for the click to land at all:
+  - the decorations container swallows `mousedown`/`click` with
+    `stopImmediatePropagation` (that is how mapjs keeps icon clicks from
+    selecting or dragging the node), so number-edit.js listens in the
+    CAPTURE phase — nothing bubbling ever sees that click;
+  - a group is a 16px transparent strip sitting just above its claims and
+    is created after them, so at the shared z-index 2 it covered the part
+    of the badge that overhangs the claim's top edge, and every grouped
+    claim's badge was unclickable. Claims now paint at z-index 3
+    (argmap.css). The strip carries no visuals of its own — the bracket is
+    SVG, below both — so nothing moved on screen, and clicking the strip
+    still selects the group.
+- The editor is fixed to the viewport and appended to `document.body`, not
+  to the map container: that container's ARIA role is `tree`, which may
+  hold none but treeitem children, and an input inside it fails axe's
+  aria-required-children. Its blue is a shade darker than the badge's
+  (#17789f) because white bold 12px is normal-size text for WCAG 1.4.3 and
+  the badge blue only reaches 4.1:1.
+- Keyboard path: **Edit > Edit claim number…** opens the same editor on the
+  selected claim (switching numbering back on first if it is off). Enter
+  commits, Escape cancels, and either way focus goes back to the map.
+- Analytics: new `claim_number` event, `action` = edit/set/cleared
+  (docs/analytics.md). The typed text is never sent — features-e2e asserts
+  that a typed override does not appear anywhere in the event payload.
+- Tests: a claim-number section in features-e2e (default numbering, the
+  badge winning the hit test over its bracket strip, editor placement
+  including on a scrolled map, the 10-character cap, storage in
+  attr.claimLabel, siblings unaffected, the pill growing without clipping,
+  undo/redo, Escape, clearing, re-entering the computed number, the menu
+  path); a WebKit case for the whole click-type-Enter-undo cycle (the
+  capture-phase click and a floating keyboard-driven input are exactly what
+  breaks in Safari); an a11y case that the editor is named and focused,
+  scans clean under axe, and returns focus on close. All seven suites pass.
+
 ## 2026-07-24 — High-impact upward theme (Therefore, arrows up)
 
 - New View-menu theme "High-impact upward" (registry key

@@ -63,6 +63,7 @@ GA4 is the replacement and its web streams use `G-…` measurement ids.
 | `command` | `command_name` (the `commands.js` name, e.g. `addReason`), `method` (`menu`, `toolbar`, `shortcut`, `style_popover`) | any command runs, tagged by UI surface |
 | `edit_batch` | `changes` | batched count of model changes, flushed when the tab hides and every 2 minutes — measures editing intensity without per-keystroke events |
 | `connector_action` | `action` (`stronger`, `weaker`, `label_edit`, `label_set`, `label_cleared`), `has_label` | connector popover and label editing |
+| `claim_number` | `action` (`edit`, `set`, `cleared`), `has_label` | claim number badge editing (click a badge, or Edit > Edit claim number) |
 | `node_style` | `action` (`popover_open`, `background_swatch`, `background_custom`, `background_clear`), `swatch`, `method` | right-click style popover |
 | `theme_select` | `theme` (`simple`, `high_impact`, `high_impact_upward`) | View-menu theme switch |
 | `dark_mode_toggle` | `enabled` (`on`/`off`) | any dark-mode toggle (also kept as the `dark_mode` user property) |

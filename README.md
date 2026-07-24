@@ -53,7 +53,9 @@ open http://127.0.0.1:8871/app/
   stems.
 - Green brackets support; **red brackets are objections**.
 - **Dashed borders** mark implicit claims; sticky notes are yellow handwriting
-  notes; claim numbering (1.1, 2.1 …) is a view toggle.
+  notes; claim numbering (1.1, 2.1 …) is a view toggle. Click a number to put
+  your own text there instead (up to 10 characters, stored per claim as
+  `attr.claimLabel`); clearing it returns the claim to the computed number.
 
 ![co-premises vs independent reasons](docs/copremises-vs-independent.png)
 

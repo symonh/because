@@ -263,6 +263,35 @@ const AXE_OPTS = {
 	ok(parseFloat(width.after) > parseFloat(width.before),
 		'Stronger connector works from the keyboard path (' + width.before + ' -> ' + width.after + ')');
 
+	// ---- claim number editor: named, focused, and hands focus back ----
+	await page.evaluate(() => {
+		const m = window.__because.engine.mapModel,
+			firstClaim = function (idea) {
+				for (const k of Object.keys(idea.ideas || {})) {
+					const child = idea.ideas[k];
+					if (!(child.attr && child.attr.group)) { return child; }
+					const found = firstClaim(child);
+					if (found) { return found; }
+				}
+				return null;
+			};
+		m.selectNode(firstClaim(m.getIdea()).id);
+		window.__because.numberEdit.editSelectedNumber();
+	});
+	await page.waitForTimeout(250);
+	ok(await page.evaluate(() => {
+		const e = document.querySelector('.node-number-editor');
+		return !!e && document.activeElement === e && e.getAttribute('aria-label') === 'Claim number';
+	}), 'the claim number editor opens focused and named');
+	await axeScan('claim number editor');
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(250);
+	ok(await page.evaluate(() => {
+		const c = document.getElementById('map-container');
+		return !document.querySelector('.node-number-editor') &&
+			(document.activeElement === c || c.contains(document.activeElement));
+	}), 'closing the number editor returns focus to the map');
+
 	// ---- unsaved-changes guard dialog ----
 	await page.evaluate(() => { window.__because.io.markDirty(); window.__because.io.open(); });
 	await page.waitForTimeout(250);

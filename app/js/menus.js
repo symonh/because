@@ -10,7 +10,7 @@
 import { track } from './analytics.js';
 import { initModal } from './a11y.js';
 
-export function buildMenus(el, commands, io, engine, drive, onedrive, darkMode, labelEdit, nodeStyle, intro) {
+export function buildMenus(el, commands, io, engine, drive, onedrive, darkMode, labelEdit, nodeStyle, intro, numberEdit) {
 	const driveItem = run => () => {
 			if (drive && drive.isConfigured()) { run(); } else { showDriveSetup(); }
 		},
@@ -61,6 +61,7 @@ export function buildMenus(el, commands, io, engine, drive, onedrive, darkMode, 
 			['Paste as reason (⌘V)', commands.paste],
 			['—'],
 			['Edit text (F2)', commands.editNode],
+			['Edit claim number… (or click the number)', () => numberEdit.editSelectedNumber()],
 			['Delete (⌫)', commands.deleteNode],
 			['—'],
 			['Bold (⌘B)', commands.toggleBold],
@@ -369,7 +370,8 @@ export function buildMenus(el, commands, io, engine, drive, onedrive, darkMode, 
 				['⌘⇧. / ⌘⇧,', 'bigger / smaller claim text'],
 				['Right-click', 'node colour &amp; text style'],
 				['Click a connector', 'stronger / weaker line, edit its label'],
-				['Double-click a connector', 'edit its label']
+				['Double-click a connector', 'edit its label'],
+				['Click a claim number', 'replace it with your own text (up to 10 characters)']
 			].map(r => '<tr><td><kbd>' + r[0] + '</kbd></td><td>' + r[1] + '</td></tr>').join('') +
 			'</table>'
 		);

@@ -199,6 +199,43 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 		.findSubIdeaById(2).ideas).filter(k => k.attr && k.attr.group).length) === 1,
 		'one ⌘Z reverts the whole paste in WebKit');
 
+	// ---- claim number badge editing in real WebKit: the badge is a decoration
+	// span whose container swallows clicks (so the app listens in the capture
+	// phase), and the editor is a floating input driven by the keyboard —
+	// exactly the combination that has broken in Safari before
+	await page.evaluate(() => {
+		window.__because.engine.loadMap({ formatVersion: 3, id: 'root', attr: { theme: 'argMappingHighImpact' }, ideas: {
+			1: { id: 2, title: 'Claim N', ideas: {
+				1: { id: 11, title: 'group', attr: { group: 'supporting', contentLocked: true }, ideas: {
+					1: { id: 12, title: 'Reason N' },
+					2: { id: 13, title: 'Reason M' }
+				} }
+			} }
+		} });
+	});
+	await page.waitForSelector('#node_13', { timeout: 8000 });
+	await page.waitForTimeout(400);
+	const badgeOf = id => page.evaluate(nid => {
+		const r = document.querySelector('#node_' + nid + ' .mapjs-label').getBoundingClientRect();
+		return { x: r.x + r.width / 2, y: r.y + r.height / 2, text: document.querySelector('#node_' + nid + ' .mapjs-label').textContent };
+	}, id);
+	let badge = await badgeOf(12);
+	ok(badge.text === '2.1', `WebKit numbers the claims (${badge.text})`);
+	await page.mouse.click(badge.x, badge.y);
+	await page.waitForSelector('.node-number-editor', { timeout: 5000 });
+	ok(await page.$eval('.node-number-editor', e => e.value) === '2.1',
+		'clicking a number badge opens its editor in WebKit');
+	ok(await page.$eval('.node-number-editor', e => e.selectionEnd - e.selectionStart) === 3,
+		'the number arrives selected in WebKit, so typing replaces it');
+	await page.keyboard.type('P1');
+	await page.keyboard.press('Enter');
+	await page.waitForTimeout(400);
+	ok((await badgeOf(12)).text === 'P1' && (await badgeOf(13)).text === '2.2',
+		'the override lands on the clicked claim only, in WebKit');
+	await page.keyboard.press('Meta+z');
+	await page.waitForTimeout(400);
+	ok((await badgeOf(12)).text === '2.1', '⌘Z undoes a number override in WebKit');
+
 	// ---- auto-save in WebKit: no File System Access API, so a local map
 	// has no writable target — enabling must explain itself and edits must
 	// never trigger a download (the download fallback is manual-save only)

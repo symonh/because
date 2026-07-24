@@ -38,6 +38,18 @@
  * shows when numbering is off (the engine then hides the label span but
  * leaves the decorations container in place).
  */
+/*
+ * Claims paint above their bracket. A group is a 16px transparent strip
+ * sitting just above its claims, created after them, so at the shared
+ * z-index 2 it covered the part of the badge that overhangs the claim's
+ * top edge — and, because the decorations container swallows clicks, that
+ * made the badge of every grouped claim unclickable. The strip carries no
+ * visuals of its own (the bracket is SVG, below both), so nothing else
+ * moves.
+ */
+.mapjs-node:not(.attr_group) {
+	z-index: 3;
+}
 .mapjs-node .mapjs-decorations {
 	background: transparent;
 	border-radius: 12px;
@@ -63,6 +75,14 @@
 	font: 700 12px/18px 'NotoSans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 	text-align: center;
 	vertical-align: top;
+	/* the pill widens with its text (min-width holds 1.1 to 2.10 steady);
+	   clicking it opens the editor in number-edit.js */
+	white-space: nowrap;
+	cursor: pointer;
+}
+.mapjs-label:hover {
+	background: rgba(34, 170, 224, 1);
+	box-shadow: 0 0 0 2px rgba(34, 170, 224, 1);
 }
 
 /*

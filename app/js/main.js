@@ -7,6 +7,7 @@ import { makeDrive } from './drive.js';
 import { makeOneDrive } from './onedrive.js';
 import { makeDarkMode } from './dark-mode.js';
 import { makeLabelEdit } from './label-edit.js';
+import { makeNumberEdit } from './number-edit.js';
 import { makeNodeStyle } from './node-style.js';
 import { makeLoading } from './loading.js';
 import { makeIntro } from './intro.js';
@@ -60,12 +61,13 @@ document.addEventListener('DOMContentLoaded', function () {
 		onedrive = makeOneDrive(engine, io, status),
 		darkMode = makeDarkMode(engine),
 		labelEdit = makeLabelEdit(engine),
+		numberEdit = makeNumberEdit(engine),
 		nodeStyle = makeNodeStyle(engine, instrument('style_popover')),
 		loading = makeLoading(),
 		intro = makeIntro();
 
 	buildToolbar(document.getElementById('toolbar'), instrument('toolbar'), io);
-	buildMenus(document.getElementById('menubar'), instrument('menu'), io, engine, drive, onedrive, darkMode, labelEdit, nodeStyle, intro);
+	buildMenus(document.getElementById('menubar'), instrument('menu'), io, engine, drive, onedrive, darkMode, labelEdit, nodeStyle, intro, numberEdit);
 	bindShortcuts(engine, instrument('shortcut'));
 
 	// one map_open per load, whatever the path (picker, drop, Drive, ?src=,
@@ -111,7 +113,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	engine.on('loadFinished', () => loading.hide());
 
 	// dev/test handle
-	window.__because = { engine, commands, io, drive, onedrive, darkMode, labelEdit, nodeStyle, intro, analytics: analyticsApi };
+	window.__because = { engine, commands, io, drive, onedrive, darkMode, labelEdit, numberEdit, nodeStyle, intro, analytics: analyticsApi };
 
 	// every model change marks the map unsaved (relative to its file) and
 	// refreshes the crash-recovery autosave; only File > Save clears it

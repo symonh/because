@@ -496,6 +496,136 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 			.filter(a => a.style.display !== 'none').length) === 0,
 		'switching back to Simple removes the arrows');
 
+	// ---- claim number badges: default numbering and per-claim overrides ----
+	const badgeText = id => page.evaluate(nid => {
+			const el = document.querySelector('#node_' + nid + ' .mapjs-label');
+			return el && el.offsetParent ? el.textContent : null;
+		}, id),
+		badgeCentre = id => page.evaluate(nid => {
+			const r = document.querySelector('#node_' + nid + ' .mapjs-label').getBoundingClientRect();
+			return { x: r.x + r.width / 2, y: r.y + r.height / 2, w: r.width };
+		}, id),
+		clickBadge = async function (id) {
+			const c = await badgeCentre(id);
+			await page.mouse.click(c.x, c.y);
+			await page.waitForSelector('.node-number-editor', { timeout: 5000 });
+			return c;
+		},
+		claimAttr = (path) => page.evaluate(p => {
+			const idea = JSON.parse(window.__because.engine.serialize());
+			return p.reduce((n, k) => n.ideas[k], idea).attr || {};
+		}, path);
+	ok(await badgeText(2) === '1.1' && await badgeText(12) === '2.1' && await badgeText(22) === '2.2',
+		'claims are numbered level.index by default');
+	// the badge overhangs the claim's top edge, where the group's own
+	// (transparent, later-drawn) strip sits: it has to win the hit test or
+	// there is nothing to click
+	ok(await page.evaluate(() => {
+		const r = document.querySelector('#node_12 .mapjs-label').getBoundingClientRect(),
+			at = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+		return !!(at && at.classList.contains('mapjs-label'));
+	}), 'the badge of a grouped claim is on top of its bracket strip');
+
+	const openedOn = await clickBadge(12),
+		editorState = await page.evaluate(() => {
+			const e = document.querySelector('.node-number-editor'),
+				r = e.getBoundingClientRect();
+			return { value: e.value, selected: e.selectionEnd - e.selectionStart,
+				maxLength: e.maxLength, x: r.x + r.width / 2, y: r.y + r.height / 2 };
+		});
+	ok(editorState.value === '2.1' && editorState.selected === 3,
+		`clicking a number opens an editor on it, all selected (${JSON.stringify(editorState.value)})`);
+	ok(Math.abs(editorState.x - openedOn.x) <= 3 && Math.abs(editorState.y - openedOn.y) <= 3,
+		'the editor opens over the badge it replaces');
+	ok(editorState.maxLength === 10, `the editor caps the label at 10 characters (${editorState.maxLength})`);
+
+	await page.keyboard.type('SECRET7abcdefg');
+	ok(await page.$eval('.node-number-editor', e => e.value) === 'SECRET7abc',
+		'typing past 10 characters is refused rather than truncated on save');
+	const grewTo = await page.$eval('.node-number-editor', e => e.getBoundingClientRect().width);
+	await page.keyboard.press('Enter');
+	await sleep(400);
+	ok(await badgeText(12) === 'SECRET7abc', 'the override replaces the number on that claim');
+	ok((await claimAttr(['1', '1', '1'])).claimLabel === 'SECRET7abc',
+		'the override is stored on the claim as attr.claimLabel');
+	ok(await badgeText(2) === '1.1' && await badgeText(22) === '2.2',
+		'overriding one number leaves every other claim numbered by the structure');
+	const wide = await badgeCentre(12);
+	ok(wide.w > openedOn.w + 20 && grewTo > 40,
+		`the pill grows with its text (${Math.round(openedOn.w)}px for 2.1, ${Math.round(wide.w)}px for 10 characters)`);
+	ok(await page.evaluate(() => {
+		const el = document.querySelector('#node_12 .mapjs-label');
+		return el.scrollWidth <= el.clientWidth + 1;
+	}), 'a 10-character label is not clipped by the pill');
+	ok(await page.evaluate(() => {
+		const c = document.getElementById('map-container');
+		return document.activeElement === c || c.contains(document.activeElement);
+	}), 'committing hands the keyboard back to the map');
+
+	await page.evaluate(() => window.__because.commands.undo());
+	await sleep(400);
+	ok(await badgeText(12) === '2.1', 'undo restores the computed number');
+	await page.evaluate(() => window.__because.commands.redo());
+	await sleep(400);
+	ok(await badgeText(12) === 'SECRET7abc', 'redo puts the override back');
+
+	// Escape leaves the claim alone
+	await clickBadge(12);
+	await page.keyboard.type('zzz');
+	await page.keyboard.press('Escape');
+	await sleep(300);
+	ok(await page.$('.node-number-editor') === null && await badgeText(12) === 'SECRET7abc',
+		'Escape closes the editor without changing the label');
+
+	// clearing the text drops the override and the numbering takes over again
+	await clickBadge(12);
+	await page.evaluate(() => { document.querySelector('.node-number-editor').value = ''; });
+	await page.keyboard.press('Enter');
+	await sleep(400);
+	ok(await badgeText(12) === '2.1', 'clearing the editor returns the claim to its computed number');
+	ok(!(await claimAttr(['1', '1', '1'])).claimLabel,
+		'clearing removes attr.claimLabel rather than storing an empty one');
+
+	// typing the number the structure already gives the claim is not an override
+	await clickBadge(12);
+	await page.keyboard.press('Enter');
+	await sleep(300);
+	ok(!(await claimAttr(['1', '1', '1'])).claimLabel,
+		're-entering the computed number does not pin it as an override');
+
+	// the editor is fixed to the viewport, so a scrolled map must not shift it
+	// away from the badge it belongs to
+	await page.evaluate(() => {
+		const c = document.getElementById('map-container');
+		c.scrollLeft += 120;
+		c.scrollTop += 90;
+	});
+	await sleep(200);
+	const scrolledBadge = await clickBadge(12),
+		scrolledEditor = await page.evaluate(() => {
+			const r = document.querySelector('.node-number-editor').getBoundingClientRect();
+			return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+		});
+	ok(Math.abs(scrolledEditor.x - scrolledBadge.x) <= 3 && Math.abs(scrolledEditor.y - scrolledBadge.y) <= 3,
+		'the editor still opens over the badge on a scrolled map');
+	await page.keyboard.press('Escape');
+	await sleep(200);
+	await page.evaluate(() => {
+		const c = document.getElementById('map-container');
+		c.scrollLeft = 0;
+		c.scrollTop = 0;
+	});
+
+	// keyboard path: the menu opens the editor on the selected claim
+	await page.evaluate(() => window.__because.engine.mapModel.selectNode(22));
+	await sleep(200);
+	await clickMenu('Edit', 'Edit claim number');
+	await page.waitForSelector('.node-number-editor', { timeout: 5000 });
+	ok(await page.$eval('.node-number-editor', e => e.value) === '2.2',
+		'Edit > Edit claim number opens the editor on the selected claim');
+	await page.keyboard.press('Escape');
+	await sleep(200);
+
 	// ---- loading overlay on big maps ----
 	const overlayShown = await page.evaluate(() => {
 		const ideas = {};
@@ -579,6 +709,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 		'connector strengthening and labelling are tracked');
 	ok(!!findEv('node_style', p => p.action === 'background_swatch' && p.swatch === 'Coral'),
 		'node styling tracks the swatch by name');
+	ok(!!findEv('claim_number', p => p.action === 'set') &&
+		!!findEv('claim_number', p => p.action === 'cleared'),
+		'claim number overrides and their removal are tracked');
 	ok(!!findEv('map_open', p => p.node_count === 122 && p.node_bucket === '101-250'),
 		'map_open carries the node count and bucket');
 	const batch = findEv('edit_batch');
@@ -588,7 +721,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 	// these three strings were all typed or rendered as map content above
 	const gaPayload = JSON.stringify(ga.events);
 	ok(gaPayload.indexOf('Premise') < 0 && gaPayload.indexOf('dblclick') < 0 &&
-		gaPayload.indexOf('Claim number') < 0,
+		gaPayload.indexOf('Claim number') < 0 && gaPayload.indexOf('SECRET7') < 0,
 		'no map text or typed labels leak into any analytics event');
 
 	if (errors.length) { console.log('PAGE ERRORS:', errors.join(' | ')); failures += 1; }

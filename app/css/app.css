@@ -259,6 +259,40 @@ body.dark .connector-label-editor {
 	background: #2a2e33;
 	color: #e2e5e7;
 }
+/* ---- claim number badge editor (number-edit.js) ----
+ * Sized and placed over the badge it replaces, and grown by the measuring
+ * twin below as the text gets longer. Content-box width keeps the two in
+ * step: number-edit.js adds the 12px padding and 2px border itself.
+ */
+.node-number-editor,
+.node-number-measure {
+	box-sizing: content-box;
+	padding: 2px 6px;
+	border: 1px solid #ffffff;
+	height: 16px;
+	font: 700 12px/16px 'NotoSans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+	text-align: center;
+	letter-spacing: normal;
+}
+.node-number-editor {
+	position: fixed;
+	z-index: 500;
+	border-radius: 9px;
+	/* a shade below the badge's own blue: white bold 12px is normal-size
+	   text for WCAG 1.4.3, and the badge blue only reaches 4.1:1 */
+	background: #17789f;
+	color: #ffffff;
+	box-shadow: 0 0 0 2px rgba(34, 170, 224, 0.8), 0 2px 8px rgba(0,0,0,0.35);
+	outline: none;
+}
+.node-number-editor::selection { background: rgba(255,255,255,0.35); }
+.node-number-measure {
+	position: fixed;
+	top: -1000px;
+	left: 0;
+	visibility: hidden;
+	white-space: pre;
+}
 /* ---- loading overlay (large map opening; see loading.js) ---- */
 .loading-overlay {
 	position: fixed;
