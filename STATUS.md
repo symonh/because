@@ -1,4 +1,31 @@
-# Because (formerly ArgumentBase) — status (2026-07-16)
+# Because (formerly ArgumentBase) — status (2026-07-24)
+
+## 2026-07-24 — High-impact upward theme (Therefore, arrows up)
+
+- New View-menu theme "High-impact upward" (registry key
+  `argMappingHighImpactUpward`; stored in attr.theme like the others). Same
+  weight as the downward high-impact theme, but arrowheads point UP into
+  the claim being supported/attacked and the connector labels read
+  premises-first: "Therefore" on reasons, "Therefore, it is false that" on
+  objections, hanging just below the parent claim instead of above the
+  bracket. The existing high-impact theme is renamed in the menu to
+  "High-impact downward" — its registry key stays `argMappingHighImpact`,
+  so previously saved maps are untouched.
+- Vendor patches (engine rebuilt, both hunks in LOCAL-PATCHES.diff):
+  connector.js `arrow` key is now direction-aware ('to' = head at the
+  child end pointing down, as before; 'from' = head at the parent's base
+  pointing up — the S-curves leave the parent vertically, so the vertical
+  head matches the line). calc-label-center-point.js gained `belowStart`,
+  mirroring `aboveEnd`: label a fixed offset below the path START, x found
+  on the actual curve at that height by the same binary search. The upward
+  theme uses belowStart 35 (clears the 13px arrowhead barbs by the same
+  ~4px the downward theme's aboveEnd-15 clears its arrow).
+- Analytics: theme_select gains value `high_impact_upward`
+  (docs/analytics.md). features-e2e: downward assertions renamed + a new
+  arrow-direction check; new upward section (labels, width, up-pointing
+  arrows at the parent end, label position, attr.theme round-trip).
+  Verified visually against Simon's reference screenshot (Harrell Ch.3
+  Ex.31), light + dark. All seven suites pass.
 
 Renamed ArgumentBase → Because late on 2026-07-16 (repo is now
 github.com/symonh/because, local dir ~/Documents/GitHub/because). Legacy

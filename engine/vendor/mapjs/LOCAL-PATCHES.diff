@@ -534,3 +534,59 @@ index 6481bad..92cc2d3 100644
  			connectorCurve.d += 'm' + (-1 * halfWidth) + ',' + initialRadius +
  				'q0,' + (-1 * initialRadius) + ' ' + initialRadius + ',' +  (-1 * initialRadius) +
  				' h' + (2 * (halfWidth - initialRadius)) +
+
+diff --git a/src/core/theme/connector.js b/src/core/theme/connector.js
+--- a/src/core/theme/connector.js
++++ b/src/core/theme/connector.js
+@@ -133,12 +133,21 @@
+ 	result.theme = calculatedConnector.connectorTheme;
+-		/* LOCAL PATCH: arrowhead at the `to` end, pointing straight down
+-		   into the child — the top-down S-curves land vertically on the
+-		   child's top edge, so a vertical head matches the incoming line */
+-		if (calculatedConnector.connectorTheme.arrow && calculatedConnector.connectorTheme.type !== 'no-connector') {
+-			result.arrows = [arrowPath(
+-				{x: calculatedConnector.to.x, y: calculatedConnector.to.y - 20},
+-				calculatedConnector.to,
+-				position
+-			)];
+-		}
++		/* LOCAL PATCH: theme-driven arrowheads. Default ('to'): head at the
++		   `to` end, pointing straight down into the child — the top-down
++		   S-curves land vertically on the child's top edge, so a vertical
++		   head matches the incoming line. 'from': head at the `from` end,
++		   pointing straight up into the parent (the curves leave the parent
++		   base vertically too) — the upward/"therefore" reading. */
++		if (calculatedConnector.connectorTheme.arrow && calculatedConnector.connectorTheme.type !== 'no-connector') {
++			result.arrows = calculatedConnector.connectorTheme.arrow === 'from' ?
++				[arrowPath(
++					{x: calculatedConnector.from.x, y: calculatedConnector.from.y + 20},
++					calculatedConnector.from,
++					position
++				)] :
++				[arrowPath(
++					{x: calculatedConnector.to.x, y: calculatedConnector.to.y - 20},
++					calculatedConnector.to,
++					position
++				)];
++		}
+ 		return result;
+
+diff --git a/src/browser/calc-label-center-point.js b/src/browser/calc-label-center-point.js
+--- a/src/browser/calc-label-center-point.js
++++ b/src/browser/calc-label-center-point.js
+@@ -10,7 +10,13 @@
+ 	pathElement.attr('d', d);
+-	if (labelPosition.aboveEnd) {
++	/* LOCAL PATCH: `belowStart` mirrors `aboveEnd` — the label hangs a fixed
++	   offset below the PARENT's base (the start of the path) instead of
++	   sitting above the child's top, for the upward high-impact theme whose
++	   "Therefore" labels belong next to the parent claim. */
++	if (labelPosition.aboveEnd || labelPosition.belowStart) {
+ 		const middleToBox = toBox.left + (toBox.width / 2) - connectionPosition.left,
+ 			middleFromBox = fromBox.left + (fromBox.width / 2) - connectionPosition.left,
+ 			multiplier = labelPosition.ratio || 1,
+-			y = toBox.top - connectionPosition.top - labelPosition.aboveEnd,
++			y = labelPosition.aboveEnd ?
++				toBox.top - connectionPosition.top - labelPosition.aboveEnd :
++				fromBox.top + fromBox.height - connectionPosition.top + labelPosition.belowStart,
+ 			path = pathElement[0],

@@ -358,29 +358,69 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 	}));
 	ok(simpleState.width === '3' && simpleState.arrows === 0 && simpleState.labels === 0,
 		`Simple theme: width 3, no arrows, no auto labels (${JSON.stringify(simpleState)})`);
-	await clickMenu('View', 'Theme: High impact');
+	await clickMenu('View', 'Theme: High-impact downward');
 	await sleep(800);
 	const impactState = await page.evaluate(() => {
 		const labelFor = id => {
 			const t = document.querySelector('#' + id + ' .mapjs-connector-text text');
 			return t ? t.textContent : null;
 		};
+		// arrow d = "M barb1 L apex L barb2 Z" (arrow-path.js)
+		const arrowD = document.querySelector('#connector_2_11 path.mapjs-arrow').getAttribute('d'),
+			n = arrowD.match(/-?\d+(?:\.\d+)?/g).map(Number);
 		return {
 			width: document.querySelector('#connector_2_11 path.mapjs-connector').getAttribute('stroke-width'),
 			arrows: Array.from(document.querySelectorAll('[data-mapjs-role=connector] path.mapjs-arrow'))
 				.filter(a => a.style.display !== 'none').length,
 			arrowFill: (document.querySelector('#connector_2_11 path.mapjs-arrow') || {getAttribute: () => null}).getAttribute('fill'),
+			pointsDown: n[3] > n[1],
 			reasonLabel: labelFor('connector_2_11'),
 			objectionLabel: labelFor('connector_2_21'),
 			themeAttr: window.__because.engine.mapModel.getIdea().attr.theme
 		};
 	});
-	ok(impactState.width === '4', `High impact: thicker connector/bracket stroke (${impactState.width})`);
-	ok(impactState.arrows === 2, `High impact: arrows on both group connectors (${impactState.arrows})`);
+	ok(impactState.width === '4', `High-impact downward: thicker connector/bracket stroke (${impactState.width})`);
+	ok(impactState.arrows === 2, `High-impact downward: arrows on both group connectors (${impactState.arrows})`);
 	ok(impactState.arrowFill === '#339966', `arrow fill matches the supporting line (${impactState.arrowFill})`);
+	ok(impactState.pointsDown, 'downward arrowheads point down into the bracket');
 	ok(impactState.reasonLabel === 'Because' && impactState.objectionLabel === 'But',
 		`reasons say Because, objections say But (${impactState.reasonLabel}/${impactState.objectionLabel})`);
 	ok(impactState.themeAttr === 'argMappingHighImpact', 'theme choice is recorded in the map');
+	await clickMenu('View', 'Theme: High-impact upward');
+	await sleep(800);
+	const upState = await page.evaluate(() => {
+		const labelFor = id => {
+			const t = document.querySelector('#' + id + ' .mapjs-connector-text text');
+			return t ? t.textContent : null;
+		};
+		const conn = document.querySelector('#connector_2_11'),
+			path = conn.querySelector('path.mapjs-connector'),
+			arrow = conn.querySelector('path.mapjs-arrow'),
+			label = conn.querySelector('.mapjs-connector-text'),
+			pRect = path.getBoundingClientRect(),
+			aRect = arrow.getBoundingClientRect(),
+			lRect = label.getBoundingClientRect(),
+			n = arrow.getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number);
+		return {
+			width: path.getAttribute('stroke-width'),
+			arrows: Array.from(document.querySelectorAll('[data-mapjs-role=connector] path.mapjs-arrow'))
+				.filter(a => a.style.display !== 'none').length,
+			pointsUp: n[3] < n[1],
+			arrowAtTop: (aRect.top - pRect.top) < pRect.height / 2,
+			labelAtTop: (lRect.top + lRect.height / 2 - pRect.top) < pRect.height / 2,
+			reasonLabel: labelFor('connector_2_11'),
+			objectionLabel: labelFor('connector_2_21'),
+			themeAttr: window.__because.engine.mapModel.getIdea().attr.theme
+		};
+	});
+	ok(upState.width === '4', `High-impact upward: thicker connector/bracket stroke (${upState.width})`);
+	ok(upState.arrows === 2, `High-impact upward: arrows on both group connectors (${upState.arrows})`);
+	ok(upState.pointsUp, 'upward arrowheads point up');
+	ok(upState.arrowAtTop, 'upward arrowhead sits at the parent-claim end of the connector');
+	ok(upState.labelAtTop, 'upward label hangs below the parent claim, not above the bracket');
+	ok(upState.reasonLabel === 'Therefore' && upState.objectionLabel === 'Therefore, it is false that',
+		`reasons say Therefore, objections say Therefore-it-is-false-that (${upState.reasonLabel}/${upState.objectionLabel})`);
+	ok(upState.themeAttr === 'argMappingHighImpactUpward', 'upward theme choice is recorded in the map');
 	await clickMenu('View', 'Theme: Simple');
 	await sleep(800);
 	ok(await page.evaluate(() =>

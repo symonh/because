@@ -8,11 +8,17 @@ module.exports = function calcLabelCenterPoint(connectionPosition, fromBox, toBo
 	const labelPosition = labelTheme.position || {};
 
 	pathElement.attr('d', d);
-	if (labelPosition.aboveEnd) {
+	/* LOCAL PATCH: `belowStart` mirrors `aboveEnd` — the label hangs a fixed
+	   offset below the PARENT's base (the start of the path) instead of
+	   sitting above the child's top, for the upward high-impact theme whose
+	   "Therefore" labels belong next to the parent claim. */
+	if (labelPosition.aboveEnd || labelPosition.belowStart) {
 		const middleToBox = toBox.left + (toBox.width / 2) - connectionPosition.left,
 			middleFromBox = fromBox.left + (fromBox.width / 2) - connectionPosition.left,
 			multiplier = labelPosition.ratio || 1,
-			y = toBox.top - connectionPosition.top - labelPosition.aboveEnd,
+			y = labelPosition.aboveEnd ?
+				toBox.top - connectionPosition.top - labelPosition.aboveEnd :
+				fromBox.top + fromBox.height - connectionPosition.top + labelPosition.belowStart,
 			path = pathElement[0],
 			total = path.getTotalLength ? path.getTotalLength() : 0;
 		/* LOCAL PATCH: the linear interpolation between the two node centres

@@ -118,7 +118,7 @@ export function makeLabelEdit(engine) {
 				pc = (content && content.getAttrById &&
 					content.getAttrById(connector.to, 'parentConnector')) || {},
 				// no explicit override yet: step from the width the theme is
-				// actually drawing (3 in Simple, 4 in High impact)
+				// actually drawing (3 in Simple, 4 in the high-impact themes)
 				g = document.getElementById(connectorDomId(connector)),
 				path = g && g.querySelector('path.mapjs-connector'),
 				rendered = path && parseFloat(path.getAttribute('stroke-width')),

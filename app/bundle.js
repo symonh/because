@@ -16530,8 +16530,8 @@
         labelTheme = labelTheme || defaultTheme.connector.default.label;
         const labelPosition = labelTheme.position || {};
         pathElement.attr("d", d);
-        if (labelPosition.aboveEnd) {
-          const middleToBox = toBox.left + toBox.width / 2 - connectionPosition.left, middleFromBox = fromBox.left + fromBox.width / 2 - connectionPosition.left, multiplier = labelPosition.ratio || 1, y = toBox.top - connectionPosition.top - labelPosition.aboveEnd, path = pathElement[0], total = path.getTotalLength ? path.getTotalLength() : 0;
+        if (labelPosition.aboveEnd || labelPosition.belowStart) {
+          const middleToBox = toBox.left + toBox.width / 2 - connectionPosition.left, middleFromBox = fromBox.left + fromBox.width / 2 - connectionPosition.left, multiplier = labelPosition.ratio || 1, y = labelPosition.aboveEnd ? toBox.top - connectionPosition.top - labelPosition.aboveEnd : fromBox.top + fromBox.height - connectionPosition.top + labelPosition.belowStart, path = pathElement[0], total = path.getTotalLength ? path.getTotalLength() : 0;
           if (total > 0) {
             const start = path.getPointAtLength(0), end = path.getPointAtLength(total);
             if (start.y < end.y && y > start.y && y < end.y) {
@@ -16856,7 +16856,11 @@
         result.width = calculatedConnector.connectorTheme.line.width;
         result.theme = calculatedConnector.connectorTheme;
         if (calculatedConnector.connectorTheme.arrow && calculatedConnector.connectorTheme.type !== "no-connector") {
-          result.arrows = [arrowPath(
+          result.arrows = calculatedConnector.connectorTheme.arrow === "from" ? [arrowPath(
+            { x: calculatedConnector.from.x, y: calculatedConnector.from.y + 20 },
+            calculatedConnector.from,
+            position
+          )] : [arrowPath(
             { x: calculatedConnector.to.x, y: calculatedConnector.to.y - 20 },
             calculatedConnector.to,
             position

@@ -64,7 +64,7 @@ GA4 is the replacement and its web streams use `G-…` measurement ids.
 | `edit_batch` | `changes` | batched count of model changes, flushed when the tab hides and every 2 minutes — measures editing intensity without per-keystroke events |
 | `connector_action` | `action` (`stronger`, `weaker`, `label_edit`, `label_set`, `label_cleared`), `has_label` | connector popover and label editing |
 | `node_style` | `action` (`popover_open`, `background_swatch`, `background_custom`, `background_clear`), `swatch`, `method` | right-click style popover |
-| `theme_select` | `theme` (`simple`, `high_impact`) | View-menu theme switch |
+| `theme_select` | `theme` (`simple`, `high_impact`, `high_impact_upward`) | View-menu theme switch |
 | `dark_mode_toggle` | `enabled` (`on`/`off`) | any dark-mode toggle (also kept as the `dark_mode` user property) |
 | `intro_shown` / `intro_dismissed` | `trigger` (`first_visit`, `menu`); `dont_show_again` (`yes`/`no`) | welcome modal |
 | `help_open` | `panel` (`shortcuts`, `about`, `drive_setup`, `onedrive_setup`) | Help panels |

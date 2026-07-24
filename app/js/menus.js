@@ -84,10 +84,14 @@ export function buildMenus(el, commands, io, engine, drive, onedrive, darkMode, 
 				track('theme_select', { theme: 'simple' });
 				engine.setThemeByName('argMappingSimple');
 			}, { radio: engine.getThemeName() === 'argMappingSimple' }],
-			[(engine.getThemeName() === 'argMappingHighImpact' ? '✓ ' : '') + 'Theme: High impact (Because / But, arrows)', () => {
+			[(engine.getThemeName() === 'argMappingHighImpact' ? '✓ ' : '') + 'Theme: High-impact downward (Because / But, arrows down)', () => {
 				track('theme_select', { theme: 'high_impact' });
 				engine.setThemeByName('argMappingHighImpact');
-			}, { radio: engine.getThemeName() === 'argMappingHighImpact' }]
+			}, { radio: engine.getThemeName() === 'argMappingHighImpact' }],
+			[(engine.getThemeName() === 'argMappingHighImpactUpward' ? '✓ ' : '') + 'Theme: High-impact upward (Therefore, arrows up)', () => {
+				track('theme_select', { theme: 'high_impact_upward' });
+				engine.setThemeByName('argMappingHighImpactUpward');
+			}, { radio: engine.getThemeName() === 'argMappingHighImpactUpward' }]
 		]],
 		['Argument Visualization', () => [
 			['Toggle implicit claim (T)', commands.toggleImplicit],

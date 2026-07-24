@@ -19,6 +19,14 @@ recorded in `vendor/mapjs/LOCAL-PATCHES.diff`:
   rounded default; the argument-mapping theme's `opposing-group` style uses
   it, so an objection's bracket is square while a reason's stays rounded
   (a non-color cue, not part of the verbatim MindMup theme extraction).
+  A connector style can also set `arrow` (drawn via `theme/arrow-path.js`,
+  extracted from `theme/link.js`): `'to'` puts the head at the child end
+  pointing down into the group (High-impact downward), `'from'` puts it at
+  the parent end pointing up into the claim (High-impact upward).
+- `calc-label-center-point.js` — `aboveEnd` labels sit on the actual curve
+  at label height (binary search) instead of a node-centre interpolation;
+  new `belowStart` position hangs the label a fixed offset below the
+  parent's base (the upward theme's "Therefore" labels).
 
 ## Build
 

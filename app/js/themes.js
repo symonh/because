@@ -1,8 +1,10 @@
 /*
  * Authentic MindMup argument-mapping theme, extracted verbatim from a .mup
  * file saved by the MindMup product (files embed their resolved theme JSON).
- * argMappingHighImpact = the same theme plus default connector labels
- * ("because..." / "but...").
+ * argMappingHighImpact ("High-impact downward") = the same theme plus default
+ * connector labels ("Because" / "But") and down arrowheads;
+ * argMappingHighImpactUpward flips the reading: up arrowheads into the
+ * parent claim, labelled "Therefore" / "Therefore, it is false that".
  *
  * One deliberate departure from the verbatim extraction: opposing-group
  * carries "squareCorners" (a local key the connector.js LOCAL PATCH reads),
@@ -556,9 +558,28 @@ export const argMappingHighImpact = (() => {
 	return t;
 })();
 
+export const argMappingHighImpactUpward = (() => {
+	const t = JSON.parse(JSON.stringify(argMappingSimple));
+	t.name = 'MindMup Top Down Argument Mapping (high impact upward)';
+	// same weight as the downward high-impact theme, but the arrowheads point
+	// up into the claim being supported/attacked and the labels read
+	// premises-first ("Therefore" / "Therefore, it is false that"), hanging
+	// below the parent claim (belowStart) instead of above the bracket
+	['supporting-group', 'opposing-group'].forEach(k => {
+		t.connector[k].line.width = 4;
+		t.connector[k].arrow = 'from';
+		t.connector[k].label.position = {belowStart: 35, ratio: 0.2};
+	});
+	t.connector['supporting-group'].label.defaultText = 'Therefore';
+	t.connector['opposing-group'].label.defaultText = 'Therefore, it is false that';
+	t.connectorEditingContext.defaults.width = 4;
+	return t;
+})();
+
 const registry = {
 	argMappingSimple: argMappingSimple,
-	argMappingHighImpact: argMappingHighImpact
+	argMappingHighImpact: argMappingHighImpact,
+	argMappingHighImpactUpward: argMappingHighImpactUpward
 };
 
 // .mup files either embed their resolved theme (top-level "theme" key) or

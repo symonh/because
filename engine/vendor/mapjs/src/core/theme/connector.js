@@ -131,15 +131,24 @@ const _ = require('underscore'),
 		result.color = calculatedConnector.connectorTheme.line.color;
 		result.width = calculatedConnector.connectorTheme.line.width;
 		result.theme = calculatedConnector.connectorTheme;
-		/* LOCAL PATCH: arrowhead at the `to` end, pointing straight down
-		   into the child — the top-down S-curves land vertically on the
-		   child's top edge, so a vertical head matches the incoming line */
+		/* LOCAL PATCH: theme-driven arrowheads. Default ('to'): head at the
+		   `to` end, pointing straight down into the child — the top-down
+		   S-curves land vertically on the child's top edge, so a vertical
+		   head matches the incoming line. 'from': head at the `from` end,
+		   pointing straight up into the parent (the curves leave the parent
+		   base vertically too) — the upward/"therefore" reading. */
 		if (calculatedConnector.connectorTheme.arrow && calculatedConnector.connectorTheme.type !== 'no-connector') {
-			result.arrows = [arrowPath(
-				{x: calculatedConnector.to.x, y: calculatedConnector.to.y - 20},
-				calculatedConnector.to,
-				position
-			)];
+			result.arrows = calculatedConnector.connectorTheme.arrow === 'from' ?
+				[arrowPath(
+					{x: calculatedConnector.from.x, y: calculatedConnector.from.y + 20},
+					calculatedConnector.from,
+					position
+				)] :
+				[arrowPath(
+					{x: calculatedConnector.to.x, y: calculatedConnector.to.y - 20},
+					calculatedConnector.to,
+					position
+				)];
 		}
 		return result;
 	};
