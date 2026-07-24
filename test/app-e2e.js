@@ -487,6 +487,54 @@ function ok(cond, name) {
 	ok(await page.evaluate(() => !document.body.classList.contains('dark')),
 		'dark mode toggles back to light');
 
+	// Shift+T is the keyboard path to the same view preference. Bare t
+	// toggles the selection, so the two must not be confused: this presses
+	// both, from the map, and checks each did only its own job.
+	await page.click('.mapjs-node');
+	await new Promise(r => setTimeout(r, 200));
+	const beforeShiftT = await page.evaluate(() => ({
+		implicit: !!document.querySelector('.mapjs-node.attr_implicit_claim'),
+		map: window.__because.engine.serialize()
+	}));
+	await page.keyboard.down('Shift');
+	await page.keyboard.press('T');
+	await page.keyboard.up('Shift');
+	await new Promise(r => setTimeout(r, 300));
+	const afterShiftT = await page.evaluate(() => ({
+		dark: document.body.classList.contains('dark'),
+		implicit: !!document.querySelector('.mapjs-node.attr_implicit_claim'),
+		map: window.__because.engine.serialize(),
+		toggleHint: document.getElementById('theme-toggle').title,
+		toggleName: document.getElementById('theme-toggle').getAttribute('aria-label')
+	}));
+	ok(afterShiftT.dark, 'Shift+T switches to dark mode from the map');
+	ok(afterShiftT.implicit === beforeShiftT.implicit && afterShiftT.map === beforeShiftT.map,
+		'Shift+T leaves the map untouched — it is not bare t, and no data changes');
+	ok(afterShiftT.toggleHint === 'Switch to light mode (Shift+T)' &&
+		afterShiftT.toggleName === 'Switch to light mode',
+		`the topbar button advertises the key in its tooltip only (${afterShiftT.toggleHint})`);
+	await page.keyboard.down('Shift');
+	await page.keyboard.press('T');
+	await page.keyboard.up('Shift');
+	await new Promise(r => setTimeout(r, 300));
+	ok(await page.evaluate(() => !document.body.classList.contains('dark')),
+		'Shift+T switches back to light');
+	// while a claim is being edited it is just a capital T
+	await page.keyboard.press('F2');
+	await new Promise(r => setTimeout(r, 300));
+	await page.keyboard.down('Shift');
+	await page.keyboard.press('T');
+	await page.keyboard.up('Shift');
+	await new Promise(r => setTimeout(r, 250));
+	const whileEditing = await page.evaluate(() => ({
+		dark: document.body.classList.contains('dark'),
+		text: (document.querySelector('[data-mapjs-role=title]') || {}).textContent
+	}));
+	await page.keyboard.press('Escape');
+	await new Promise(r => setTimeout(r, 250));
+	ok(!whileEditing.dark && (whileEditing.text || '').indexOf('T') >= 0,
+		`Shift+T types a T while editing a claim instead of flipping the theme (${JSON.stringify(whileEditing.text)})`);
+
 	// keyboard-layout independence (kept last so it can't shift the timing of
 	// the checks above): ⌘C/⌘V/⌘Z must follow the CHARACTER, not the physical
 	// QWERTY key. On Colemak-DH / Dvorak the c/v/z characters are typed from

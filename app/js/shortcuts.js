@@ -7,6 +7,7 @@
  *   T (or Alt+T)  toggle reason/objection (bracket) or implicit/explicit (claim)
  *   Alt+N  add sticky note
  *   z / Shift+z  zoom in / out
+ *   Shift+t  dark mode on / off (a view preference; map data is untouched)
  *   ⌘B / ⌘I / ⌘U  bold / italic / underline the selected claim's title
  *   (inside the text editor the same keys format the text selection)
  *   ⌘C / ⌘V  copy the selected claim + its subtree; paste it as a reason
@@ -95,6 +96,10 @@ export function bindShortcuts(engine, commands) {
 			command = commands.zoomIn;
 		} else if (e.shiftKey && !e.altKey && !e.metaKey && !e.ctrlKey && e.key === 'Z') {
 			command = commands.zoomOut;
+		} else if (e.shiftKey && !e.altKey && !e.metaKey && !e.ctrlKey && e.key === 'T') {
+			// shifted T is free: bare t (toggle the selection) tests for the
+			// lower-case character, so it never sees this one
+			command = commands.toggleDarkMode;
 		}
 		if (command) {
 			e.preventDefault();

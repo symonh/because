@@ -37,8 +37,11 @@ document.addEventListener('DOMContentLoaded', function () {
 	// (the welcome modal tracks its own auto-show)
 	initAnalytics({ page: 'app' });
 
+	// dark mode is built before the commands: Shift+T toggles it through
+	// commands.toggleDarkMode, so the command set needs it in hand
 	const engine = initEngine(document.getElementById('map-container')),
-		commands = makeCommands(engine);
+		darkMode = makeDarkMode(engine),
+		commands = makeCommands(engine, darkMode);
 	initCanvasA11y(engine, document.getElementById('map-container'));
 	document.getElementById('skip-link').addEventListener('click', function (e) {
 		e.preventDefault();
@@ -59,7 +62,6 @@ document.addEventListener('DOMContentLoaded', function () {
 		io = makeFileIO(engine, status),
 		drive = makeDrive(engine, io, status),
 		onedrive = makeOneDrive(engine, io, status),
-		darkMode = makeDarkMode(engine),
 		labelEdit = makeLabelEdit(engine),
 		numberEdit = makeNumberEdit(engine),
 		nodeStyle = makeNodeStyle(engine, instrument('style_popover')),
@@ -94,7 +96,9 @@ document.addEventListener('DOMContentLoaded', function () {
 			const dark = darkMode.isDark(),
 				label = dark ? 'Switch to light mode' : 'Switch to dark mode';
 			themeToggle.innerHTML = dark ? SUN_ICON : MOON_ICON;
-			themeToggle.title = label;
+			// the key hint rides in the tooltip only: the accessible name
+			// stays the plain action, which is what gets announced
+			themeToggle.title = label + ' (Shift+T)';
 			themeToggle.setAttribute('aria-label', label);
 		};
 	themeToggle.addEventListener('click', () => darkMode.toggle());

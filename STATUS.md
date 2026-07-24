@@ -1,5 +1,23 @@
 # Because (formerly ArgumentBase) — status (2026-07-24)
 
+## 2026-07-24 — Shift+T toggles dark mode
+
+- Keyboard path for the view preference that previously had only the
+  topbar button and the View menu. Bound in shortcuts.js beside Shift+Z:
+  bare `t` (toggle the selection) tests for the lower-case character, so
+  the shifted key never reaches it, and Alt+Shift+T still means Alt+T.
+- It runs through `commands.toggleDarkMode`, so the press is tracked by
+  surface like every other key (`command`, method=shortcut) on top of the
+  existing `dark_mode_toggle` event. That meant building darkMode before
+  the command set in main.js — makeCommands takes it as a second argument.
+- The topbar button now names the key in its `title` but not its
+  `aria-label`: the accessible name stays the plain action.
+- Tests: app-e2e presses it from the map (theme flips, map data and the
+  implicit flag untouched — it is not bare t) and while editing a claim,
+  where the contenteditable guard makes it type a capital T instead; the
+  same flip in WebKit (webkit-e2e), since modified bare-letter keys are
+  where Safari has bitten before. All seven suites pass.
+
 ## 2026-07-24 — Editable claim numbers
 
 - The number badges keep computing themselves as before (level.index,

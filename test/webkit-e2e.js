@@ -236,6 +236,19 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 	await page.waitForTimeout(400);
 	ok((await badgeOf(12)).text === '2.1', '⌘Z undoes a number override in WebKit');
 
+	// ---- Shift+T flips the theme in real WebKit (a bare-letter shortcut with
+	// a modifier, which is where Safari's key handling has bitten before) ----
+	await page.mouse.click((await badgeOf(12)).x + 60, (await badgeOf(12)).y + 60);
+	await page.waitForTimeout(200);
+	await page.keyboard.press('Shift+T');
+	await page.waitForTimeout(400);
+	ok(await page.evaluate(() => document.body.classList.contains('dark')),
+		'Shift+T switches to dark mode in WebKit');
+	await page.keyboard.press('Shift+T');
+	await page.waitForTimeout(400);
+	ok(await page.evaluate(() => !document.body.classList.contains('dark')),
+		'Shift+T switches back to light in WebKit');
+
 	// ---- auto-save in WebKit: no File System Access API, so a local map
 	// has no writable target — enabling must explain itself and edits must
 	// never trigger a download (the download fallback is manual-save only)

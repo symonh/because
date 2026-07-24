@@ -22,7 +22,7 @@ const SOURCE = 'ui',
 		if (node.ideas) { Object.keys(node.ideas).forEach(k => stripPositions(node.ideas[k])); }
 	};
 
-export function makeCommands(engine) {
+export function makeCommands(engine, darkMode) {
 	// in-memory clipboard: the JSON subtree copied by the last Copy. Kept in
 	// the app layer because mapjs exposes clone/paste on content but no
 	// clipboard of its own (MindMup's cut/copy/paste lived in its closed app).
@@ -159,7 +159,10 @@ export function makeCommands(engine) {
 		zoomIn() { mapModel.scaleUp(SOURCE); },
 		zoomOut() { mapModel.scaleDown(SOURCE); },
 		zoomReset() { mapModel.resetView(SOURCE); },
-		toggleNumbering() { engine.setLabelsOn(!engine.getLabelsOn()); }
+		toggleNumbering() { engine.setLabelsOn(!engine.getLabelsOn()); },
+		// a view preference rather than an edit, but it belongs here so the
+		// Shift+T shortcut is tracked by surface like every other key
+		toggleDarkMode() { if (darkMode) { darkMode.toggle(); } }
 	};
 	return commands;
 }

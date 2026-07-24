@@ -45,6 +45,7 @@ open http://127.0.0.1:8871/app/
 | Alt+N | add sticky note |
 | arrows | navigate; F2/Space edit; Delete remove; ⌘Z/⌘⇧Z undo/redo |
 | Z / Shift+Z | zoom |
+| Shift+T | dark / light mode |
 
 ## The argument-visualization grammar
 
