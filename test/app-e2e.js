@@ -642,22 +642,60 @@ function ok(cond, name) {
 		afterLoneUndo.connectors.indexOf('connector_21_22') >= 0,
 		'one undo restores the premise and its bracket together');
 
-	// nothing to detach: the conclusion is already a root, a bracket is structure
+	// nothing to detach: the conclusion is already a root of its own
 	await page.evaluate(() => {
 		window.__because.engine.mapModel.selectNode(2);
 		document.getElementById('map-container').focus();
 	});
 	await page.keyboard.press('d');
 	await new Promise(r => setTimeout(r, 300));
+	const afterNoOp = await mapShape();
+	ok(afterNoOp.topLevel.join() === '2' && afterNoOp.parent12 === 11,
+		`D does nothing on the conclusion (${afterNoOp.topLevel.join()})`);
+
+	// on a bracket it takes the whole reason: the bracket and every premise
+	// in it. The premises are top-level claims afterwards, so they must keep
+	// their number badges, and the bracket paints the theme's own detached
+	// styling (attr_group_supporting.level_1 — a translucent green fill)
+	const numbersBefore = await page.evaluate(() => [12, 13].map(id =>
+		(document.querySelector('#node_' + id + ' .mapjs-label') || {}).textContent));
 	await page.evaluate(() => {
 		window.__because.engine.mapModel.selectNode(11);
 		document.getElementById('map-container').focus();
 	});
+	await new Promise(r => setTimeout(r, 200));
 	await page.keyboard.press('d');
-	await new Promise(r => setTimeout(r, 300));
-	const afterNoOps = await mapShape();
-	ok(afterNoOps.topLevel.join() === '2' && afterNoOps.parent12 === 11,
-		`D does nothing on the conclusion or on a bracket (${afterNoOps.topLevel.join()})`);
+	await new Promise(r => setTimeout(r, 600));
+	const afterBracket = await page.evaluate(() => {
+		const json = JSON.parse(window.__because.engine.serialize()),
+			group = json.ideas[Object.keys(json.ideas).find(k => json.ideas[k].id === 11)],
+			el = document.querySelector('#node_11');
+		return {
+			topLevel: Object.keys(json.ideas).map(k => json.ideas[k].id).sort(),
+			premises: group ? Object.keys(group.ideas).map(k => group.ideas[k].id).sort() : [],
+			position: group && (group.attr || {}).position,
+			level: el && el.getAttribute('mapjs-level'),
+			fill: el && getComputedStyle(el).backgroundColor,
+			numbers: [12, 13].map(id => (document.querySelector('#node_' + id + ' .mapjs-label') || {}).textContent),
+			connectorToParent: !!document.querySelector('#connector_2_11')
+		};
+	});
+	ok(afterBracket.topLevel.join() === '11,2' && afterBracket.premises.join() === '12,13',
+		`D on a bracket detaches the whole reason (top level ${afterBracket.topLevel.join()}, premises ${afterBracket.premises.join()})`);
+	ok(!afterBracket.connectorToParent && Array.isArray(afterBracket.position),
+		'the detached bracket loses its connector and carries a manual position');
+	ok(afterBracket.numbers.every(n => n && n.length) &&
+		afterBracket.numbers.join() !== numbersBefore.join(),
+		`its premises are numbered as the top-level claims they now are (${numbersBefore.join()} -> ${afterBracket.numbers.join()})`);
+	ok(afterBracket.level === '1' && afterBracket.fill === 'rgba(0, 255, 0, 0.2)',
+		`the detached bracket paints the theme's own level-1 fill (${afterBracket.fill})`);
+	await page.keyboard.down('Meta');
+	await page.keyboard.press('z');
+	await page.keyboard.up('Meta');
+	await new Promise(r => setTimeout(r, 600));
+	const afterBracketUndo = await mapShape();
+	ok(afterBracketUndo.topLevel.join() === '2' && afterBracketUndo.parent12 === 11,
+		'one undo puts the whole reason back under its claim');
 
 	// and it is just a letter while a claim is being edited
 	await page.evaluate(() => {

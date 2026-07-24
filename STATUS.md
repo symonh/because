@@ -1,5 +1,50 @@
 # Because (formerly ArgumentBase) — status (2026-07-24)
 
+## 2026-07-24 — D on a reason/objection; connector labels move to the middle
+
+- D used to do nothing when a bracket was selected. It now detaches the
+  whole reason or objection — the bracket and every premise in it — which
+  is what selecting a bracket means. Same engine path as before
+  (positionNodeAt with a manual position); a claim behaves as it did.
+- Two things had to follow for a detached bracket to look like anything:
+  - numbering.js walked only the content root's non-group children, so the
+    premises of a top-level bracket were never numbered and their badges
+    vanished on detach. The root is now read with `premisesOf`, the same
+    function that reads every other claim, so a detached bracket's
+    premises are numbered as the top-level claims they now are. For a map
+    with no detached bracket the walk is unchanged.
+  - the MindMup theme already styles a detached bracket —
+    `attr_group_supporting.level_1` / `attr_group_opposing.level_1`, a
+    translucent green or red fill — but it never painted. A theme's
+    COMPOUND styles reach a node only through the generated CSS
+    (`nodeStyles` resolves flat names: attr_group, level_1 …), and
+    update-node-content wrote the flat attr_group style's
+    `background-color: transparent` as an INLINE style, which shadows any
+    stylesheet rule. It no longer writes the property when the resolved
+    value is transparent, so the cascade decides. Only groups resolve to
+    transparent in these themes and their own rule says transparent too,
+    so nothing else moves.
+- Connector labels ("Because" / "But" / "Therefore") now sit halfway down
+  the connector instead of a fixed 23px above the bracket, where the
+  heavier high-impact lines put them on top of the arrowhead. New
+  `midSpan` label position in calc-label-center-point: the y is the
+  midpoint between the parent's base and the child's top, and the x still
+  comes from the existing binary search along the actual curve at that
+  height. The stock `ratio` position cannot do this — it measures along
+  the whole path, and a group connector's path carries the bracket, so
+  half its length lands on the bracket. Measured: 0px off the middle on
+  all four connectors, still 0px from the line through the label's centre,
+  6-9px clear of the arrowhead. argMappingSimple keeps MindMup's authentic
+  aboveEnd placement (the fidelity rule); only the two high-impact themes
+  changed.
+- Vendor patches recorded in LOCAL-PATCHES.diff and engine/README.md;
+  bundle rebuilt. Tests: app-e2e covers D on a bracket (whole reason
+  detached, connector gone, manual position, premises renumbered, the
+  level-1 fill actually painting, one undo restoring it) and the
+  conclusion no-op; features-e2e asserts both themes put the label at the
+  middle of the connector's span and that it no longer overlaps the
+  arrowhead. All seven suites pass.
+
 ## 2026-07-24 — D detaches a claim from the tree
 
 - `d` on a selected claim takes it, and everything beneath it, out of the

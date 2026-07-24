@@ -34,7 +34,18 @@ recorded in `vendor/mapjs/LOCAL-PATCHES.diff`:
 - `calc-label-center-point.js` — `aboveEnd` labels sit on the actual curve
   at label height (binary search) instead of a node-centre interpolation;
   new `belowStart` position hangs the label a fixed offset below the
-  parent's base (the upward theme's "Therefore" labels).
+  parent's base, and new `midSpan` puts it halfway between the parent's
+  base and the child's top — the middle of the connector, which is where
+  both high-impact themes place "Because" / "But" / "Therefore". (The
+  stock `ratio` position measures along the whole path, and a group
+  connector's path carries the bracket, so half its length lands on the
+  bracket.)
+- `update-node-content.js` — a node whose theme resolves to a transparent
+  background no longer gets that written as an inline style, which
+  shadowed the stylesheet. Compound theme styles reach a node only through
+  the generated CSS (`nodeStyles` resolves flat names), so this is what
+  lets `attr_group_supporting.level_1` paint — the MindMup theme's own
+  styling for a bracket detached from the tree.
 
 ## Build
 

@@ -117,18 +117,20 @@ export function makeCommands(engine, darkMode) {
 		},
 		editNode() { mapModel.editNode(SOURCE, false, false); },
 		deleteNode() { mapModel.removeSubIdea(SOURCE); },
-		// Take the selected claim and everything under it out of the tree: it
-		// becomes a root of its own, standing free on the canvas. This is the
-		// keyboard equivalent of dragging a claim to a blank area, and it uses
-		// the engine's own path for that (positionNodeAt with a manual
-		// position reparents to the content root and pins attr.position, the
-		// .mup's own way of recording a detached root). Groups are structure,
-		// not portable units, so a selected bracket detaches nothing.
+		// Take the selection and everything under it out of the tree: it
+		// becomes a root of its own, standing free on the canvas. On a claim
+		// that is the claim and its sub-argument; on a bracket it is the whole
+		// reason or objection — the bracket and every premise in it, which is
+		// what selecting a bracket means. This is the keyboard equivalent of
+		// dragging to a blank area and uses the engine's own path for that
+		// (positionNodeAt with a manual position reparents to the content root
+		// and pins attr.position, the .mup's own way of recording a detached
+		// root).
 		detachNode() {
 			const content = idea(),
 				node = selectedIdea(),
 				nodeId = selectedId();
-			if (!content || !node || isGroup(node)) { return; }
+			if (!content || !node) { return; }
 			const parent = findParent(nodeId);
 			// already a root of its own — nothing to come away from
 			if (!parent || parent.id === content.id) { return; }
@@ -136,7 +138,7 @@ export function makeCommands(engine, darkMode) {
 				box = layout && layout.nodes && layout.nodes[nodeId];
 			if (!box) { return; }
 			content.batch(function () {
-				// its current coordinates, so the claim itself does not jump
+				// its current coordinates, so what is detached does not jump
 				mapModel.positionNodeAt(nodeId, box.x, box.y, true);
 				// don't leave an empty bracket behind (the drag policy does the
 				// same); batched, so one undo puts the claim and its bracket back

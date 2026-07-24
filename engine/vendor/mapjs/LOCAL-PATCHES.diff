@@ -692,3 +692,46 @@ diff --git a/src/browser/update-connector-text.js b/src/browser/update-connector
 +		translate.y = Math.round((labelTheme.position && labelTheme.position.centerOnLine) ?
 +			centrePoint.y - dimensions.height / 2 :
 +			centrePoint.y - dimensions.height - 2);
+
+diff --git a/src/browser/calc-label-center-point.js b/src/browser/calc-label-center-point.js
+--- a/src/browser/calc-label-center-point.js
++++ b/src/browser/calc-label-center-point.js
+@@ label position `midSpan`: halfway down the connector
+-	if (labelPosition.aboveEnd || labelPosition.belowStart) {
++	if (labelPosition.aboveEnd || labelPosition.belowStart || labelPosition.midSpan) {
+ 		const middleToBox = ...,
+ 			middleFromBox = ...,
+ 			multiplier = labelPosition.ratio || 1,
+-			y = labelPosition.aboveEnd ?
+-				toBox.top - connectionPosition.top - labelPosition.aboveEnd :
+-				fromBox.top + fromBox.height - connectionPosition.top + labelPosition.belowStart,
++			startY = fromBox.top + fromBox.height - connectionPosition.top,
++			endY = toBox.top - connectionPosition.top,
++			y = labelPosition.midSpan ?
++				Math.round((startY + endY) / 2) :
++				(labelPosition.aboveEnd ?
++					endY - labelPosition.aboveEnd :
++					startY + labelPosition.belowStart),
+ 			path = pathElement[0],
+(`midSpan` puts the label halfway between the parent's base and the child's
+ top — "the middle of the connector". The plain `ratio` branch measures along
+ the whole path, and a group connector's path carries the bracket, so half of
+ its length lands on the bracket rather than on the curve. The x still comes
+ from the existing binary search along the actual curve at that height.)
+
+diff --git a/src/browser/update-node-content.js b/src/browser/update-node-content.js
+--- a/src/browser/update-node-content.js
++++ b/src/browser/update-node-content.js
+@@ don't shadow the stylesheet with an inline transparent background
+-			self.css({'color': nodeTheme.text.color, 'background-color': nodeTheme.backgroundColor});
++			self.css({
++				'color': nodeTheme.text.color,
++				'background-color': nodeTheme.backgroundColor === 'transparent' ? '' : nodeTheme.backgroundColor
++			});
+(A theme's COMPOUND styles reach a node only through the generated CSS —
+ nodeStyles resolves flat names (attr_group, level_1 …) — so an inline
+ `background-color: transparent` from the flat attr_group style permanently
+ shadowed `attr_group_supporting.level_1`, the MindMup theme's own styling
+ for a bracket detached from the tree (a translucent green / red fill).
+ Leaving the property unset lets the cascade through. Only groups resolve to
+ transparent in these themes, and their own rule says transparent too.)

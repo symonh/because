@@ -554,12 +554,13 @@ export const argMappingHighImpact = (() => {
 	t.connector['opposing-group'].line.width = 4;
 	t.connector['supporting-group'].arrow = 'to';
 	t.connector['opposing-group'].arrow = 'to';
-	// the connector runs through the middle of its label (which masks the line
-	// behind the text) instead of grazing its underside; the anchor rides half
-	// a label further up the curve, so the text keeps the place it had and
-	// still clears the arrowhead below it
-	t.connector['supporting-group'].label.position = {aboveEnd: 23, ratio: 0.8, centerOnLine: true};
-	t.connector['opposing-group'].label.position = {aboveEnd: 23, ratio: 0.8, centerOnLine: true};
+	// halfway along the curve, with the connector running through the middle
+	// of the text (which masks the line behind it). MindMup's own placement
+	// is a fixed offset above the bracket (aboveEnd), which on these heavier
+	// lines put the word on top of the arrowhead; the midpoint clears both
+	// ends. argMappingSimple keeps the authentic placement.
+	t.connector['supporting-group'].label.position = {midSpan: true, ratio: 0.5, centerOnLine: true};
+	t.connector['opposing-group'].label.position = {midSpan: true, ratio: 0.5, centerOnLine: true};
 	t.connectorEditingContext.defaults.width = 4;
 	return t;
 })();
@@ -569,13 +570,14 @@ export const argMappingHighImpactUpward = (() => {
 	t.name = 'MindMup Top Down Argument Mapping (high impact upward)';
 	// same weight as the downward high-impact theme, but the arrowheads point
 	// up into the claim being supported/attacked and the labels read
-	// premises-first ("Therefore" / "Therefore, it is false that"), hanging
-	// below the parent claim (belowStart) instead of above the bracket, with
-	// the line running through the middle of the text as in the downward theme
+	// premises-first ("Therefore" / "Therefore, it is false that"). Same
+	// midpoint placement as the downward theme: halfway along the curve,
+	// clear of the head at either end, with the line running through the
+	// middle of the text
 	['supporting-group', 'opposing-group'].forEach(k => {
 		t.connector[k].line.width = 4;
 		t.connector[k].arrow = 'from';
-		t.connector[k].label.position = {belowStart: 27, ratio: 0.2, centerOnLine: true};
+		t.connector[k].label.position = {midSpan: true, ratio: 0.5, centerOnLine: true};
 	});
 	t.connector['supporting-group'].label.defaultText = 'Therefore';
 	t.connector['opposing-group'].label.defaultText = 'Therefore, it is false that';

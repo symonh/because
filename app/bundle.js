@@ -16530,8 +16530,8 @@
         labelTheme = labelTheme || defaultTheme.connector.default.label;
         const labelPosition = labelTheme.position || {};
         pathElement.attr("d", d);
-        if (labelPosition.aboveEnd || labelPosition.belowStart) {
-          const middleToBox = toBox.left + toBox.width / 2 - connectionPosition.left, middleFromBox = fromBox.left + fromBox.width / 2 - connectionPosition.left, multiplier = labelPosition.ratio || 1, y = labelPosition.aboveEnd ? toBox.top - connectionPosition.top - labelPosition.aboveEnd : fromBox.top + fromBox.height - connectionPosition.top + labelPosition.belowStart, path = pathElement[0], total = path.getTotalLength ? path.getTotalLength() : 0;
+        if (labelPosition.aboveEnd || labelPosition.belowStart || labelPosition.midSpan) {
+          const middleToBox = toBox.left + toBox.width / 2 - connectionPosition.left, middleFromBox = fromBox.left + fromBox.width / 2 - connectionPosition.left, multiplier = labelPosition.ratio || 1, startY = fromBox.top + fromBox.height - connectionPosition.top, endY = toBox.top - connectionPosition.top, y = labelPosition.midSpan ? Math.round((startY + endY) / 2) : labelPosition.aboveEnd ? endY - labelPosition.aboveEnd : startY + labelPosition.belowStart, path = pathElement[0], total = path.getTotalLength ? path.getTotalLength() : 0;
           if (total > 0) {
             const start = path.getPointAtLength(0), end = path.getPointAtLength(total);
             if (start.y < end.y && y > start.y && y < end.y) {
@@ -17765,7 +17765,10 @@
           }
         }, setColors = function(colorText2) {
           self2.removeClass("mapjs-node-colortext mapjs-node-transparent");
-          self2.css({ "color": nodeTheme.text.color, "background-color": nodeTheme.backgroundColor });
+          self2.css({
+            "color": nodeTheme.text.color,
+            "background-color": nodeTheme.backgroundColor === "transparent" ? "" : nodeTheme.backgroundColor
+          });
           if (colorText2) {
             self2.addClass("mapjs-node-colortext");
           }

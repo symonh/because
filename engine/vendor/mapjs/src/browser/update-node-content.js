@@ -147,7 +147,20 @@ jQuery.fn.updateNodeContent = function (nodeContent, theme, optional) {
 		},
 		setColors = function (colorText) {
 			self.removeClass('mapjs-node-colortext mapjs-node-transparent');
-			self.css({'color': nodeTheme.text.color, 'background-color': nodeTheme.backgroundColor});
+			/* LOCAL PATCH: an inline `background-color: transparent` shadows the
+			   stylesheet, so a theme's COMPOUND styles could never paint a
+			   background — nodeStyles resolves flat style names only
+			   (attr_group, level_1 …), and a compound like
+			   `attr_group_supporting.level_1` (the MindMup theme's own styling
+			   for a bracket detached from the tree: a translucent green or red
+			   fill) reaches the node through the generated CSS alone. Leaving
+			   the property unset lets that cascade through. Only groups resolve
+			   to transparent in these themes, and their own CSS rule says
+			   transparent too, so nothing else changes. */
+			self.css({
+				'color': nodeTheme.text.color,
+				'background-color': nodeTheme.backgroundColor === 'transparent' ? '' : nodeTheme.backgroundColor
+			});
 
 			if (colorText) {
 				self.addClass('mapjs-node-colortext');

@@ -43,7 +43,7 @@ open http://127.0.0.1:8871/app/
 | Alt+O | add objection |
 | T (or Alt+T) | toggle reason/objection (on a bracket) or implicit/explicit (on a claim) |
 | Alt+N | add sticky note |
-| D | detach the selected claim, and everything under it, from the tree |
+| D | detach the selection — a claim, or a whole reason / objection — from the tree |
 | arrows | navigate; F2/Space edit; Delete remove; ⌘Z/⌘⇧Z undo/redo |
 | Z / Shift+Z | zoom |
 | Shift+T | dark / light mode |

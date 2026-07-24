@@ -392,6 +392,19 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 				return Math.round(best);
 			}()),
 			bracketOffsetFromGroupTop: Math.round(Math.abs(path.getBoundingClientRect().bottom - groupTop)),
+			// the label belongs halfway down the connector: the gap between the
+			// parent claim's base and the bracket it points at
+			labelOffMidSpan: (function () {
+				const t = document.querySelector('#connector_2_11 .mapjs-connector-text text').getBoundingClientRect(),
+					parentBottom = document.querySelector('#node_2').getBoundingClientRect().bottom,
+					childTop = document.querySelector('#node_11').getBoundingClientRect().top;
+				return Math.round(Math.abs(t.y + t.height / 2 - (parentBottom + childTop) / 2));
+			}()),
+			labelClearsArrow: (function () {
+				const t = document.querySelector('#connector_2_11 .mapjs-connector-text').getBoundingClientRect(),
+					a = document.querySelector('#connector_2_11 path.mapjs-arrow').getBoundingClientRect();
+				return !(t.left < a.right && a.left < t.right && t.top < a.bottom && a.top < t.bottom);
+			}()),
 			width: document.querySelector('#connector_2_11 path.mapjs-connector').getAttribute('stroke-width'),
 			arrows: Array.from(document.querySelectorAll('[data-mapjs-role=connector] path.mapjs-arrow'))
 				.filter(a => a.style.display !== 'none').length,
@@ -465,7 +478,14 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 				.filter(a => a.style.display !== 'none').length,
 			pointsUp: n[3] < n[1],
 			arrowAtTop: (aRect.top - pRect.top) < pRect.height / 2,
-			labelAtTop: (lRect.top + lRect.height / 2 - pRect.top) < pRect.height / 2,
+			labelOffMidSpan: (function () {
+				const t = conn.querySelector('.mapjs-connector-text text').getBoundingClientRect(),
+					parentBottom = document.querySelector('#node_2').getBoundingClientRect().bottom,
+					childTop = document.querySelector('#node_11').getBoundingClientRect().top;
+				return Math.round(Math.abs(t.y + t.height / 2 - (parentBottom + childTop) / 2));
+			}()),
+			labelClearsArrow: !(lRect.left < aRect.right && aRect.left < lRect.right &&
+				lRect.top < aRect.bottom && aRect.top < lRect.bottom),
 			reasonLabel: labelFor('connector_2_11'),
 			objectionLabel: labelFor('connector_2_21'),
 			themeAttr: window.__because.engine.mapModel.getIdea().attr.theme
@@ -483,7 +503,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 	ok(upState.baseGap <= 1.5, `the line stops at the head's base instead of running through it (${upState.baseGap}px)`);
 	ok(upState.seamKinkDeg <= 25, `head continues the line's direction at the join (${upState.seamKinkDeg}°)`);
 	ok(upState.arrowAtTop, 'upward arrowhead sits at the parent-claim end of the connector');
-	ok(upState.labelAtTop, 'upward label hangs below the parent claim, not above the bracket');
+	ok(upState.labelOffMidSpan <= 3 && impactState.labelOffMidSpan <= 3,
+		`both high-impact themes put the label halfway down the connector (${impactState.labelOffMidSpan}px / ${upState.labelOffMidSpan}px off the middle)`);
+	ok(upState.labelClearsArrow && impactState.labelClearsArrow,
+		'the label no longer sits on top of the arrowhead in either theme');
 	ok(upState.labelOnLine <= 4,
 		`the connector runs through the middle of the Therefore label (${upState.labelOnLine}px from its centre)`);
 	ok(upState.reasonLabel === 'Therefore' && upState.objectionLabel === 'Therefore, it is false that',

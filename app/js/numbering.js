@@ -42,7 +42,11 @@ export function premisesOf(n) {
 
 const generate = function (idea, withOverrides) {
 	const labels = {};
-	let level = sortedKids(idea).filter(n => !isGroupNode(n) && !isStickyNode(n)),
+	// the content root's claims: normally just the conclusion, plus anything
+	// detached from the tree. A detached reason or objection is a bracket at
+	// the top level, so premisesOf is what reads the root too — its premises
+	// are claims of their own now and are numbered like any other
+	let level = premisesOf(idea),
 		depth = 1;
 	while (level.length) {
 		let idx = 1;
