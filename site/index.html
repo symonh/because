@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Because — a free editor for argument maps</title>
 <meta name="description" content="Because is a free, browser-based editor for argument visualizations (.mup argument maps). Map the structure of an argument: conclusions, reasons, objections and co-premises.">
+<meta name="theme-color" content="#17191c">
 <!-- Google's OAuth brand-verification checker matches the consent-screen app
      name ("Because") against the machine-readable names on this page, so the
      name must appear in these tags exactly, not only in the prose. -->
@@ -26,100 +27,596 @@
 }
 </script>
 <style>
+	/* ----------------------------------------------------------------------
+	 * Dark landing page for Because. Palette is the editor's own dark mode
+	 * (app/css/app.css: canvas #1b1d20, surfaces #24272b/#2a2e33, accent
+	 * blue #22aae0/#6cc4ee, hairlines #3d4248) and the argument-map grammar
+	 * (green group = supporting reasons, red group = objection, dashed
+	 * border = implicit claim), so the page feels like the tool it opens.
+	 * -------------------------------------------------------------------- */
+	:root {
+		--bg: #17191c;
+		--bg-canvas: #1b1d20;
+		--surface: #212429;
+		--surface-2: #262a30;
+		--border: #2f343a;
+		--border-strong: #3d4248;
+		--text: #d7dbe0;
+		--text-strong: #f1f3f5;
+		--muted: #9aa1a8;
+		--accent: #5cc8f2;
+		--accent-ink: #ffffff;
+		--btn: #147aa6;
+		--btn-hover: #0f6a90;
+		--green: #45c07d;
+		--green-dim: #339966;
+		--red: #ef6f66;
+		--red-dim: #d84a4a;
+		--wire: #464c53;
+		--radius: 14px;
+		--maxw: 1080px;
+		--font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+	}
+
+	* { box-sizing: border-box; }
+
+	html { -webkit-text-size-adjust: 100%; }
+
 	body {
 		margin: 0;
-		font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-		color: #333;
-		line-height: 1.6;
-		background: #fff;
+		font-family: var(--font);
+		color: var(--text);
+		line-height: 1.65;
+		background-color: var(--bg);
+		/* soft accent glows for depth — blue near the hero, a faint green
+		 * lower down; all sit behind content and never scroll horizontally */
+		background-image:
+			radial-gradient(900px 520px at 78% -8%, rgba(34,170,224,0.16), transparent 60%),
+			radial-gradient(720px 480px at 6% 8%, rgba(69,192,125,0.10), transparent 55%),
+			radial-gradient(1100px 700px at 50% 118%, rgba(34,170,224,0.07), transparent 60%);
+		background-attachment: fixed;
+		-webkit-font-smoothing: antialiased;
+		text-rendering: optimizeLegibility;
+		overflow-x: hidden;
 	}
-	main { max-width: 720px; margin: 0 auto; padding: 48px 24px 80px; }
-	header.hero { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; }
-	h1 { font-size: 34px; margin: 0; }
-	.tagline { color: #666; font-size: 17px; margin-top: 4px; }
-	h2 { font-size: 19px; margin-top: 36px; }
-	a { color: #16749f; }
-	a:focus-visible { outline: 2px solid #16749f; outline-offset: 2px; }
-	ul { padding-left: 22px; }
+
+	a { color: var(--accent); text-decoration: none; }
+	a:hover { text-decoration: underline; }
+	a:focus-visible,
+	button:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 3px;
+		border-radius: 4px;
+	}
+
+	strong { color: var(--text-strong); font-weight: 650; }
+	code {
+		font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+		font-size: 0.86em;
+		background: var(--surface-2);
+		border: 1px solid var(--border);
+		border-radius: 5px;
+		padding: 1px 6px;
+		color: #cfe6f2;
+	}
+
+	.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+	.prose { max-width: 720px; }
+
+	/* ---- top bar ---------------------------------------------------------- */
+	.nav {
+		position: sticky;
+		top: 0;
+		z-index: 20;
+		backdrop-filter: saturate(140%) blur(10px);
+		-webkit-backdrop-filter: saturate(140%) blur(10px);
+		background: rgba(23,25,28,0.72);
+		border-bottom: 1px solid var(--border);
+	}
+	.nav-inner {
+		max-width: var(--maxw);
+		margin: 0 auto;
+		padding: 12px 24px;
+		display: flex;
+		align-items: center;
+		gap: 12px;
+	}
+	.brand { display: flex; align-items: center; gap: 10px; color: var(--text-strong); }
+	.brand svg { display: block; }
+	.brand-name { font-weight: 700; font-size: 18px; letter-spacing: -0.01em; }
+	.nav-links { margin-left: auto; display: flex; align-items: center; gap: 20px; }
+	.nav-links a { color: var(--muted); font-size: 15px; }
+	.nav-links a:hover { color: var(--text-strong); text-decoration: none; }
+	.nav-links .nav-cta {
+		color: var(--text-strong);
+		border: 1px solid var(--border-strong);
+		border-radius: 8px;
+		padding: 7px 14px;
+		background: var(--surface);
+	}
+	.nav-links .nav-cta:hover { border-color: var(--accent); color: #fff; }
+
+	/* ---- hero ------------------------------------------------------------- */
+	.hero {
+		display: grid;
+		grid-template-columns: 1.05fr 1fr;
+		gap: 56px;
+		align-items: center;
+		padding: 84px 0 72px;
+	}
+	.hero-copy h1 {
+		font-size: 58px;
+		line-height: 1.02;
+		letter-spacing: -0.03em;
+		margin: 0 0 14px;
+		color: var(--text-strong);
+	}
+	.hero-copy .tagline {
+		font-size: 21px;
+		line-height: 1.45;
+		color: var(--muted);
+		margin: 0 0 30px;
+		max-width: 30ch;
+	}
+	.hero-copy .tagline strong { color: var(--text); font-weight: 600; }
+
+	.actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 	.cta {
-		display: inline-block;
-		background: #16749f;
-		color: #fff;
-		text-decoration: none;
+		display: inline-flex;
+		align-items: center;
+		gap: 9px;
+		background: var(--btn);
+		color: var(--accent-ink);
 		font-size: 16px;
-		padding: 11px 26px;
-		border-radius: 7px;
-		margin: 18px 0 6px;
+		font-weight: 650;
+		padding: 13px 26px;
+		border-radius: 10px;
+		box-shadow: 0 1px 0 rgba(255,255,255,0.12) inset,
+		            0 10px 26px -10px rgba(34,170,224,0.55);
+		transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 	}
-	.cta:hover { background: #11577a; }
-	.note { color: #6e6e6e; font-size: 13px; }
-	.legend { list-style: none; padding: 0; }
-	.legend li { margin: 6px 0; }
-	.chip {
-		display: inline-block;
-		width: 26px;
-		height: 0;
-		border-top: 3px solid #339966;
-		vertical-align: middle;
-		margin-right: 8px;
+	.cta:hover {
+		background: var(--btn-hover);
+		text-decoration: none;
+		transform: translateY(-1px);
+		box-shadow: 0 1px 0 rgba(255,255,255,0.12) inset,
+		            0 14px 30px -10px rgba(34,170,224,0.6);
 	}
-	.chip.red { border-top-color: #ff0000; }
-	.chip.dashed { border-top: 2px dashed #707070; }
-	footer { margin-top: 48px; border-top: 1px solid #eee; padding-top: 16px; font-size: 14px; color: #6e6e6e; }
-	footer a { margin-right: 16px; }
+	.cta svg { transition: transform 0.15s ease; }
+	.cta:hover svg { transform: translateX(3px); }
+	.cta-sub { color: var(--muted); font-size: 14px; }
+
+	.note {
+		margin: 26px 0 0;
+		color: var(--muted);
+		font-size: 14.5px;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.note svg { flex: none; color: var(--green); }
+
+	/* ---- hero map (a small argument map, rendered as the editor draws it) - */
+	.canvas {
+		position: relative;
+		background: var(--bg-canvas);
+		border: 1px solid var(--border-strong);
+		border-radius: var(--radius);
+		box-shadow: 0 30px 70px -30px rgba(0,0,0,0.75),
+		            0 0 0 1px rgba(255,255,255,0.02) inset;
+		overflow: hidden;
+	}
+	/* faint dotted grid, like the map canvas */
+	.canvas .grid {
+		position: absolute;
+		inset: 0;
+		background-image: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1.4px);
+		background-size: 18px 18px;
+		pointer-events: none;
+	}
+	.canvas-bar {
+		position: relative;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 9px 13px;
+		background: #24272b;
+		border-bottom: 1px solid #34383d;
+		font-size: 12.5px;
+		color: var(--muted);
+	}
+	.canvas-bar .file { color: #c3c8cd; }
+	.canvas-bar .moon { margin-left: auto; color: #8b9198; display: flex; }
+
+	.map { position: relative; padding: 30px 26px 34px; }
+	.node {
+		background: #ffffff;
+		color: #1b1d20;
+		border: 1px solid #c9ced4;
+		border-radius: 9px;
+		padding: 9px 13px;
+		font-size: 14px;
+		font-weight: 550;
+		line-height: 1.3;
+		text-align: center;
+		box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+	}
+	.node.implicit { border-style: dashed; border-color: #8a9299; }
+	.node.root {
+		background: #22aae0;
+		border-color: #1c93c4;
+		color: #ffffff;
+		font-weight: 650;
+		box-shadow: 0 4px 14px -2px rgba(34,170,224,0.6);
+	}
+
+	.map .conclusion { max-width: 300px; margin: 0 auto; }
+	.trunk { width: 2px; height: 22px; background: var(--wire); margin: 0 auto; }
+
+	.branches {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 20px;
+		position: relative;
+	}
+	/* the rail joining the two branch stems back to the trunk */
+	.branches::before {
+		content: "";
+		position: absolute;
+		top: 0;
+		left: 25%;
+		right: 25%;
+		height: 2px;
+		background: var(--wire);
+	}
+	.branch { display: flex; flex-direction: column; align-items: stretch; }
+	.branch .stem { width: 2px; height: 18px; margin: 0 auto; }
+	.branch.support .stem { background: var(--green); }
+	.branch.object .stem { background: var(--red); }
+
+	.group {
+		border-radius: 12px;
+		padding: 10px 10px 12px;
+		border: 1.5px solid;
+	}
+	.group.support {
+		background: rgba(69,192,125,0.13);
+		border-color: rgba(69,192,125,0.65);
+	}
+	.group.object {
+		background: rgba(239,111,102,0.13);
+		border-color: rgba(239,111,102,0.6);
+	}
+	.glabel {
+		font-size: 10.5px;
+		font-weight: 700;
+		letter-spacing: 0.09em;
+		text-transform: uppercase;
+		margin: 0 2px 9px;
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+	.group.support .glabel { color: var(--green); }
+	.group.object .glabel { color: var(--red); }
+	.group .node + .node { margin-top: 9px; }
+
+	/* ---- generic section -------------------------------------------------- */
+	section { padding: 30px 0; }
+	.eyebrow {
+		font-size: 12.5px;
+		font-weight: 700;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: var(--accent);
+		margin: 0 0 12px;
+	}
+	h2 {
+		font-size: 30px;
+		line-height: 1.2;
+		letter-spacing: -0.02em;
+		color: var(--text-strong);
+		margin: 0 0 18px;
+	}
+	.prose p { margin: 0 0 18px; font-size: 17px; }
+
+	.divider { height: 1px; background: var(--border); border: 0; margin: 8px 0; max-width: var(--maxw); }
+
+	/* ---- legend (the map's visual grammar) -------------------------------- */
+	.legend {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 16px;
+		margin-top: 26px;
+	}
+	.legend-card {
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: 12px;
+		padding: 18px 18px 16px;
+	}
+	.legend-swatch {
+		height: 44px;
+		border-radius: 8px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 13px;
+	}
+	.legend-swatch .mini {
+		background: #fff;
+		color: #1b1d20;
+		font-size: 11px;
+		font-weight: 600;
+		padding: 4px 10px;
+		border-radius: 6px;
+		border: 1px solid #c9ced4;
+	}
+	.sw-green { background: rgba(69,192,125,0.13); border: 1.5px solid rgba(69,192,125,0.65); }
+	.sw-red { background: rgba(239,111,102,0.13); border: 1.5px solid rgba(239,111,102,0.6); }
+	.sw-dashed { background: transparent; }
+	.sw-dashed .mini { border-style: dashed; border-color: #8a9299; }
+	.legend-card h3 { margin: 0 0 4px; font-size: 15.5px; color: var(--text-strong); }
+	.legend-card p { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.5; }
+
+	/* ---- feature cards ---------------------------------------------------- */
+	.features {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 20px;
+		margin-top: 30px;
+	}
+	.feature {
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: 14px;
+		padding: 24px 22px;
+		transition: border-color 0.15s ease, transform 0.15s ease, background 0.15s ease;
+	}
+	.feature:hover {
+		border-color: var(--border-strong);
+		background: var(--surface-2);
+		transform: translateY(-2px);
+	}
+	.feature .icon {
+		width: 42px;
+		height: 42px;
+		border-radius: 10px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: rgba(34,170,224,0.12);
+		color: var(--accent);
+		margin-bottom: 16px;
+	}
+	.feature h3 { margin: 0 0 8px; font-size: 17px; color: var(--text-strong); }
+	.feature p { margin: 0; font-size: 15px; color: var(--muted); line-height: 1.6; }
+	.feature code { font-size: 0.82em; }
+
+	/* ---- about / closing -------------------------------------------------- */
+	.about {
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: 16px;
+		padding: 34px 36px;
+		margin-top: 12px;
+		position: relative;
+		overflow: hidden;
+	}
+	.about::before {
+		content: "";
+		position: absolute;
+		left: 0; top: 0; bottom: 0;
+		width: 4px;
+		background: linear-gradient(var(--green), var(--accent));
+	}
+	.about p { margin: 0 0 16px; font-size: 16.5px; }
+	.about p:last-child { margin-bottom: 0; }
+	.about .lead { color: var(--text-strong); font-size: 18px; }
+
+	/* ---- footer ----------------------------------------------------------- */
+	footer {
+		margin-top: 72px;
+		border-top: 1px solid var(--border);
+		background: rgba(0,0,0,0.15);
+	}
+	.foot-inner {
+		max-width: var(--maxw);
+		margin: 0 auto;
+		padding: 34px 24px 44px;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 10px 22px;
+		font-size: 14px;
+		color: var(--muted);
+	}
+	.foot-inner .brand { margin-right: 8px; }
+	.foot-inner a { color: var(--muted); }
+	.foot-inner a:hover { color: var(--text-strong); }
+	.foot-copy { width: 100%; margin-top: 4px; color: #7d848b; font-size: 13.5px; }
+	.foot-copy a { color: #8f969d; }
+
+	/* ---- entrance (respecting reduced motion) ----------------------------- */
+	@media (prefers-reduced-motion: no-preference) {
+		.reveal { opacity: 0; transform: translateY(14px); animation: rise 0.6s ease forwards; }
+		.hero-copy { animation-delay: 0.02s; }
+		.canvas { animation-delay: 0.12s; }
+		@keyframes rise { to { opacity: 1; transform: none; } }
+	}
+
+	/* ---- responsive ------------------------------------------------------- */
+	@media (max-width: 900px) {
+		.hero { grid-template-columns: 1fr; gap: 40px; padding: 56px 0 48px; }
+		.hero-copy h1 { font-size: 46px; }
+		.hero-copy .tagline { max-width: none; }
+		.canvas { max-width: 460px; }
+	}
+	@media (max-width: 760px) {
+		.legend { grid-template-columns: 1fr; }
+		.features { grid-template-columns: 1fr; }
+	}
+	@media (max-width: 560px) {
+		.hero-copy h1 { font-size: 38px; }
+		.nav-links a:not(.nav-cta) { display: none; }
+		.about { padding: 26px 22px; }
+		h2 { font-size: 25px; }
+	}
 </style>
 </head>
 <body>
-<main>
-	<header class="hero">
-		<svg viewBox="0 0 24 24" width="44" height="44" aria-hidden="true"><rect x="7" y="2" width="10" height="6" rx="1.5" fill="#fff" stroke="#707070"/><path d="M12 8v3" stroke="#339966" stroke-width="2"/><path d="M3 12h18M3 12q0 2.5 2.5 2.5M21 12q0 2.5-2.5 2.5" stroke="#339966" stroke-width="2" fill="none"/><rect x="2" y="16" width="8" height="6" rx="1.5" fill="#fff" stroke="#707070"/><rect x="14" y="16" width="8" height="6" rx="1.5" fill="#fff" stroke="#707070" stroke-dasharray="2.5,1.6"/></svg>
-		<div>
+<nav class="nav">
+	<div class="nav-inner">
+		<span class="brand">
+			<svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24"><rect x="7" y="2" width="10" height="6" rx="1.5" fill="#fff" stroke="#707070"/><path d="M12 8v3" stroke="#339966" stroke-width="2"/><path d="M3 12h18M3 12q0 2.5 2.5 2.5M21 12q0 2.5-2.5 2.5" stroke="#339966" stroke-width="2" fill="none"/><rect x="2" y="16" width="8" height="6" rx="1.5" fill="#fff" stroke="#707070"/><rect x="14" y="16" width="8" height="6" rx="1.5" fill="#fff" stroke="#707070" stroke-dasharray="2.5,1.6"/></svg>
+			<span class="brand-name">Because</span>
+		</span>
+		<span class="nav-links">
+			<a href="#about">About</a>
+			<a href="/privacy">Privacy</a>
+			<a class="nav-cta" href="/app/">Open the editor</a>
+		</span>
+	</div>
+</nav>
+
+<main class="wrap">
+	<section class="hero">
+		<div class="hero-copy reveal">
 			<h1>Because</h1>
-			<p class="tagline">A free, browser-based editor for argument maps</p>
+			<p class="tagline">A free, browser-based editor for <strong>argument maps</strong>.</p>
+			<div class="actions">
+				<a class="cta" href="/app/">
+					Open the editor
+					<svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+				</a>
+				<span class="cta-sub">No sign-up, nothing to install.</span>
+			</div>
+			<p class="note">
+				<svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg>
+				Your maps stay on your device or in your own Google&nbsp;Drive.
+			</p>
 		</div>
-	</header>
 
-	<a class="cta" href="/app/">Open the editor</a>
-	<p class="note">No account needed. Your maps stay on your device or in your own Google&nbsp;Drive.</p>
+		<div class="canvas reveal" aria-hidden="true">
+			<div class="grid"></div>
+			<div class="canvas-bar">
+				<svg viewBox="0 0 24 24" width="15" height="15"><rect x="7" y="2" width="10" height="6" rx="1.5" fill="#fff" stroke="#707070"/><path d="M12 8v3" stroke="#339966" stroke-width="2"/><path d="M3 12h18M3 12q0 2.5 2.5 2.5M21 12q0 2.5-2.5 2.5" stroke="#339966" stroke-width="2" fill="none"/><rect x="2" y="16" width="8" height="6" rx="1.5" fill="#fff" stroke="#707070"/><rect x="14" y="16" width="8" height="6" rx="1.5" fill="#fff" stroke="#707070" stroke-dasharray="2.5,1.6"/></svg>
+				<span class="file">public-museums.mup</span>
+				<span class="moon"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></span>
+			</div>
+			<div class="map">
+				<div class="node root conclusion">Public museums should stay free to enter</div>
+				<div class="trunk"></div>
+				<div class="branches">
+					<div class="branch support">
+						<div class="stem"></div>
+						<div class="group support">
+							<div class="glabel">Supporting reasons</div>
+							<div class="node">Free entry keeps the collection open to everyone</div>
+							<div class="node implicit">A shared public good shouldn't sit behind a paywall</div>
+						</div>
+					</div>
+					<div class="branch object">
+						<div class="stem"></div>
+						<div class="group object">
+							<div class="glabel">Objection</div>
+							<div class="node">Ticket sales help fund conservation</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
 
-	<h2>What Because is for</h2>
-	<p>Because is an editor for <strong>argument visualizations</strong> —
-	diagrams that display the logic of an argument. A visualization lays out
-	a conclusion, the reasons offered for it, and the objections raised
-	against it, so you can organize and navigate complex reasoning at a
-	glance. Making the structure of an argument explicit encourages clearly
-	articulated reasoning, and it makes intricate arguments far easier to
-	discuss, evaluate, and teach.</p>
-	<p>In an argument map:</p>
-	<ul class="legend">
-		<li><span class="chip"></span>green brackets group <strong>supporting reasons</strong> — co-premises that work together</li>
-		<li><span class="chip red"></span>red brackets mark <strong>objections</strong></li>
-		<li><span class="chip dashed"></span>dashed borders mark <strong>implicit claims</strong> the author left unstated</li>
-	</ul>
+	<hr class="divider">
 
-	<h2>What you can do with it</h2>
-	<ul>
-		<li>Create and edit argument maps with keyboard-first controls, then
-		save them as <code>.mup</code> files on your device or in Google Drive.</li>
-		<li>Open existing MindMup argument maps unchanged — Because renders
-		them with the same engine MindMup used.</li>
-		<li>Print maps or save them as PDF for handouts and feedback.</li>
-	</ul>
-	<p>Because was built for teaching philosophy and critical thinking, in the
-	tradition of the argument-visualization materials at
-	<a href="https://philmaps.com">philmaps.com</a>, after the retirement of
-	the MindMup argument-visualization service. It is free to use and has no
-	accounts and no ads. Anonymous usage statistics help us improve it — your
-	map content is never collected (see the <a href="/privacy">privacy
-	policy</a>).</p>
+	<section>
+		<p class="eyebrow">What Because is for</p>
+		<h2>See the shape of an argument</h2>
+		<div class="prose">
+			<p>Because is an editor for <strong>argument visualizations</strong> —
+			diagrams that display the logic of an argument. A visualization lays out
+			a conclusion, the reasons offered for it, and the objections raised
+			against it, so you can organize and navigate complex reasoning at a
+			glance. Making the structure of an argument explicit encourages clearly
+			articulated reasoning, and it makes intricate arguments far easier to
+			discuss, evaluate, and teach.</p>
+		</div>
 
-	<footer>
+		<div class="legend">
+			<div class="legend-card">
+				<div class="legend-swatch sw-green"><span class="mini">reason</span></div>
+				<h3>Green brackets</h3>
+				<p>Group <strong>supporting reasons</strong> — co-premises that work together.</p>
+			</div>
+			<div class="legend-card">
+				<div class="legend-swatch sw-red"><span class="mini">objection</span></div>
+				<h3>Red brackets</h3>
+				<p>Mark <strong>objections</strong> raised against a claim.</p>
+			</div>
+			<div class="legend-card">
+				<div class="legend-swatch sw-dashed"><span class="mini">claim</span></div>
+				<h3>Dashed borders</h3>
+				<p>Mark <strong>implicit claims</strong> the author left unstated.</p>
+			</div>
+		</div>
+	</section>
+
+	<section>
+		<p class="eyebrow">What you can do with it</p>
+		<h2>An editor, not an account</h2>
+		<div class="features">
+			<div class="feature">
+				<div class="icon">
+					<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/></svg>
+				</div>
+				<h3>Create &amp; edit</h3>
+				<p>Build argument maps with keyboard-first controls, then save them as
+				<code>.mup</code> files on your device or in Google&nbsp;Drive.</p>
+			</div>
+			<div class="feature">
+				<div class="icon">
+					<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h6l2 2h4a2 2 0 0 1 2 2v3"/><path d="M20 13v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5"/><path d="M12 17v-6m0 0-2.5 2.5M12 11l2.5 2.5"/></svg>
+				</div>
+				<h3>Open MindMup maps</h3>
+				<p>Open existing MindMup argument maps unchanged — Because renders them
+				with the same engine MindMup used.</p>
+			</div>
+			<div class="feature">
+				<div class="icon">
+					<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="2"/><path d="M8 17h8v4H8z"/></svg>
+				</div>
+				<h3>Print &amp; export PDF</h3>
+				<p>Print maps or save them as PDF for handouts and feedback.</p>
+			</div>
+		</div>
+	</section>
+
+	<section id="about">
+		<p class="eyebrow">Where it comes from</p>
+		<div class="about">
+			<p class="lead">Because was built for teaching philosophy and critical thinking,
+			in the tradition of the argument-visualization materials at
+			<a href="https://philmaps.com">philmaps.com</a>, after the retirement of
+			the MindMup argument-visualization service.</p>
+			<p>It is free to use and has no accounts and no ads. Anonymous usage
+			statistics help us improve it — your map content is never collected
+			(see the <a href="/privacy">privacy policy</a>).</p>
+		</div>
+	</section>
+</main>
+
+<footer>
+	<div class="foot-inner">
+		<span class="brand">
+			<svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20"><rect x="7" y="2" width="10" height="6" rx="1.5" fill="#fff" stroke="#707070"/><path d="M12 8v3" stroke="#339966" stroke-width="2"/><path d="M3 12h18M3 12q0 2.5 2.5 2.5M21 12q0 2.5-2.5 2.5" stroke="#339966" stroke-width="2" fill="none"/><rect x="2" y="16" width="8" height="6" rx="1.5" fill="#fff" stroke="#707070"/><rect x="14" y="16" width="8" height="6" rx="1.5" fill="#fff" stroke="#707070" stroke-dasharray="2.5,1.6"/></svg>
+		</span>
 		<a href="/app/">Open the editor</a>
 		<a href="/privacy">Privacy policy</a>
 		<a href="/terms">Terms of service</a>
-		<span>© 2026 <a href="https://www.disagreewisely.org">Disagree Wisely, Inc.</a> · <a href="mailto:info@disagreewisely.org">info@disagreewisely.org</a></span>
-	</footer>
-</main>
+		<span class="foot-copy">© 2026 <a href="https://www.disagreewisely.org">Disagree Wisely, Inc.</a> · <a href="mailto:info@disagreewisely.org">info@disagreewisely.org</a></span>
+	</div>
+</footer>
 <script type="module">
 	// same GA4 stream as the editor (measurement id lives in one place);
 	// on this static page it only sends the page_view
