@@ -535,6 +535,144 @@ function ok(cond, name) {
 	ok(!whileEditing.dark && (whileEditing.text || '').indexOf('T') >= 0,
 		`Shift+T types a T while editing a claim instead of flipping the theme (${JSON.stringify(whileEditing.text)})`);
 
+	// ---- D detaches the selected claim and everything under it ----
+	await page.evaluate(() => {
+		window.__because.engine.loadMap({ formatVersion: 3, id: 'root', attr: { theme: 'argMappingSimple' }, ideas: {
+			1: { id: 2, title: 'Conclusion D', ideas: {
+				1: { id: 11, title: 'group', attr: { group: 'supporting', contentLocked: true }, ideas: {
+					1: { id: 12, title: 'Reason with a subtree', ideas: {
+						1: { id: 30, title: 'group', attr: { group: 'supporting', contentLocked: true }, ideas: {
+							1: { id: 31, title: 'Sub-reason' }
+						} }
+					} },
+					2: { id: 13, title: 'Co-premise' }
+				} },
+				2: { id: 21, title: 'group', attr: { group: 'opposing', contentLocked: true }, ideas: {
+					1: { id: 22, title: 'Lone objection' }
+				} }
+			} }
+		} });
+	});
+	await page.waitForFunction(() => document.querySelector('#node_31'), { timeout: 5000 });
+	await new Promise(r => setTimeout(r, 400));
+	const nodeBox = id => page.evaluate(nid => {
+			const el = document.querySelector('#node_' + nid);
+			if (!el) { return null; }
+			const r = el.getBoundingClientRect();
+			return { x: r.x, y: r.y };
+		}, id),
+		mapShape = () => page.evaluate(() => {
+			const json = JSON.parse(window.__because.engine.serialize()),
+				parentOf = function (n, id, p) {
+					if (n.id === id) { return p; }
+					for (const k of Object.keys(n.ideas || {})) {
+						const found = parentOf(n.ideas[k], id, n);
+						if (found) { return found; }
+					}
+					return null;
+				},
+				find = function (n, id) {
+					if (n.id === id) { return n; }
+					for (const k of Object.keys(n.ideas || {})) {
+						const found = find(n.ideas[k], id);
+						if (found) { return found; }
+					}
+					return null;
+				};
+			return {
+				topLevel: Object.keys(json.ideas).map(k => json.ideas[k].id).sort(),
+				parent12: (parentOf(json, 12) || {}).id,
+				parent22: (parentOf(json, 22) || {}).id,
+				position12: (find(json, 12).attr || {}).position,
+				keptSubtree: !!find(json, 31),
+				bracket21: !!find(json, 21),
+				connectors: Array.from(document.querySelectorAll('[data-mapjs-role=connector]')).map(c => c.id).sort()
+			};
+		});
+	const beforeDetach = await mapShape(),
+		box12Before = await nodeBox(12);
+	// press the key for real, from the map
+	await page.evaluate(() => {
+		window.__because.engine.mapModel.selectNode(12);
+		document.getElementById('map-container').focus();
+	});
+	await new Promise(r => setTimeout(r, 200));
+	await page.keyboard.press('d');
+	await new Promise(r => setTimeout(r, 600));
+	const afterDetach = await mapShape(),
+		box12After = await nodeBox(12);
+	ok(afterDetach.parent12 === 'root' && afterDetach.topLevel.join() === '12,2',
+		`D makes the selected claim a root of its own (parent ${beforeDetach.parent12} -> ${afterDetach.parent12})`);
+	ok(afterDetach.keptSubtree && afterDetach.connectors.indexOf('connector_12_30') >= 0,
+		'everything beneath the claim comes with it');
+	ok(afterDetach.connectors.indexOf('connector_11_12') < 0,
+		'the connector to its old bracket is gone');
+	ok(Array.isArray(afterDetach.position12) && afterDetach.position12[2] === 1,
+		`the detached claim carries a manual position (${JSON.stringify(afterDetach.position12)})`);
+	ok(Math.abs(box12After.x - box12Before.x) <= 6 && Math.abs(box12After.y - box12Before.y) <= 6,
+		`the detached claim stays where it was rather than jumping (${Math.round(box12After.x - box12Before.x)}, ${Math.round(box12After.y - box12Before.y)})`);
+	ok(afterDetach.bracket21, 'a bracket that still has premises is left alone');
+	await page.keyboard.down('Meta');
+	await page.keyboard.press('z');
+	await page.keyboard.up('Meta');
+	await new Promise(r => setTimeout(r, 600));
+	const afterUndo = await mapShape();
+	ok(afterUndo.parent12 === 11 && !afterUndo.position12 &&
+		afterUndo.connectors.indexOf('connector_11_12') >= 0,
+		'one undo puts it back under its bracket');
+
+	// the last premise of a bracket takes the empty bracket with it
+	await page.evaluate(() => {
+		window.__because.engine.mapModel.selectNode(22);
+		document.getElementById('map-container').focus();
+	});
+	await new Promise(r => setTimeout(r, 200));
+	await page.keyboard.press('d');
+	await new Promise(r => setTimeout(r, 600));
+	const afterLone = await mapShape();
+	ok(afterLone.parent22 === 'root' && !afterLone.bracket21 &&
+		afterLone.connectors.indexOf('connector_2_21') < 0,
+		'detaching a bracket\'s last premise removes the empty bracket');
+	await page.keyboard.down('Meta');
+	await page.keyboard.press('z');
+	await page.keyboard.up('Meta');
+	await new Promise(r => setTimeout(r, 600));
+	const afterLoneUndo = await mapShape();
+	ok(afterLoneUndo.parent22 === 21 && afterLoneUndo.bracket21 &&
+		afterLoneUndo.connectors.indexOf('connector_21_22') >= 0,
+		'one undo restores the premise and its bracket together');
+
+	// nothing to detach: the conclusion is already a root, a bracket is structure
+	await page.evaluate(() => {
+		window.__because.engine.mapModel.selectNode(2);
+		document.getElementById('map-container').focus();
+	});
+	await page.keyboard.press('d');
+	await new Promise(r => setTimeout(r, 300));
+	await page.evaluate(() => {
+		window.__because.engine.mapModel.selectNode(11);
+		document.getElementById('map-container').focus();
+	});
+	await page.keyboard.press('d');
+	await new Promise(r => setTimeout(r, 300));
+	const afterNoOps = await mapShape();
+	ok(afterNoOps.topLevel.join() === '2' && afterNoOps.parent12 === 11,
+		`D does nothing on the conclusion or on a bracket (${afterNoOps.topLevel.join()})`);
+
+	// and it is just a letter while a claim is being edited
+	await page.evaluate(() => {
+		window.__because.engine.mapModel.selectNode(13);
+		document.getElementById('map-container').focus();
+	});
+	await page.keyboard.press('F2');
+	await new Promise(r => setTimeout(r, 300));
+	await page.keyboard.press('d');
+	await new Promise(r => setTimeout(r, 250));
+	await page.keyboard.press('Escape');
+	await new Promise(r => setTimeout(r, 300));
+	ok((await mapShape()).topLevel.join() === '2',
+		'D types a letter while editing a claim instead of detaching it');
+
 	// keyboard-layout independence (kept last so it can't shift the timing of
 	// the checks above): ⌘C/⌘V/⌘Z must follow the CHARACTER, not the physical
 	// QWERTY key. On Colemak-DH / Dvorak the c/v/z characters are typed from

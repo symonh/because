@@ -117,6 +117,36 @@ export function makeCommands(engine, darkMode) {
 		},
 		editNode() { mapModel.editNode(SOURCE, false, false); },
 		deleteNode() { mapModel.removeSubIdea(SOURCE); },
+		// Take the selected claim and everything under it out of the tree: it
+		// becomes a root of its own, standing free on the canvas. This is the
+		// keyboard equivalent of dragging a claim to a blank area, and it uses
+		// the engine's own path for that (positionNodeAt with a manual
+		// position reparents to the content root and pins attr.position, the
+		// .mup's own way of recording a detached root). Groups are structure,
+		// not portable units, so a selected bracket detaches nothing.
+		detachNode() {
+			const content = idea(),
+				node = selectedIdea(),
+				nodeId = selectedId();
+			if (!content || !node || isGroup(node)) { return; }
+			const parent = findParent(nodeId);
+			// already a root of its own — nothing to come away from
+			if (!parent || parent.id === content.id) { return; }
+			const layout = mapModel.getCurrentLayout(),
+				box = layout && layout.nodes && layout.nodes[nodeId];
+			if (!box) { return; }
+			content.batch(function () {
+				// its current coordinates, so the claim itself does not jump
+				mapModel.positionNodeAt(nodeId, box.x, box.y, true);
+				// don't leave an empty bracket behind (the drag policy does the
+				// same); batched, so one undo puts the claim and its bracket back
+				const oldParent = content.findSubIdeaById(parent.id);
+				if (isGroup(oldParent) && !Object.keys(oldParent.ideas || {}).length) {
+					content.removeSubIdea(oldParent.id);
+				}
+			});
+			mapModel.selectNode(nodeId);
+		},
 		undo() { mapModel.undo(SOURCE); },
 		redo() { mapModel.redo(SOURCE); },
 		toggleImplicit() {

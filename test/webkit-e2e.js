@@ -249,6 +249,37 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 	ok(await page.evaluate(() => !document.body.classList.contains('dark')),
 		'Shift+T switches back to light in WebKit');
 
+	// ---- D detaches a claim in real WebKit ----
+	await page.evaluate(() => {
+		window.__because.engine.loadMap({ formatVersion: 3, id: 'root', attr: { theme: 'argMappingSimple' }, ideas: {
+			1: { id: 2, title: 'Conclusion W', ideas: {
+				1: { id: 11, title: 'group', attr: { group: 'supporting', contentLocked: true }, ideas: {
+					1: { id: 12, title: 'Reason W' },
+					2: { id: 13, title: 'Co-premise W' }
+				} }
+			} }
+		} });
+	});
+	await page.waitForSelector('#node_13', { timeout: 8000 });
+	await page.waitForTimeout(400);
+	await page.evaluate(() => {
+		window.__because.engine.mapModel.selectNode(12);
+		document.getElementById('map-container').focus();
+	});
+	await page.waitForTimeout(200);
+	await page.keyboard.press('d');
+	await page.waitForTimeout(600);
+	ok(await page.evaluate(() => {
+		const json = JSON.parse(window.__because.engine.serialize());
+		return Object.keys(json.ideas).map(k => json.ideas[k].id).sort().join() === '12,2';
+	}), 'D detaches the selected claim in WebKit');
+	await page.keyboard.press('Meta+z');
+	await page.waitForTimeout(600);
+	ok(await page.evaluate(() => {
+		const json = JSON.parse(window.__because.engine.serialize());
+		return Object.keys(json.ideas).length === 1;
+	}), '⌘Z reattaches it in WebKit');
+
 	// ---- auto-save in WebKit: no File System Access API, so a local map
 	// has no writable target — enabling must explain itself and edits must
 	// never trigger a download (the download fallback is manual-save only)

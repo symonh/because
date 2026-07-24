@@ -5,6 +5,7 @@
  *   Tab    add co-premise to selected claim
  *   Alt+O  add objection
  *   T (or Alt+T)  toggle reason/objection (bracket) or implicit/explicit (claim)
+ *   d      detach the selected claim and everything beneath it
  *   Alt+N  add sticky note
  *   z / Shift+z  zoom in / out
  *   Shift+t  dark mode on / off (a view preference; map data is untouched)
@@ -90,6 +91,8 @@ export function bindShortcuts(engine, commands) {
 			const idea = mapModel.findIdeaById(mapModel.getSelectedNodeId());
 			command = (idea && idea.attr && idea.attr.group) ?
 				commands.toggleReasonObjection : commands.toggleImplicit;
+		} else if (bare && e.key === 'd') {
+			command = commands.detachNode;
 		} else if (alt && e.code === 'KeyN') {
 			command = commands.addSticky;
 		} else if (bare && e.key === 'z') {

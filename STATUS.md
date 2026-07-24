@@ -1,5 +1,30 @@
 # Because (formerly ArgumentBase) — status (2026-07-24)
 
+## 2026-07-24 — D detaches a claim from the tree
+
+- `d` on a selected claim takes it, and everything beneath it, out of the
+  tree: it becomes a root of its own standing free on the canvas. Also
+  Edit > Detach from the tree.
+- It is the keyboard equivalent of dragging a claim to a blank area and
+  uses the engine's own path for that — `positionNodeAt(id, x, y, true)`,
+  which reparents to the content root and pins `attr.position`, the .mup's
+  own way of recording a detached root. The coordinates passed are the
+  claim's current ones (from `getCurrentLayout`), so the claim stays put
+  and the tree it left closes up around the gap; measured drift is 2px.
+- If the claim was the last premise in its bracket, the empty bracket goes
+  with it, in the same batch, so one undo restores claim, bracket and both
+  connectors (drop-policy.js does the same for the drag; empty groups are
+  invisible to the layout but would otherwise linger in the file).
+- No-ops rather than surprises: a bracket is structure, not a portable
+  unit, and the conclusion (or anything already detached) is a root
+  already.
+- Tests: app-e2e presses the key for real on a claim with a subtree
+  (reparenting, subtree kept, old connector gone, manual position written,
+  no jump), on a bracket's last premise (bracket removed, one undo
+  restores both), on the conclusion and on a bracket (no-ops), and inside
+  a title editor (types a letter); webkit-e2e covers detach + ⌘Z. All
+  seven suites pass.
+
 ## 2026-07-24 — Shift+T toggles dark mode
 
 - Keyboard path for the view preference that previously had only the
