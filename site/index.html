@@ -16,6 +16,15 @@
 <meta property="og:title" content="Because — a free editor for argument maps">
 <meta property="og:description" content="Because is a free, browser-based editor for argument visualizations (.mup argument maps).">
 <meta property="og:url" content="https://app.philmaps.com/">
+<meta property="og:image" content="https://app.philmaps.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Because — a free, browser-based editor for argument maps">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://app.philmaps.com/og.png">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.png" type="image/png" sizes="48x48">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <script type="application/ld+json">
 {
 	"@context": "https://schema.org",
@@ -61,6 +70,11 @@
 	* { box-sizing: border-box; }
 
 	html { -webkit-text-size-adjust: 100%; }
+	@media (prefers-reduced-motion: no-preference) {
+		html { scroll-behavior: smooth; }
+	}
+
+	::selection { background: rgba(34,170,224,0.38); color: #fff; }
 
 	body {
 		margin: 0;
@@ -251,28 +265,19 @@
 	}
 
 	.map .conclusion { max-width: 300px; margin: 0 auto; }
-	.trunk { width: 2px; height: 22px; background: var(--wire); margin: 0 auto; }
+
+	/* curved parent→child connectors, like the editor draws them */
+	.links { display: block; width: 100%; height: 46px; }
+	.links .link { fill: none; stroke-width: 2; stroke-linecap: round; }
+	.links .link.support { stroke: var(--green); }
+	.links .link.object { stroke: var(--red); }
 
 	.branches {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
 		gap: 20px;
-		position: relative;
-	}
-	/* the rail joining the two branch stems back to the trunk */
-	.branches::before {
-		content: "";
-		position: absolute;
-		top: 0;
-		left: 25%;
-		right: 25%;
-		height: 2px;
-		background: var(--wire);
 	}
 	.branch { display: flex; flex-direction: column; align-items: stretch; }
-	.branch .stem { width: 2px; height: 18px; margin: 0 auto; }
-	.branch.support .stem { background: var(--green); }
-	.branch.object .stem { background: var(--red); }
 
 	.group {
 		border-radius: 12px;
@@ -334,7 +339,9 @@
 		border: 1px solid var(--border);
 		border-radius: 12px;
 		padding: 18px 18px 16px;
+		transition: border-color 0.15s ease, background 0.15s ease;
 	}
+	.legend-card:hover { border-color: var(--border-strong); background: var(--surface-2); }
 	.legend-swatch {
 		height: 44px;
 		border-radius: 8px;
@@ -443,6 +450,23 @@
 		.hero-copy { animation-delay: 0.02s; }
 		.canvas { animation-delay: 0.12s; }
 		@keyframes rise { to { opacity: 1; transform: none; } }
+
+		/* the hero map assembles itself: conclusion, then the connectors,
+		 * then each group rises into place. (Connectors fade rather than
+		 * draw on: dash animation breaks under non-scaling-stroke.) */
+		.map .conclusion { opacity: 0; transform: translateY(-6px); animation: rise 0.45s ease 0.5s forwards; }
+		.links .link { opacity: 0; animation: fadein 0.45s ease forwards; }
+		.links .link.support { animation-delay: 0.85s; }
+		.links .link.object { animation-delay: 1s; }
+		.branch { opacity: 0; transform: translateY(10px); animation: rise 0.5s ease forwards; }
+		.branch.support { animation-delay: 1.05s; }
+		.branch.object { animation-delay: 1.2s; }
+		@keyframes fadein { to { opacity: 1; } }
+
+		/* sections fade up as they scroll into view (JS adds the classes;
+		 * without JS nothing is ever hidden) */
+		.will-reveal { opacity: 0; transform: translateY(16px); transition: opacity 0.55s ease, transform 0.55s ease; }
+		.will-reveal.in { opacity: 1; transform: none; }
 	}
 
 	/* ---- responsive ------------------------------------------------------- */
@@ -506,10 +530,12 @@
 			</div>
 			<div class="map">
 				<div class="node root conclusion">Public museums should stay free to enter</div>
-				<div class="trunk"></div>
+				<svg class="links" viewBox="0 0 100 46" preserveAspectRatio="none">
+					<path class="link support" d="M50 0 C50 30 25 18 25 46" vector-effect="non-scaling-stroke"/>
+					<path class="link object" d="M50 0 C50 30 75 18 75 46" vector-effect="non-scaling-stroke"/>
+				</svg>
 				<div class="branches">
 					<div class="branch support">
-						<div class="stem"></div>
 						<div class="group support">
 							<div class="glabel">Supporting reasons</div>
 							<div class="node">Free entry keeps the collection open to everyone</div>
@@ -517,7 +543,6 @@
 						</div>
 					</div>
 					<div class="branch object">
-						<div class="stem"></div>
 						<div class="group object">
 							<div class="glabel">Objection</div>
 							<div class="node">Ticket sales help fund conservation</div>
@@ -617,6 +642,23 @@
 		<span class="foot-copy">© 2026 <a href="https://www.disagreewisely.org">Disagree Wisely, Inc.</a> · <a href="mailto:info@disagreewisely.org">info@disagreewisely.org</a></span>
 	</div>
 </footer>
+<script>
+	// scroll-reveal for below-the-fold sections; skipped for reduced
+	// motion, and nothing is ever hidden if this script doesn't run
+	(() => {
+		if (!('IntersectionObserver' in window) ||
+			matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+		const io = new IntersectionObserver((entries) => {
+			for (const e of entries) {
+				if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+			}
+		}, { rootMargin: '0px 0px -8% 0px' });
+		document.querySelectorAll('main > section:not(.hero)').forEach((s) => {
+			s.classList.add('will-reveal');
+			io.observe(s);
+		});
+	})();
+</script>
 <script type="module">
 	// same GA4 stream as the editor (measurement id lives in one place);
 	// on this static page it only sends the page_view
