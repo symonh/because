@@ -400,8 +400,17 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 			pRect = path.getBoundingClientRect(),
 			aRect = arrow.getBoundingClientRect(),
 			lRect = label.getBoundingClientRect(),
-			n = arrow.getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number);
+			n = arrow.getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number),
+			// head angle must continue the curve: compare the head's direction
+			// (barb midpoint -> apex) with the path chord over its first 20px
+			// (the path starts at the parent end, where the 'from' arrow sits)
+			p0 = path.getPointAtLength(0),
+			p1 = path.getPointAtLength(20),
+			chord = Math.atan2(p1.y - p0.y, p1.x - p0.x),
+			head = Math.atan2(n[3] - (n[1] + n[5]) / 2, n[2] - (n[0] + n[4]) / 2),
+			misalignment = Math.abs((head + Math.PI - chord + Math.PI * 3) % (Math.PI * 2) - Math.PI);
 		return {
+			alignedDeg: Math.round(misalignment * 180 / Math.PI),
 			width: path.getAttribute('stroke-width'),
 			arrows: Array.from(document.querySelectorAll('[data-mapjs-role=connector] path.mapjs-arrow'))
 				.filter(a => a.style.display !== 'none').length,
@@ -416,6 +425,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 	ok(upState.width === '4', `High-impact upward: thicker connector/bracket stroke (${upState.width})`);
 	ok(upState.arrows === 2, `High-impact upward: arrows on both group connectors (${upState.arrows})`);
 	ok(upState.pointsUp, 'upward arrowheads point up');
+	ok(upState.alignedDeg <= 15, `arrowhead angle follows the curve at the join (${upState.alignedDeg}° off the chord)`);
 	ok(upState.arrowAtTop, 'upward arrowhead sits at the parent-claim end of the connector');
 	ok(upState.labelAtTop, 'upward label hangs below the parent claim, not above the bracket');
 	ok(upState.reasonLabel === 'Therefore' && upState.objectionLabel === 'Therefore, it is false that',

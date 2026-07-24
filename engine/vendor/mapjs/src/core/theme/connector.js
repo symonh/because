@@ -132,24 +132,28 @@ const _ = require('underscore'),
 		result.width = calculatedConnector.connectorTheme.line.width;
 		result.theme = calculatedConnector.connectorTheme;
 		/* LOCAL PATCH: theme-driven arrowheads. Default ('to'): head at the
-		   `to` end, pointing straight down into the child — the top-down
-		   S-curves land vertically on the child's top edge, so a vertical
-		   head matches the incoming line. 'from': head at the `from` end,
-		   pointing straight up into the parent (the curves leave the parent
-		   base vertically too) — the upward/"therefore" reading. */
+		   `to` end, pointing down into the child; 'from': head at the `from`
+		   end, pointing up into the parent — the upward/"therefore" reading.
+		   The head's angle follows the curve: line types report arrowStems
+		   (the point ~20px along the actual curve from each end) and the head
+		   is drawn along that chord, so it stays lined up when the curve
+		   swings away from vertical; without stems, fall back to a vertical
+		   head (the S-curves meet both nodes vertically at the endpoint). */
 		if (calculatedConnector.connectorTheme.arrow && calculatedConnector.connectorTheme.type !== 'no-connector') {
+			const stems = result.arrowStems || {};
 			result.arrows = calculatedConnector.connectorTheme.arrow === 'from' ?
 				[arrowPath(
-					{x: calculatedConnector.from.x, y: calculatedConnector.from.y + 20},
+					stems.from || {x: calculatedConnector.from.x, y: calculatedConnector.from.y + 20},
 					calculatedConnector.from,
 					position
 				)] :
 				[arrowPath(
-					{x: calculatedConnector.to.x, y: calculatedConnector.to.y - 20},
+					stems.to || {x: calculatedConnector.to.x, y: calculatedConnector.to.y - 20},
 					calculatedConnector.to,
 					position
 				)];
 		}
+		delete result.arrowStems;
 		return result;
 	};
 

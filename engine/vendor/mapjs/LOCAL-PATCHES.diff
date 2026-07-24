@@ -590,3 +590,54 @@ diff --git a/src/browser/calc-label-center-point.js b/src/browser/calc-label-cen
 +				toBox.top - connectionPosition.top - labelPosition.aboveEnd :
 +				fromBox.top + fromBox.height - connectionPosition.top + labelPosition.belowStart,
  			path = pathElement[0],
+
+diff --git a/src/core/theme/line-types.js b/src/core/theme/line-types.js
+--- a/src/core/theme/line-types.js
++++ b/src/core/theme/line-types.js
+@@ 'vertical-quadratic-s-curve' — report arrowStems alongside the path
+ 	'vertical-quadratic-s-curve': function (calculatedConnector, position) {
+ 		'use strict';
+-		const dx = Math.round(calculatedConnector.to.x - calculatedConnector.from.x),
++		/* LOCAL PATCH (arrowStems): alongside the path, report the point ~20px
++		   along the curve from each end (computed from the same quadratics the
++		   path is built from). Arrowheads drawn at an end use that point as
++		   their stem, so the head continues the curve's actual direction
++		   instead of assuming the line arrives vertically — on a wide fan the
++		   curve is well off vertical within the head's own length. */
++		const from = calculatedConnector.from,
++			to = calculatedConnector.to,
++			dx = Math.round(to.x - from.x),
+ 			dy = Math.round(calculatedConnector.to.y - calculatedConnector.from.y),
+ 			dxIncrement = dx / 2,
+-			dyIncrement = dy / 2;
++			dyIncrement = dy / 2,
++			STEM = 20,
++			quadPoint = ...,   // quadratic Bezier point at t
++			stemPoint = ...;   // first point along the quadratic >= STEM from p0
+ 		(both return branches gain
++			arrowStems: {from: <stem toward the child>, to: <stem toward the parent>}
+ 		— the straight |dx| < 20 branch measures along the line, the curved
+ 		branch walks segment 1 from `from` and the reversed segment 2 from `to`;
+ 		see the source for the exact expressions)
+
+diff --git a/src/core/theme/connector.js b/src/core/theme/connector.js
+--- a/src/core/theme/connector.js
++++ b/src/core/theme/connector.js
+@@ arrowheads follow the curve via line-type arrowStems
+ 		if (calculatedConnector.connectorTheme.arrow && calculatedConnector.connectorTheme.type !== 'no-connector') {
++			const stems = result.arrowStems || {};
+ 			result.arrows = calculatedConnector.connectorTheme.arrow === 'from' ?
+ 				[arrowPath(
+-					{x: calculatedConnector.from.x, y: calculatedConnector.from.y + 20},
++					stems.from || {x: calculatedConnector.from.x, y: calculatedConnector.from.y + 20},
+ 					calculatedConnector.from,
+ 					position
+ 				)] :
+ 				[arrowPath(
+-					{x: calculatedConnector.to.x, y: calculatedConnector.to.y - 20},
++					stems.to || {x: calculatedConnector.to.x, y: calculatedConnector.to.y - 20},
+ 					calculatedConnector.to,
+ 					position
+ 				)];
+ 		}
++		delete result.arrowStems;

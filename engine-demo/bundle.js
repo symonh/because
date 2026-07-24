@@ -16647,18 +16647,53 @@
         },
         "vertical-quadratic-s-curve": function(calculatedConnector, position) {
           "use strict";
-          const dx = Math.round(calculatedConnector.to.x - calculatedConnector.from.x), dy = Math.round(calculatedConnector.to.y - calculatedConnector.from.y), dxIncrement = dx / 2, dyIncrement = dy / 2;
+          const from = calculatedConnector.from, to = calculatedConnector.to, dx = Math.round(to.x - from.x), dy = Math.round(to.y - from.y), dxIncrement = dx / 2, dyIncrement = dy / 2, STEM = 20, quadPoint = function(p0, c, p1, t) {
+            const u = 1 - t;
+            return {
+              x: u * u * p0.x + 2 * u * t * c.x + t * t * p1.x,
+              y: u * u * p0.y + 2 * u * t * c.y + t * t * p1.y
+            };
+          }, stemPoint = function(p0, c, p1) {
+            let t, pt;
+            for (t = 0.05; t < 1; t += 0.05) {
+              pt = quadPoint(p0, c, p1, t);
+              if (Math.sqrt(Math.pow(pt.x - p0.x, 2) + Math.pow(pt.y - p0.y, 2)) >= STEM) {
+                return pt;
+              }
+            }
+            return p1;
+          };
           if (Math.abs(dx) < 20) {
+            const len = Math.sqrt(dx * dx + dy * dy) || 1, ux = dx / len, uy = dy / len;
             return {
               "d": "M" + (calculatedConnector.from.x - position.left) + "," + (calculatedConnector.from.y - position.top) + "l" + dx + "," + dy,
               initialRadius: 10,
-              "position": position
+              "position": position,
+              arrowStems: {
+                from: { x: from.x + ux * STEM, y: from.y + uy * STEM },
+                to: { x: to.x - ux * STEM, y: to.y - uy * STEM }
+              }
             };
           }
           return {
             "d": "M" + (calculatedConnector.from.x - position.left) + "," + (calculatedConnector.from.y - position.top) + "q0," + Math.round(dyIncrement / 2) + " " + dxIncrement + "," + dyIncrement + "q" + dxIncrement + "," + Math.round(dyIncrement / 2) + " " + dxIncrement + "," + dyIncrement,
             initialRadius: 10,
-            "position": position
+            "position": position,
+            arrowStems: {
+              // segment 1 runs from `from` (control directly below it);
+              // segment 2 ends at `to` (control directly above it) — the
+              // reversed quadratic traces the same curve, so walk it from `to`
+              from: stemPoint(
+                from,
+                { x: from.x, y: from.y + dyIncrement / 2 },
+                { x: from.x + dxIncrement, y: from.y + dyIncrement }
+              ),
+              to: stemPoint(
+                to,
+                { x: to.x, y: to.y - dyIncrement / 2 },
+                { x: from.x + dxIncrement, y: from.y + dyIncrement }
+              )
+            }
           };
         },
         "vertical-s-curve": function(calculatedConnector, position) {
@@ -16856,16 +16891,18 @@
         result.width = calculatedConnector.connectorTheme.line.width;
         result.theme = calculatedConnector.connectorTheme;
         if (calculatedConnector.connectorTheme.arrow && calculatedConnector.connectorTheme.type !== "no-connector") {
+          const stems = result.arrowStems || {};
           result.arrows = calculatedConnector.connectorTheme.arrow === "from" ? [arrowPath(
-            { x: calculatedConnector.from.x, y: calculatedConnector.from.y + 20 },
+            stems.from || { x: calculatedConnector.from.x, y: calculatedConnector.from.y + 20 },
             calculatedConnector.from,
             position
           )] : [arrowPath(
-            { x: calculatedConnector.to.x, y: calculatedConnector.to.y - 20 },
+            stems.to || { x: calculatedConnector.to.x, y: calculatedConnector.to.y - 20 },
             calculatedConnector.to,
             position
           )];
         }
+        delete result.arrowStems;
         return result;
       };
       module.exports = themePath;

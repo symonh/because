@@ -26,6 +26,21 @@
   arrows at the parent end, label position, attr.theme round-trip).
   Verified visually against Simon's reference screenshot (Harrell Ch.3
   Ex.31), light + dark. All seven suites pass.
+- Follow-up (same day, Simon's screenshot): the heads were drawn with a
+  fixed vertical stem, but on a wide fan the S-curve is well off vertical
+  within the head's own 14px, so the join kinked. line-types.js
+  vertical-quadratic-s-curve now reports `arrowStems` — the point ~20px
+  along the actual curve from each end, computed from the same quadratics
+  the path is built from — and connector.js draws the head along that
+  chord (vertical fallback for types without stems). Fixes both themes'
+  arrows (the downward ones had the same latent kink at the bracket end);
+  a vertical connector still gets a straight head. features-e2e asserts
+  the head is within 15° of the path chord at the join (measures 2°).
+- GCS mirror note: deploy.sh's Firebase deploy + git push succeeded, but
+  the legacy GCS mirror step failed — active gcloud account is
+  support@swaybeta.ai (no bucket access) and sc@simoncullen.org's gcloud
+  token is expired; needs an interactive `gcloud auth login` from Simon,
+  then rerun the two `gcloud storage rsync` lines from deploy.sh.
 
 Renamed ArgumentBase → Because late on 2026-07-16 (repo is now
 github.com/symonh/because, local dir ~/Documents/GitHub/because). Legacy
