@@ -11,6 +11,7 @@ import { makeNumberEdit } from './number-edit.js';
 import { makeNodeStyle } from './node-style.js';
 import { makeLoading } from './loading.js';
 import { makeIntro } from './intro.js';
+import { makeShortcutHelp } from './shortcut-help.js';
 import { buildToolbar } from './toolbar.js';
 import { buildMenus } from './menus.js';
 import { bindShortcuts } from './shortcuts.js';
@@ -37,11 +38,13 @@ document.addEventListener('DOMContentLoaded', function () {
 	// (the welcome modal tracks its own auto-show)
 	initAnalytics({ page: 'app' });
 
-	// dark mode is built before the commands: Shift+T toggles it through
-	// commands.toggleDarkMode, so the command set needs it in hand
+	// dark mode and the keyboard reference are built before the commands:
+	// Shift+T and ? run through commands.toggleDarkMode / showShortcuts, so
+	// the command set needs both in hand
 	const engine = initEngine(document.getElementById('map-container')),
 		darkMode = makeDarkMode(engine),
-		commands = makeCommands(engine, darkMode);
+		shortcutHelp = makeShortcutHelp(),
+		commands = makeCommands(engine, darkMode, shortcutHelp);
 	initCanvasA11y(engine, document.getElementById('map-container'));
 	document.getElementById('skip-link').addEventListener('click', function (e) {
 		e.preventDefault();
@@ -117,7 +120,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	engine.on('loadFinished', () => loading.hide());
 
 	// dev/test handle
-	window.__because = { engine, commands, io, drive, onedrive, darkMode, labelEdit, numberEdit, nodeStyle, intro, analytics: analyticsApi };
+	window.__because = { engine, commands, io, drive, onedrive, darkMode, labelEdit, numberEdit, nodeStyle, intro, shortcutHelp, analytics: analyticsApi };
 
 	// every model change marks the map unsaved (relative to its file) and
 	// refreshes the crash-recovery autosave; only File > Save clears it

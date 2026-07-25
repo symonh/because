@@ -22,7 +22,7 @@ const SOURCE = 'ui',
 		if (node.ideas) { Object.keys(node.ideas).forEach(k => stripPositions(node.ideas[k])); }
 	};
 
-export function makeCommands(engine, darkMode) {
+export function makeCommands(engine, darkMode, shortcutHelp) {
 	// in-memory clipboard: the JSON subtree copied by the last Copy. Kept in
 	// the app layer because mapjs exposes clone/paste on content but no
 	// clipboard of its own (MindMup's cut/copy/paste lived in its closed app).
@@ -194,7 +194,10 @@ export function makeCommands(engine, darkMode) {
 		toggleNumbering() { engine.setLabelsOn(!engine.getLabelsOn()); },
 		// a view preference rather than an edit, but it belongs here so the
 		// Shift+T shortcut is tracked by surface like every other key
-		toggleDarkMode() { if (darkMode) { darkMode.toggle(); } }
+		toggleDarkMode() { if (darkMode) { darkMode.toggle(); } },
+		// the ? key and Help > Keyboard shortcuts are the same command, so both
+		// routes are counted and neither can drift from the other's list
+		showShortcuts() { if (shortcutHelp) { shortcutHelp.show(); } }
 	};
 	return commands;
 }

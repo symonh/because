@@ -47,7 +47,7 @@ export function makeIntro() {
 				'teach.</p>' +
 				'<p>Select the conclusion and press <kbd>Enter</kbd> to add a ' +
 				'reason, <kbd>Tab</kbd> to add a co-premise, or <kbd>Alt+O</kbd> ' +
-				'to raise an objection. The full list is under ' +
+				'to raise an objection. Press <kbd>?</kbd> for the full list of keys, also under ' +
 				'<b>Help&nbsp;&gt;&nbsp;Keyboard shortcuts</b>. Your maps stay on ' +
 				'your device or in your own Google Drive — there are no accounts, ' +
 				'and your map content is never sent to us. The app collects ' +

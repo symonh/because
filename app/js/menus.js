@@ -105,7 +105,7 @@ export function buildMenus(el, commands, io, engine, drive, onedrive, darkMode, 
 		]],
 		['Help', () => [
 			['Welcome to Because', () => intro.show()],
-			['Keyboard shortcuts', showShortcuts],
+			['Keyboard shortcuts (?)', commands.showShortcuts],
 			['About Because', showAbout],
 			['—'],
 			['Privacy policy', () => window.open('https://app.philmaps.com/privacy', '_blank')],
@@ -350,34 +350,6 @@ export function buildMenus(el, commands, io, engine, drive, onedrive, darkMode, 
 				'and use the <b>Share</b> button there to invite people or copy a link.</p>'
 			);
 		ref.overlay.querySelector('a[target]').addEventListener('click', () => ref.modal.close());
-	}
-
-	function showShortcuts() {
-		track('help_open', { panel: 'shortcuts' });
-		showPanel(
-			'<h2>Keyboard shortcuts</h2><table class="kbd">' +
-			[['Enter', 'add reason under selected claim'],
-				['Tab', 'add co-premise to selected claim'],
-				['Alt + O', 'add objection'],
-				['T or Alt + T', 'toggle reason/objection (on a bracket) or implicit/explicit (on a claim)'],
-				['Alt + N', 'add sticky note'],
-				['D', 'detach the selection — a claim, or a whole reason / objection — from the tree'],
-				['Arrows', 'navigate the tree'],
-				['Z / Shift+Z', 'zoom in / out'],
-				['Shift+T', 'dark / light mode'],
-				['F2 or Space', 'edit the selected claim'],
-				['F', 'collapse / expand branch'],
-				['Delete', 'remove selection'],
-				['⌘Z / ⌘⇧Z', 'undo / redo'],
-				['⌘B / ⌘I / ⌘U', 'bold / italic / underline (whole claim, or the selection while editing)'],
-				['⌘⇧. / ⌘⇧,', 'bigger / smaller claim text'],
-				['Right-click', 'node colour &amp; text style'],
-				['Click a connector', 'stronger / weaker line, edit its label'],
-				['Double-click a connector', 'edit its label'],
-				['Click a claim number', 'replace it with your own text (up to 10 characters)']
-			].map(r => '<tr><td><kbd>' + r[0] + '</kbd></td><td>' + r[1] + '</td></tr>').join('') +
-			'</table>'
-		);
 	}
 
 	function showAutoSaveInfo() {

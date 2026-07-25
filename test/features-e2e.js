@@ -649,6 +649,94 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 	await page.keyboard.press('Escape');
 	await sleep(200);
 
+	// ---- the keyboard reference (? / Help > Keyboard shortcuts) ----
+	// It is the app's own account of its keys, so the test that matters is the
+	// drift one: every command bound in shortcuts.js has to appear in the
+	// table, and every command the table names has to exist.
+	await page.evaluate(() => {
+		window.__because.engine.mapModel.selectNode(2);
+		document.getElementById('map-container').focus();
+	});
+	await sleep(150);
+	await page.keyboard.down('Shift');
+	await page.keyboard.press('Slash');
+	await page.keyboard.up('Shift');
+	await sleep(300);
+	ok(await page.$('.shortcuts-panel') !== null, '? opens the keyboard reference');
+
+	const drift = await page.evaluate(async function () {
+		const src = await (await fetch('js/shortcuts.js')).text(),
+			bound = [];
+		let m;
+		const re = /commands\.([A-Za-z]+)/g;
+		while ((m = re.exec(src)) !== null) {
+			if (bound.indexOf(m[1]) < 0) { bound.push(m[1]); }
+		}
+		const documented = window.__because.shortcutHelp.documentedCommands();
+		return {
+			bound: bound,
+			undocumented: bound.filter(c => documented.indexOf(c) < 0),
+			missingCommand: documented.filter(c => typeof window.__because.commands[c] !== 'function')
+		};
+	});
+	ok(drift.bound.length > 15, `shortcuts.js binds ${drift.bound.length} commands (source is readable)`);
+	ok(drift.undocumented.length === 0,
+		'every key-bound command is documented in the reference' +
+			(drift.undocumented.length ? ' — missing: ' + drift.undocumented.join(', ') : ''));
+	ok(drift.missingCommand.length === 0,
+		'every command the reference names still exists' +
+			(drift.missingCommand.length ? ' — stale: ' + drift.missingCommand.join(', ') : ''));
+
+	// the same table, rendered for each platform
+	const keysFor = plat => page.evaluate(function (p) {
+		document.querySelector('.plat-btn[data-plat=' + p + ']').click();
+		return {
+			keys: Array.from(document.querySelectorAll('.shortcut-group .kbd-keys')).map(e => e.textContent).join(' | '),
+			pressed: Array.from(document.querySelectorAll('.plat-btn')).map(b => b.dataset.plat + '=' + b.getAttribute('aria-pressed')).join(',')
+		};
+	}, plat);
+	const macView = await keysFor('mac'),
+		winView = await keysFor('win');
+	ok(macView.keys.indexOf('⌘Z') >= 0 && macView.keys.indexOf('⌥O') >= 0 && !/Ctrl|Alt\+/.test(macView.keys),
+		'Mac view uses ⌘ and ⌥ and never says Ctrl or Alt');
+	ok(winView.keys.indexOf('Ctrl+Z') >= 0 && winView.keys.indexOf('Alt+O') >= 0 && !/[⌘⌥]/.test(winView.keys),
+		'Windows view uses Ctrl and Alt and never shows Mac glyphs');
+	ok(winView.keys.indexOf('Ctrl+Y') >= 0 && macView.keys.indexOf('Ctrl+Y') < 0,
+		'Ctrl+Y is offered as redo on Windows only');
+	ok(winView.keys.indexOf('Backspace') >= 0 && macView.keys.indexOf('⌫') >= 0,
+		'the erase key is named per platform (⌫ / Delete or Backspace)');
+	ok(macView.pressed === 'mac=true,win=false' && winView.pressed === 'mac=false,win=true',
+		'the platform switch reports its state with aria-pressed');
+	// Escape must also reset the module's own open/closed state
+	await page.keyboard.press('Escape');
+	await sleep(200);
+	ok(await page.$('.shortcuts-panel') === null, 'Escape closes the reference');
+	await clickMenu('Help', 'Keyboard shortcuts');
+	await sleep(250);
+	ok(await page.$('.shortcuts-panel') !== null,
+		'Help > Keyboard shortcuts reopens it after an Escape (no stale state)');
+	await page.keyboard.press('Escape');
+	await sleep(200);
+
+	// the reference claims Shift+Enter breaks a line while editing — check it
+	await page.evaluate(() => window.__because.engine.mapModel.selectNode(22));
+	await page.keyboard.press('F2');
+	await sleep(300);
+	await page.keyboard.type('first');
+	await page.keyboard.down('Shift');
+	await page.keyboard.press('Enter');
+	await page.keyboard.up('Shift');
+	await page.keyboard.type('second');
+	await page.keyboard.press('Enter');
+	await sleep(300);
+	ok(/first\s*\n\s*second/.test(await page.evaluate(() =>
+		window.__because.engine.mapModel.findIdeaById(22).title)),
+	'Shift+Enter breaks the line while editing, as the reference says');
+	await page.keyboard.down('Meta');
+	await page.keyboard.press('z');
+	await page.keyboard.up('Meta');
+	await sleep(250);
+
 	// ---- loading overlay on big maps ----
 	const overlayShown = await page.evaluate(() => {
 		const ideas = {};

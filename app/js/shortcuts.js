@@ -9,6 +9,7 @@
  *   Alt+N  add sticky note
  *   z / Shift+z  zoom in / out
  *   Shift+t  dark mode on / off (a view preference; map data is untouched)
+ *   ?      the keyboard reference (shortcut-help.js, which documents this map)
  *   ⌘B / ⌘I / ⌘U  bold / italic / underline the selected claim's title
  *   (inside the text editor the same keys format the text selection)
  *   ⌘C / ⌘V  copy the selected claim + its subtree; paste it as a reason
@@ -103,6 +104,12 @@ export function bindShortcuts(engine, commands) {
 			// shifted T is free: bare t (toggle the selection) tests for the
 			// lower-case character, so it never sees this one
 			command = commands.toggleDarkMode;
+		} else if (!e.altKey && !e.metaKey && !e.ctrlKey && e.key === '?') {
+			// the character, not Shift+/: on layouts where ? is unshifted or
+			// sits elsewhere it stays wherever the user types it. mapjs binds
+			// bare / to collapse through a keypress handler, which never runs
+			// once this preventDefault lands
+			command = commands.showShortcuts;
 		}
 		if (command) {
 			e.preventDefault();

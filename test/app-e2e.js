@@ -535,6 +535,51 @@ function ok(cond, name) {
 	ok(!whileEditing.dark && (whileEditing.text || '').indexOf('T') >= 0,
 		`Shift+T types a T while editing a claim instead of flipping the theme (${JSON.stringify(whileEditing.text)})`);
 
+	// ---- ? opens the keyboard reference ----
+	// It has to survive being closed and reopened (the dialog's own Escape
+	// path once left the module thinking it was still open), and it must not
+	// fire from a question mark typed into a claim.
+	await page.click('.mapjs-node');
+	await new Promise(r => setTimeout(r, 200));
+	await page.keyboard.down('Shift');
+	await page.keyboard.press('Slash');
+	await page.keyboard.up('Shift');
+	await new Promise(r => setTimeout(r, 300));
+	const helpOpen = await page.evaluate(() => {
+		const p = document.querySelector('.shortcuts-panel');
+		return p && {
+			rows: p.querySelectorAll('.shortcut-group tr').length,
+			groups: p.querySelectorAll('.shortcut-group h3').length,
+			platforms: p.querySelectorAll('.plat-btn').length
+		};
+	});
+	ok(helpOpen && helpOpen.rows > 25 && helpOpen.groups >= 4 && helpOpen.platforms === 2,
+		`? opens the keyboard reference (${helpOpen && helpOpen.rows} keys in ${helpOpen && helpOpen.groups} groups)`);
+	await page.keyboard.press('Escape');
+	await new Promise(r => setTimeout(r, 250));
+	ok(await page.$('.shortcuts-panel') === null, 'Escape closes the reference');
+	await page.keyboard.down('Shift');
+	await page.keyboard.press('Slash');
+	await page.keyboard.up('Shift');
+	await new Promise(r => setTimeout(r, 300));
+	ok(await page.$('.shortcuts-panel') !== null, '? opens it again after an Escape');
+	await page.keyboard.press('Escape');
+	await new Promise(r => setTimeout(r, 250));
+	// typing a question mark into a claim must reach the claim
+	await page.click('.mapjs-node');
+	await page.keyboard.press('F2');
+	await new Promise(r => setTimeout(r, 300));
+	await page.keyboard.type('Really?');
+	await new Promise(r => setTimeout(r, 200));
+	const typedQuestion = await page.evaluate(() => ({
+		open: !!document.querySelector('.shortcuts-panel'),
+		text: (document.querySelector('[data-mapjs-role=title]') || {}).textContent
+	}));
+	await page.keyboard.press('Escape');
+	await new Promise(r => setTimeout(r, 250));
+	ok(!typedQuestion.open && (typedQuestion.text || '').indexOf('?') >= 0,
+		`a "?" typed into a claim stays in the claim (${JSON.stringify(typedQuestion.text)})`);
+
 	// ---- D detaches the selected claim and everything under it ----
 	await page.evaluate(() => {
 		window.__because.engine.loadMap({ formatVersion: 3, id: 'root', attr: { theme: 'argMappingSimple' }, ideas: {

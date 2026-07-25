@@ -249,6 +249,25 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 	ok(await page.evaluate(() => !document.body.classList.contains('dark')),
 		'Shift+T switches back to light in WebKit');
 
+	// ---- ? opens the keyboard reference in real WebKit ----
+	// Shift+/ is where a layout-dependent key could go wrong in Safari, and
+	// the panel's platform switch has to redraw the table there too.
+	await page.keyboard.press('Shift+Slash');
+	await page.waitForTimeout(400);
+	ok(await page.$('.shortcuts-panel') !== null, '? opens the keyboard reference in WebKit');
+	const wkKeys = await page.evaluate(() => {
+		document.querySelector('.plat-btn[data-plat=win]').click();
+		const win = Array.from(document.querySelectorAll('.kbd-keys')).map(e => e.textContent).join(' ');
+		document.querySelector('.plat-btn[data-plat=mac]').click();
+		const mac = Array.from(document.querySelectorAll('.kbd-keys')).map(e => e.textContent).join(' ');
+		return { win, mac };
+	});
+	ok(wkKeys.win.indexOf('Ctrl+Z') >= 0 && wkKeys.mac.indexOf('⌘Z') >= 0,
+		'the platform switch redraws the keys in WebKit');
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(300);
+	ok(await page.$('.shortcuts-panel') === null, 'Escape closes it in WebKit');
+
 	// ---- D detaches a claim in real WebKit ----
 	await page.evaluate(() => {
 		window.__because.engine.loadMap({ formatVersion: 3, id: 'root', attr: { theme: 'argMappingSimple' }, ideas: {

@@ -68,7 +68,8 @@ GA4 is the replacement and its web streams use `G-…` measurement ids.
 | `theme_select` | `theme` (`simple`, `high_impact`, `high_impact_upward`) | View-menu theme switch |
 | `dark_mode_toggle` | `enabled` (`on`/`off`) | any dark-mode toggle (also kept as the `dark_mode` user property) |
 | `intro_shown` / `intro_dismissed` | `trigger` (`first_visit`, `menu`); `dont_show_again` (`yes`/`no`) | welcome modal |
-| `help_open` | `panel` (`shortcuts`, `about`, `drive_setup`, `onedrive_setup`) | Help panels |
+| `help_open` | `panel` (`shortcuts`, `about`, `drive_setup`, `onedrive_setup`) | Help panels (`shortcuts` covers both the ? key and the Help menu) |
+| `help_platform` | `platform` (`mac`, `windows`) | the keyboard reference's Mac/Windows switch, when the reader picks the other one |
 | `drive_share` | `method` (`direct`, `after_save`) | File > Share from Google Drive — opens the file's own Drive page (`after_save` = the map was saved to Drive first) |
 | `onedrive_share` | `method` (`direct`, `after_save`) | File > Share from OneDrive — same pattern as `drive_share` |
 | `drive_error` | `description` (truncated) | non-benign Drive failure shown to the user |

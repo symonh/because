@@ -36,6 +36,10 @@ open http://127.0.0.1:8871/app/
 
 ## Keyboard (the philmaps.com set)
 
+Press **?** in the map for the full reference, which renders its keys for
+either platform (⌘/⌥ or Ctrl/Alt) and detects which one you are on. The keys
+below are written Mac-first; on Windows and Linux read ⌘ as Ctrl and ⌥ as Alt.
+
 | Key | Action |
 |---|---|
 | Enter | add reason under selected claim |
@@ -44,9 +48,17 @@ open http://127.0.0.1:8871/app/
 | T (or Alt+T) | toggle reason/objection (on a bracket) or implicit/explicit (on a claim) |
 | Alt+N | add sticky note |
 | D | detach the selection — a claim, or a whole reason / objection — from the tree |
-| arrows | navigate; F2/Space edit; Delete remove; ⌘Z/⌘⇧Z undo/redo |
+| arrows | navigate; Shift+arrows select several claims at once |
+| ⌘←/→ | reorder a claim among its co-premises |
+| F2 / Space | edit; F collapses the branch; Delete removes the selection |
+| ⌘Z / ⌘⇧Z | undo / redo (Ctrl+Y also redoes on Windows) |
 | Z / Shift+Z | zoom |
 | Shift+T | dark / light mode |
+| ? | the keyboard reference |
+
+`app/js/shortcut-help.js` holds the table the reference renders, and the
+features e2e cross-checks it against `shortcuts.js`, so a binding added
+without a line in the reference fails the suite.
 
 ## The argument-visualization grammar
 

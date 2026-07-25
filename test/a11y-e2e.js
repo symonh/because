@@ -133,10 +133,47 @@ const AXE_OPTS = {
 		const p = document.querySelector('.panel-overlay .panel');
 		return p && p.getAttribute('role') === 'dialog' && p.contains(document.activeElement);
 	}), 'shortcuts panel is a dialog holding focus');
+	// the platform switch is a real toggle pair, reachable and reported
+	ok(await page.evaluate(() => {
+		const group = document.querySelector('.plat-switch'),
+			btns = group && Array.from(group.querySelectorAll('.plat-btn'));
+		return !!group && group.getAttribute('role') === 'group' &&
+			!!group.getAttribute('aria-label') && btns.length === 2 &&
+			btns.every(b => b.getAttribute('aria-pressed') === 'true' || b.getAttribute('aria-pressed') === 'false') &&
+			btns.filter(b => b.getAttribute('aria-pressed') === 'true').length === 1;
+	}), 'the platform switch is a labelled group of two aria-pressed buttons');
 	await axeScan('shortcuts panel');
+	// and again in dark mode: the switch introduces its own colours
+	await page.evaluate(() => document.body.classList.add('dark'));
+	await page.waitForTimeout(150);
+	await axeScan('shortcuts panel, dark');
+	await page.evaluate(() => document.body.classList.remove('dark'));
 	await page.keyboard.press('Escape');
 	await page.waitForTimeout(150);
 	ok(await page.evaluate(() => !document.querySelector('.panel-overlay')), 'Escape closes the panel');
+	// focus comes back to the map — on the selected node, since the engine
+	// hands focus to it as soon as the map has focus again
+	ok(await page.evaluate(() => {
+		const map = document.getElementById('map-container'),
+			a = document.activeElement;
+		return !!a && a !== document.body && (a === map || map.contains(a) || a.classList.contains('menu-title'));
+	}), 'closing the reference returns focus to the map, not the page body');
+
+	// ---- ? from the map opens the same dialog (map-scoped, WCAG 2.1.4) ----
+	await page.evaluate(() => document.getElementById('map-container').focus());
+	await page.keyboard.press('Shift+Slash');
+	await page.waitForTimeout(300);
+	ok(await page.evaluate(() => !!document.querySelector('.shortcuts-panel')),
+		'? from the map opens the keyboard reference');
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(200);
+	// with focus in the chrome the same character must be free (a single
+	// character shortcut may only act while its component has focus)
+	await page.evaluate(() => document.querySelector('.menu-title').focus());
+	await page.keyboard.press('Shift+Slash');
+	await page.waitForTimeout(250);
+	ok(await page.evaluate(() => !document.querySelector('.shortcuts-panel')),
+		'? does nothing with focus in the menubar');
 
 	// ---- toolbar: focused button activates, no map hijack ----
 	const nodesBefore = await page.evaluate(() => document.querySelectorAll('.mapjs-node').length);

@@ -462,6 +462,8 @@ body.dark .cp-tile:hover { background: #16749f; color: #fff; }
 body.dark .intro-footer { color: #a7adb3; }
 
 .kbd td { padding: 3px 12px 3px 0; }
+.kbd-keys { white-space: nowrap; vertical-align: baseline; }
+.kbd-or { color: #666; font-size: 12px; }
 kbd {
 	background: #f3f3f3;
 	border: 1px solid #ccc;
@@ -471,6 +473,60 @@ kbd {
 	font-size: 12px;
 	font-family: inherit;
 	white-space: nowrap;
+}
+
+/* ---- keyboard reference (? or Help > Keyboard shortcuts) ----
+ * Two columns when the panel has the width for them, one when it doesn't;
+ * a group never splits across the break. */
+.shortcuts-panel {
+	width: min(900px, 94vw);
+	max-width: none;
+	max-height: 88vh;
+}
+.shortcuts-head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 16px;
+	flex-wrap: wrap;
+}
+.shortcuts-note { color: #666; font-size: 13px; margin: 4px 0 14px; }
+.plat-switch { display: flex; gap: 0; }
+.plat-btn {
+	border: 1px solid #ccc;
+	background: #f6f6f6;
+	color: #333;
+	padding: 4px 14px;
+	font-size: 13px;
+	font-family: inherit;
+	cursor: pointer;
+}
+.plat-btn:first-child { border-radius: 5px 0 0 5px; }
+.plat-btn:last-child { border-radius: 0 5px 5px 0; border-left-width: 0; }
+.plat-btn.on {
+	background: #16749f;
+	border-color: #16749f;
+	color: #fff;
+}
+.plat-btn.on + .plat-btn { border-left-width: 1px; }
+.shortcut-groups { columns: 2; column-gap: 30px; }
+.shortcut-group {
+	break-inside: avoid;
+	page-break-inside: avoid;
+	margin: 0 0 16px;
+}
+.shortcut-group h3 {
+	font-size: 13px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: #16749f;
+	margin: 0 0 4px;
+}
+.shortcut-group .kbd { width: 100%; }
+.shortcut-group .kbd td { font-size: 13px; padding: 2px 10px 2px 0; vertical-align: top; }
+.kbd-mouse .kbd-keys { white-space: normal; }
+@media (max-width: 700px) {
+	.shortcut-groups { columns: 1; }
 }
 
 /* ---- dark mode (View > Dark mode; body.dark set by dark-mode.js) ---- */
@@ -537,6 +593,19 @@ body.dark kbd {
 	background: #34393f;
 	border-color: #4a5057;
 	color: #d3d7db;
+}
+body.dark .kbd-or,
+body.dark .shortcuts-note { color: #a7adb3; }
+body.dark .shortcut-group h3 { color: #6cc4ee; }
+body.dark .plat-btn {
+	background: #34393f;
+	border-color: #4a5057;
+	color: #d3d7db;
+}
+body.dark .plat-btn.on {
+	background: #16749f;
+	border-color: #16749f;
+	color: #fff;
 }
 
 /* ---- focus visibility (WCAG 2.4.7) --------------------------------------

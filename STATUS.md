@@ -1,5 +1,38 @@
 # Because (formerly ArgumentBase) — status (2026-07-24)
 
+## 2026-07-24 — ? opens a keyboard reference that cannot drift
+
+- `?` (the character, not Shift+/, so it follows a non-QWERTY layout) opens
+  a modal listing every key, grouped: building the argument, moving around,
+  editing a claim, the map as a whole, and the mouse actions. Help >
+  Keyboard shortcuts opens the same dialog; both run through
+  `commands.showShortcuts`, so both are counted by surface. Map-scoped like
+  the other single-character keys, which is what keeps WCAG 2.1.4 satisfied
+  — with focus in the menubar or toolbar, ? is free.
+- `app/js/shortcut-help.js` is the single source of truth. menus.js no
+  longer keeps a list of its own (its copy had already drifted: it never
+  mentioned Ctrl, Shift+arrows, ⌘←/→, or Ctrl+Y). features-e2e reads
+  shortcuts.js, extracts every `commands.X` it binds, and fails if any of
+  the 20 is missing from the table or if the table names a command that no
+  longer exists.
+- Keys are stored platform-neutrally and rendered per platform: Mod is ⌘ or
+  Ctrl, Alt is ⌥ or Alt, the erase key is ⌫ or "Delete or Backspace", and
+  Ctrl+Y appears as a second redo on Windows only. Mac combinations are
+  written Apple-style (⌘⇧Z), Windows with separators (Ctrl+Shift+Z). The
+  platform is detected and can be switched in the dialog, for a teacher
+  demonstrating on the other kind of machine; the choice persists in
+  localStorage.
+- What the engine's own keys do was measured against the running app rather
+  than transcribed from mapjs's binding table, which is misleading here:
+  the orientation is top-down, so moveUp/moveDown are no-ops and ⌘←/→ are
+  the reorder keys; the app's own Enter/Tab handlers take shifted Enter and
+  Tab too. Shift+arrows building a multi-claim set — and Delete, collapse
+  and the font-size keys then applying to all of it — was undocumented
+  anywhere before this.
+- The dialog's Escape now routes through the module's own close(), after
+  the probe caught the state going stale (Escape removed the overlay
+  through initModal's own path, and the module then refused to reopen).
+
 ## 2026-07-24 — D on a reason/objection; connector labels move to the middle
 
 - D used to do nothing when a bracket was selected. It now detaches the
