@@ -253,6 +253,9 @@
 		font-weight: 550;
 		line-height: 1.3;
 		text-align: center;
+		/* even the two lines out rather than stranding a last word
+		   ("…to eradicate / aging."); ignored where unsupported */
+		text-wrap: balance;
 		box-shadow: 0 2px 6px rgba(0,0,0,0.35);
 	}
 	.node.implicit { border-style: dashed; border-color: #8a9299; }
@@ -274,10 +277,19 @@
 
 	.branches {
 		display: grid;
-		grid-template-columns: 1fr 1fr;
 		gap: 20px;
 	}
 	.branch { display: flex; flex-direction: column; align-items: stretch; }
+	/* co-premises sit side by side inside one bracket — that adjacency is
+	   the thing the grouping means, so they never stack while there is
+	   width for both (see the narrow-screen rule at the end) */
+	.group .nodes {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 9px;
+		align-items: stretch;
+	}
+	.group .nodes .node { display: flex; align-items: center; justify-content: center; }
 
 	.group {
 		border-radius: 12px;
@@ -457,10 +469,8 @@
 		.map .conclusion { opacity: 0; transform: translateY(-6px); animation: rise 0.45s ease 0.5s forwards; }
 		.links .link { opacity: 0; animation: fadein 0.45s ease forwards; }
 		.links .link.support { animation-delay: 0.85s; }
-		.links .link.object { animation-delay: 1s; }
 		.branch { opacity: 0; transform: translateY(10px); animation: rise 0.5s ease forwards; }
 		.branch.support { animation-delay: 1.05s; }
-		.branch.object { animation-delay: 1.2s; }
 		@keyframes fadein { to { opacity: 1; } }
 
 		/* sections fade up as they scroll into view (JS adds the classes;
@@ -526,27 +536,22 @@
 			<div class="grid"></div>
 			<div class="canvas-bar">
 				<svg viewBox="0 0 24 24" width="15" height="15"><rect x="7" y="2" width="10" height="6" rx="1.5" fill="#fff" stroke="#707070"/><path d="M12 8v3" stroke="#339966" stroke-width="2"/><path d="M3 12h18M3 12q0 2.5 2.5 2.5M21 12q0 2.5-2.5 2.5" stroke="#339966" stroke-width="2" fill="none"/><rect x="2" y="16" width="8" height="6" rx="1.5" fill="#fff" stroke="#707070"/><rect x="14" y="16" width="8" height="6" rx="1.5" fill="#fff" stroke="#707070" stroke-dasharray="2.5,1.6"/></svg>
-				<span class="file">public-museums.mup</span>
+				<span class="file">eradicate-aging.mup</span>
 				<span class="moon"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></span>
 			</div>
 			<div class="map">
-				<div class="node root conclusion">Public museums should stay free to enter</div>
+				<div class="node root conclusion">We have a moral duty to eradicate aging</div>
 				<svg class="links" viewBox="0 0 100 46" preserveAspectRatio="none">
-					<path class="link support" d="M50 0 C50 30 25 18 25 46" vector-effect="non-scaling-stroke"/>
-					<path class="link object" d="M50 0 C50 30 75 18 75 46" vector-effect="non-scaling-stroke"/>
+					<path class="link support" d="M50 0 L50 46" vector-effect="non-scaling-stroke"/>
 				</svg>
 				<div class="branches">
 					<div class="branch support">
 						<div class="group support">
-							<div class="glabel">Supporting reasons</div>
-							<div class="node">Free entry keeps the collection open to everyone</div>
-							<div class="node implicit">A shared public good shouldn't sit behind a paywall</div>
-						</div>
-					</div>
-					<div class="branch object">
-						<div class="group object">
-							<div class="glabel">Objection</div>
-							<div class="node">Ticket sales help fund conservation</div>
+							<div class="glabel">Co-premises</div>
+							<div class="nodes">
+								<div class="node">Aging is a great evil</div>
+								<div class="node">We have a moral duty to eradicate great evils</div>
+							</div>
 						</div>
 					</div>
 				</div>
