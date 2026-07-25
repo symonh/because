@@ -1,4 +1,53 @@
-# Because (formerly ArgumentBase) — status (2026-07-24)
+# Because (formerly ArgumentBase) — status (2026-07-25)
+
+## 2026-07-25 — Chrome overhaul: left rail by default, floating and classic as options
+
+- Three chrome layouts, chosen from a View-menu radio group and stored as
+  `because.layout` (an app preference like dark mode — map data untouched,
+  serialization asserted byte-identical across every switch):
+  - **Left-side controls** (default): a slim top bar (brand, title, text
+    menus, save status) plus a 46px vertical icon rail spanning the full
+    window height. The rail holds the editing tools only — New/Open/Save
+    live in the File menu and on their keys — with zoom and the theme
+    toggle docked at the foot.
+  - **Floating controls**: no bars. An identity pill top-left (title +
+    ellipsis menu button), a tool palette on the left edge, a zoom cluster
+    bottom-left, a save-status chip top-right, all floating over an
+    edge-to-edge canvas.
+  - **Classic top controls**: the pre-overhaul layout exactly (horizontal
+    menubar + 19-button toolbar), for continuity with older course
+    materials.
+- New icon set (`app/js/icons.js`): one 20px grid, single 1.5px stroke,
+  round joins. Colour only where it means something — green support, red
+  opposition, via `.ic-sup`/`.ic-opp` classes styled per chrome theme. The
+  reason/objection glyphs use the map's own bracket distinction (rounded
+  supports, square opposes); the floppy disk and the "1.1" text-in-a-button
+  are gone. Glyph geometry was signed off from mockups; icons.js says not
+  to edit path data without a visual re-review.
+- menus.js refactored so one menu spec renders two ways: the existing
+  WAI-ARIA horizontal menubar, or a flyout behind a single button
+  (menu-button pattern: aria-haspopup/aria-expanded, cascading submenus,
+  per-level Escape with focus return). The flyout serves the floating
+  pill's ellipsis and the mobile Menu button. Menubar title "Argument
+  Visualization" renamed "Argument".
+- Mobile (max-width 719px) overrides the desktop choice: slim top bar,
+  bottom toolbar with five ≥44px targets (Reason, Objection, Edit, Undo,
+  Menu), the Menu button opening the flyout as a bottom sheet.
+- layout.js orchestrates: body grid per mode; the movable singletons
+  (#map-title, #save-status, #theme-toggle, #menubar) are relocated, not
+  duplicated, so the status live region and listeners survive switches.
+- Analytics: new `layout_select` event, `layout` enum only
+  (docs/analytics.md).
+- Tests: features-e2e gained layout + mobile sections (~70 assertions,
+  including the byte-identical rule and no content in layout_select);
+  a11y-e2e scans floating light/dark and mobile with axe and walks the
+  flyout keyboard contract; webkit-e2e drives the layout switch, the
+  flyout's popup-under-Safari-rules path, and Shift+T in floating. All
+  seven suites pass (427 checks).
+- Implementation by Opus subagents against a written spec; design
+  decisions and visual QA (screenshots of all modes, both themes) by
+  Fable. One glyph fixed in review (the moon was a bitten circle, now a
+  crescent).
 
 ## 2026-07-24 — ? opens a keyboard reference that cannot drift
 

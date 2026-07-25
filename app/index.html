@@ -25,6 +25,19 @@
 </header>
 <div id="toolbar" role="toolbar" aria-label="Editing toolbar"></div>
 <div id="map-container"></div>
+<!-- floating layout only (View > Floating controls). layout.js clones the
+     brand mark in, moves #map-title into the pill and #save-status into the
+     chip, and hides the bars above; every other layout hides this. -->
+<div id="float-chrome" hidden>
+	<div id="float-pill" class="fl-card">
+		<button id="float-menu" class="tb-btn" type="button" aria-label="Menu"></button>
+	</div>
+	<div id="float-tools" class="fl-card" role="toolbar" aria-orientation="vertical" aria-label="Editing toolbar"></div>
+	<div id="float-zoom" class="fl-card" role="toolbar" aria-label="Zoom"></div>
+	<div id="float-status" class="fl-card"></div>
+</div>
+<!-- mobile layout only (max-width 719px); built by toolbar.js -->
+<div id="mobilebar" role="toolbar" aria-label="Quick tools" hidden></div>
 <script src="bundle.js"></script>
 <script type="module" src="js/main.js"></script>
 </body>

@@ -491,6 +491,110 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 		`OneDrive share opens the file's page in a new tab (${odPage.url()})`);
 	await odPage.close();
 
+	// ---- the floating layout in real WebKit ----
+	// No bars: the six menus hang off the pill's ellipsis as a flyout, which
+	// is exactly the shape Safari polices — the panel must survive a
+	// hover-cascade (mouseenter after a mousedown-prevented click), Escape
+	// must hand focus back a level at a time, and an item that opens a popup
+	// must still count as running inside the user's gesture.
+	await clickMenu('View', 'Floating controls');
+	await page.waitForTimeout(500);
+	const floating = await page.evaluate(() => ({
+		mode: window.__because.layout.getLayout(),
+		pill: document.getElementById('float-pill').getBoundingClientRect().width > 0,
+		menubarHidden: document.getElementById('menubar').hidden,
+		topbarHidden: document.getElementById('topbar').hidden,
+		toggleHidden: document.getElementById('theme-toggle').hidden,
+		titleInPill: document.getElementById('map-title').parentElement.id === 'float-pill'
+	}));
+	ok(floating.mode === 'floating' && floating.pill && floating.menubarHidden &&
+		floating.topbarHidden && floating.titleInPill,
+		`the View menu switches WebKit to the floating layout (${floating.mode})`);
+
+	await page.click('#float-menu');
+	await page.waitForTimeout(250);
+	ok(await page.evaluate(() => !!document.querySelector('.menu-flyout')),
+		'the pill ellipsis opens the flyout in WebKit');
+	await page.hover('.menu-flyrow:nth-child(4)'); // View
+	await page.waitForTimeout(300);
+	ok(await page.evaluate(() => {
+		const sub = document.querySelector('.menu-flysub');
+		return !!sub && sub.getAttribute('aria-label') === 'View' && !!document.querySelector('.menu-flyout');
+	}), 'hovering a title cascades its card and the panel stays open (Safari focus rules)');
+	await page.hover('.menu-flyrow:nth-child(1)'); // File
+	await page.waitForTimeout(300);
+	ok(await page.evaluate(() => document.querySelectorAll('.menu-flysub').length === 1 &&
+		document.querySelector('.menu-flysub').getAttribute('aria-label') === 'File' &&
+		!!document.querySelector('.menu-flyout')),
+		'moving to another title swaps the card without dropping the panel');
+
+	// keyboard: Escape unwinds one level at a time and lands back on the trigger
+	await page.evaluate(() => document.querySelectorAll('.menu-flysub .menu-item')[0].focus());
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(200);
+	ok(await page.evaluate(() => !document.querySelector('.menu-flysub') &&
+		!!document.querySelector('.menu-flyout') &&
+		document.activeElement === document.querySelector('.menu-flyrow')),
+		'Escape closes the card and returns focus to its row in WebKit');
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(200);
+	ok(await page.evaluate(() => !document.querySelector('.menu-flyout') &&
+		document.activeElement === document.getElementById('float-menu')),
+		'a second Escape closes the flyout and returns focus to the ellipsis');
+
+	// a File item that opens a popup, run through the flyout's extra hop
+	// (row click -> submenu -> activate -> map focus -> window.open): Safari
+	// blocks a popup the moment that chain loses the gesture
+	await page.click('#float-menu');
+	await page.waitForTimeout(250);
+	await page.click('.menu-flyrow:nth-child(1)'); // File
+	await page.waitForTimeout(250);
+	const [flyShare] = await Promise.all([
+		page.waitForEvent('popup'),
+		page.click('.menu-flysub .menu-item:has-text("Share from OneDrive")')
+	]);
+	await flyShare.waitForLoadState();
+	ok(flyShare.url() === 'https://onedrive.live.com/x/odfile1',
+		`a File item run from the flyout still opens its popup (${flyShare.url()})`);
+	await flyShare.close();
+	ok(await page.evaluate(() => !document.querySelector('.menu-flyout') &&
+		!document.querySelector('.menu-flysub')),
+		'running the item closed the flyout behind it');
+
+	// Shift+T with no theme toggle on screen: the keyboard path must still
+	// reach the same view preference, and must not touch map data
+	const beforeShiftT = await page.evaluate(() => ({
+		dark: document.body.classList.contains('dark'),
+		map: window.__because.engine.serialize()
+	}));
+	await page.evaluate(() => document.getElementById('map-container').focus());
+	await page.keyboard.press('Shift+T');
+	await page.waitForTimeout(400);
+	const afterShiftT = await page.evaluate(() => ({
+		dark: document.body.classList.contains('dark'),
+		toggleHidden: document.getElementById('theme-toggle').hidden,
+		map: window.__because.engine.serialize()
+	}));
+	ok(afterShiftT.dark !== beforeShiftT.dark && afterShiftT.toggleHidden,
+		'Shift+T still toggles dark mode in the floating layout, where no toggle is shown');
+	ok(afterShiftT.map === beforeShiftT.map,
+		'and the map serializes byte-identical either side of it');
+	await page.keyboard.press('Shift+T');
+	await page.waitForTimeout(400);
+
+	// back to the default rail, from the flyout
+	await page.click('#float-menu');
+	await page.waitForTimeout(250);
+	await page.click('.menu-flyrow:nth-child(4)'); // View
+	await page.waitForTimeout(250);
+	await page.click('.menu-flysub .menu-item:has-text("Left-side controls")');
+	await page.waitForTimeout(500);
+	ok(await page.evaluate(() => window.__because.layout.getLayout() === 'left' &&
+		!document.getElementById('menubar').hidden &&
+		document.getElementById('float-chrome').hidden &&
+		document.getElementById('toolbar').querySelectorAll('.tb-btn').length === 16),
+		'the flyout switches back to the rail and the menubar returns');
+
 	await page.screenshot({ path: '/tmp/webkit_open.png' });
 	if (errors.length) { console.log('PAGE ERRORS:', errors.join(' | ')); failures += 1; }
 	await browser.close();

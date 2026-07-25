@@ -1,17 +1,29 @@
 /*global document, window*/
 /*
- * Menu bar: File / Insert / Edit / View / Argument Visualization / Help.
- * Pure DOM, no framework. Implements the WAI-ARIA menubar pattern:
- * roving tabindex across titles (one Tab stop), full arrow-key nav,
- * proper roles for checkbox/radio items. Menus close on click-away,
- * Escape, or Tab-out.
+ * Menus: File / Insert / Edit / View / Argument / Help. Pure DOM, no
+ * framework. One spec, two renderings:
+ *
+ *  - the horizontal menubar (left and classic layouts), implementing the
+ *    WAI-ARIA menubar pattern: roving tabindex across titles (one Tab
+ *    stop), full arrow-key nav, proper roles for checkbox/radio items;
+ *  - a flyout behind a single button (the floating layout's ellipsis, the
+ *    mobile bar's Menu), implementing the WAI-ARIA menu-button pattern: a
+ *    panel of the six titles, each cascading its own items as a submenu
+ *    card beside the panel (or above it, in the mobile bottom sheet).
+ *
+ * Both share the item rendering, so checkmark state is computed at open
+ * time either way. Menus close on click-away, Escape, or Tab-out.
  */
 
 import { track } from './analytics.js';
 import { initModal } from './a11y.js';
 
-export function buildMenus(el, commands, io, engine, drive, onedrive, darkMode, labelEdit, nodeStyle, intro, numberEdit) {
-	const driveItem = run => () => {
+export function makeMenus(commands, io, engine, drive, onedrive, darkMode, labelEdit, nodeStyle, intro, numberEdit, layout) {
+	const chooseLayout = mode => () => {
+			track('layout_select', { layout: mode });
+			layout.set(mode);
+		},
+		driveItem = run => () => {
 			if (drive && drive.isConfigured()) { run(); } else { showDriveSetup(); }
 		},
 		oneDriveItem = run => () => {
@@ -93,9 +105,16 @@ export function buildMenus(el, commands, io, engine, drive, onedrive, darkMode, 
 			[(engine.getThemeName() === 'argMappingHighImpactUpward' ? '✓ ' : '') + 'Theme: High-impact upward (Therefore, arrows up)', () => {
 				track('theme_select', { theme: 'high_impact_upward' });
 				engine.setThemeByName('argMappingHighImpactUpward');
-			}, { radio: engine.getThemeName() === 'argMappingHighImpactUpward' }]
+			}, { radio: engine.getThemeName() === 'argMappingHighImpactUpward' }],
+			['—'],
+			[(layout.get() === 'left' ? '✓ ' : '') + 'Left-side controls',
+				chooseLayout('left'), { radio: layout.get() === 'left' }],
+			[(layout.get() === 'floating' ? '✓ ' : '') + 'Floating controls',
+				chooseLayout('floating'), { radio: layout.get() === 'floating' }],
+			[(layout.get() === 'classic' ? '✓ ' : '') + 'Classic top controls',
+				chooseLayout('classic'), { radio: layout.get() === 'classic' }]
 		]],
-		['Argument Visualization', () => [
+		['Argument', () => [
 			['Toggle implicit claim (T)', commands.toggleImplicit],
 			['Toggle reason ⇄ objection (T on a bracket)', commands.toggleReasonObjection],
 			['Edit connector label…', () => labelEdit.editSelectedConnectorLabel()],
@@ -113,16 +132,23 @@ export function buildMenus(el, commands, io, engine, drive, onedrive, darkMode, 
 		]]
 	];
 
-	let openMenu = null,
-		openTitle = null;
+	let menubarEl = null,
+		openMenu = null,
+		openTitle = null,
+		// { trigger, panel, rows, sub, subRow, placement } while a flyout is up
+		fly = null;
 	const titles = [],
-		closeAll = function () {
+		closeMenubar = function () {
 			if (openMenu) { openMenu.remove(); openMenu = null; }
 			if (openTitle) {
 				openTitle.classList.remove('open');
 				openTitle.setAttribute('aria-expanded', 'false');
 				openTitle = null;
 			}
+		},
+		closeAll = function () {
+			closeMenubar();
+			closeFlyout();
 		},
 		// move the single Tab stop to a given title
 		setRoving = function (title) {
@@ -146,19 +172,21 @@ export function buildMenus(el, commands, io, engine, drive, onedrive, darkMode, 
 		focusLastItem = function (menu) {
 			const items = menuItems(menu);
 			if (items.length) { items[items.length - 1].focus(); }
+		},
+		// keep a fixed-position card inside the viewport
+		clampLeft = function (left, width) {
+			return Math.max(8, Math.min(left, window.innerWidth - width - 8));
 		};
 
-	// build one dropdown for a title, wired for mouse + keyboard
-	function openFor(title) {
-		closeAll();
-		title.classList.add('open');
-		title.setAttribute('aria-expanded', 'true');
+	// one role=menu card holding the items of a single spec entry; the spec
+	// closure runs here, so checkmarks read the state at open time
+	function buildItemMenu(label, items, onKey) {
 		const menu = document.createElement('div');
 		menu.className = 'menu-dropdown';
 		menu.setAttribute('role', 'menu');
-		menu.setAttribute('aria-label', title.textContent);
-		title.spec().forEach(([label, run, opts]) => {
-			if (label === '—') {
+		menu.setAttribute('aria-label', label);
+		items.forEach(([itemLabel, run, opts]) => {
+			if (itemLabel === '—') {
 				const hr = document.createElement('div');
 				hr.className = 'menu-sep';
 				hr.setAttribute('role', 'separator');
@@ -168,7 +196,7 @@ export function buildMenus(el, commands, io, engine, drive, onedrive, darkMode, 
 			const item = document.createElement('button');
 			item.type = 'button';
 			item.className = 'menu-item';
-			item.textContent = label;
+			item.textContent = itemLabel;
 			item.setAttribute('tabindex', '-1');
 			if (opts && 'check' in opts) {
 				item.setAttribute('role', 'menuitemcheckbox');
@@ -183,7 +211,17 @@ export function buildMenus(el, commands, io, engine, drive, onedrive, darkMode, 
 			item.addEventListener('click', () => activate(run));
 			menu.appendChild(item);
 		});
-		menu.addEventListener('keydown', e => onMenuKey(e, title, menu));
+		menu.addEventListener('keydown', onKey);
+		return menu;
+	}
+
+	// build one dropdown for a menubar title, wired for mouse + keyboard
+	function openFor(title) {
+		closeAll();
+		title.classList.add('open');
+		title.setAttribute('aria-expanded', 'true');
+		const menu = buildItemMenu(title.textContent, title.spec(),
+			e => onMenuKey(e, title, menu));
 		const rect = title.getBoundingClientRect();
 		menu.style.left = rect.left + 'px';
 		menu.style.top = rect.bottom + 2 + 'px';
@@ -284,6 +322,209 @@ export function buildMenus(el, commands, io, engine, drive, onedrive, darkMode, 
 			closeAll();
 			break;
 		}
+	}
+
+	/* ---- flyout (floating and mobile layouts) ---------------------------
+	 * A menu button opens a panel of the six titles; each title cascades the
+	 * same item card the menubar builds. placement 'right' hangs the panel
+	 * under the trigger with submenus beside it; placement 'up' anchors the
+	 * panel above the trigger (the mobile bottom sheet) with submenus above
+	 * that, because there is no width to cascade sideways on a phone. */
+
+	function closeSub() {
+		if (!fly || !fly.sub) { return; }
+		fly.sub.remove();
+		fly.sub = null;
+		fly.subRow.classList.remove('open');
+		fly.subRow.setAttribute('aria-expanded', 'false');
+		fly.subRow = null;
+	}
+
+	function closeFlyout(returnFocus) {
+		if (!fly) { return; }
+		const trigger = fly.trigger;
+		closeSub();
+		fly.panel.remove();
+		trigger.classList.remove('open');
+		trigger.setAttribute('aria-expanded', 'false');
+		fly = null;
+		if (returnFocus) { trigger.focus(); }
+	}
+
+	function positionPanel() {
+		const rect = fly.trigger.getBoundingClientRect(),
+			panel = fly.panel;
+		if (fly.placement === 'up') {
+			panel.style.maxHeight = Math.max(120, rect.top - 16) + 'px';
+			panel.style.left = clampLeft(rect.left, panel.offsetWidth) + 'px';
+			panel.style.top = Math.max(8, rect.top - panel.offsetHeight - 6) + 'px';
+			return;
+		}
+		panel.style.left = clampLeft(rect.left, panel.offsetWidth) + 'px';
+		panel.style.top = rect.bottom + 6 + 'px';
+		panel.style.maxHeight = Math.max(120, window.innerHeight - rect.bottom - 16) + 'px';
+	}
+
+	function positionSub(row) {
+		const panel = fly.panel.getBoundingClientRect(),
+			sub = fly.sub;
+		if (fly.placement === 'up') {
+			sub.style.maxHeight = Math.max(120, panel.top - 16) + 'px';
+			sub.style.left = clampLeft(panel.left, sub.offsetWidth) + 'px';
+			sub.style.top = Math.max(8, panel.top - sub.offsetHeight - 6) + 'px';
+			return;
+		}
+		sub.style.maxHeight = Math.max(120, window.innerHeight - 16) + 'px';
+		const rowTop = row.getBoundingClientRect().top,
+			right = panel.right + 4;
+		sub.style.left = (right + sub.offsetWidth > window.innerWidth - 8 ?
+			Math.max(8, panel.left - sub.offsetWidth - 4) : right) + 'px';
+		sub.style.top = Math.max(8,
+			Math.min(rowTop - 5, window.innerHeight - sub.offsetHeight - 8)) + 'px';
+	}
+
+	function openSub(row) {
+		if (!fly || fly.subRow === row) { return fly && fly.sub; }
+		closeSub();
+		const sub = buildItemMenu(row.textContent, row.spec(), e => onSubKey(e, row));
+		sub.classList.add('menu-flysub');
+		document.body.appendChild(sub);
+		fly.sub = sub;
+		fly.subRow = row;
+		row.classList.add('open');
+		row.setAttribute('aria-expanded', 'true');
+		positionSub(row);
+		return sub;
+	}
+
+	function openFlyout(trigger, placement) {
+		closeAll();
+		const panel = document.createElement('div'),
+			rows = [];
+		panel.className = 'menu-dropdown menu-flyout';
+		panel.setAttribute('role', 'menu');
+		panel.setAttribute('aria-label', 'Application menu');
+		spec.forEach(([title, items]) => {
+			const row = document.createElement('button');
+			row.type = 'button';
+			row.className = 'menu-item menu-flyrow';
+			row.textContent = title;
+			row.setAttribute('role', 'menuitem');
+			row.setAttribute('aria-haspopup', 'menu');
+			row.setAttribute('aria-expanded', 'false');
+			row.setAttribute('tabindex', '-1');
+			row.spec = items; // the lazy item builder, as on a menubar title
+			row.addEventListener('mousedown', e => e.preventDefault());
+			row.addEventListener('mouseenter', () => openSub(row));
+			row.addEventListener('click', () => focusFirstItem(openSub(row)));
+			rows.push(row);
+			panel.appendChild(row);
+		});
+		panel.addEventListener('keydown', e => onFlyRowKey(e));
+		document.body.appendChild(panel);
+		trigger.classList.add('open');
+		trigger.setAttribute('aria-expanded', 'true');
+		fly = { trigger, panel, rows, sub: null, subRow: null, placement: placement };
+		positionPanel();
+		return panel;
+	}
+
+	// keyboard on a flyout title row
+	function onFlyRowKey(e) {
+		const rows = fly.rows,
+			at = rows.indexOf(document.activeElement);
+		switch (e.key) {
+		case 'ArrowDown':
+			e.preventDefault();
+			rows[(at + 1) % rows.length].focus();
+			break;
+		case 'ArrowUp':
+			e.preventDefault();
+			rows[(at - 1 + rows.length) % rows.length].focus();
+			break;
+		case 'Home':
+			e.preventDefault();
+			rows[0].focus();
+			break;
+		case 'End':
+			e.preventDefault();
+			rows[rows.length - 1].focus();
+			break;
+		case 'ArrowRight':
+		case 'Enter':
+		case ' ':
+			e.preventDefault();
+			if (at >= 0) { focusFirstItem(openSub(rows[at])); }
+			break;
+		case 'ArrowLeft':
+		case 'Escape':
+			e.preventDefault();
+			e.stopPropagation();
+			closeFlyout(true);
+			break;
+		case 'Tab':
+			closeAll();
+			break;
+		}
+	}
+
+	// keyboard inside a flyout submenu: one Escape closes just this level
+	function onSubKey(e, row) {
+		const items = menuItems(fly.sub),
+			at = items.indexOf(document.activeElement);
+		switch (e.key) {
+		case 'ArrowDown':
+			e.preventDefault();
+			items[(at + 1) % items.length].focus();
+			break;
+		case 'ArrowUp':
+			e.preventDefault();
+			items[(at - 1 + items.length) % items.length].focus();
+			break;
+		case 'Home':
+			e.preventDefault();
+			if (items.length) { items[0].focus(); }
+			break;
+		case 'End':
+			e.preventDefault();
+			if (items.length) { items[items.length - 1].focus(); }
+			break;
+		case 'Enter':
+		case ' ':
+			e.preventDefault();
+			if (at >= 0) { items[at].click(); }
+			break;
+		case 'ArrowLeft':
+		case 'Escape':
+			e.preventDefault();
+			e.stopPropagation();
+			closeSub();
+			row.focus();
+			break;
+		case 'Tab':
+			closeAll();
+			break;
+		}
+	}
+
+	// WAI-ARIA menu-button on the trigger itself
+	function bindFlyoutTrigger(btn, placement) {
+		btn.setAttribute('aria-haspopup', 'menu');
+		btn.setAttribute('aria-expanded', 'false');
+		btn.addEventListener('click', function () {
+			if (fly && fly.trigger === btn) { closeFlyout(); return; }
+			openFlyout(btn, placement);
+		});
+		btn.addEventListener('keydown', function (e) {
+			if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+				e.preventDefault();
+				const panel = fly && fly.trigger === btn ? fly.panel : openFlyout(btn, placement);
+				if (e.key === 'ArrowUp') { focusLastItem(panel); } else { focusFirstItem(panel); }
+			} else if (e.key === 'Escape') {
+				e.stopPropagation();
+				closeFlyout();
+			}
+		});
 	}
 
 	function showPanel(html) {
@@ -403,31 +644,54 @@ export function buildMenus(el, commands, io, engine, drive, onedrive, darkMode, 
 		);
 	}
 
-	spec.forEach(([title, items], i) => {
-		const t = document.createElement('button');
-		t.type = 'button';
-		t.className = 'menu-title';
-		t.textContent = title;
-		t.setAttribute('role', 'menuitem');
-		t.setAttribute('aria-haspopup', 'true');
-		t.setAttribute('aria-expanded', 'false');
-		t.setAttribute('tabindex', i === 0 ? '0' : '-1');
-		t.spec = items; // stash the lazy item builder for openFor
-		t.addEventListener('mousedown', e => e.preventDefault());
-		t.addEventListener('click', function () {
-			if (t === openTitle) { closeAll(); return; }
-			setRoving(t);
-			openFor(t);
+	// the horizontal menubar; built once, then moved/hidden by layout.js
+	function renderMenubar(el) {
+		menubarEl = el;
+		spec.forEach(([title, items], i) => {
+			const t = document.createElement('button');
+			t.type = 'button';
+			t.className = 'menu-title';
+			t.textContent = title;
+			t.setAttribute('role', 'menuitem');
+			t.setAttribute('aria-haspopup', 'true');
+			t.setAttribute('aria-expanded', 'false');
+			t.setAttribute('tabindex', i === 0 ? '0' : '-1');
+			t.spec = items; // stash the lazy item builder for openFor
+			t.addEventListener('mousedown', e => e.preventDefault());
+			t.addEventListener('click', function () {
+				if (t === openTitle) { closeAll(); return; }
+				setRoving(t);
+				openFor(t);
+			});
+			t.addEventListener('keydown', e => onTitleKey(e, t));
+			titles.push(t);
+			el.appendChild(t);
 		});
-		t.addEventListener('keydown', e => onTitleKey(e, t));
-		titles.push(t);
-		el.appendChild(t);
-	});
+	}
 
 	document.addEventListener('click', function (e) {
-		if (openMenu && !openMenu.contains(e.target) && !el.contains(e.target)) { closeAll(); }
+		if (openMenu && !openMenu.contains(e.target) &&
+				!(menubarEl && menubarEl.contains(e.target))) {
+			closeMenubar();
+		}
+		if (fly && !fly.panel.contains(e.target) && !fly.trigger.contains(e.target) &&
+				!(fly.sub && fly.sub.contains(e.target))) {
+			closeFlyout();
+		}
 	});
 	document.addEventListener('keydown', function (e) {
 		if (e.key === 'Escape') { closeAll(); }
 	});
+	// the cards are fixed-position and measured on open, so a resize would
+	// leave them hanging off the anchor they were placed against
+	window.addEventListener('resize', function () {
+		if (fly) { closeFlyout(); }
+		closeMenubar();
+	});
+
+	return {
+		renderMenubar: renderMenubar,
+		bindFlyoutTrigger: bindFlyoutTrigger,
+		closeAll: closeAll
+	};
 }

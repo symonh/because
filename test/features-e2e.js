@@ -29,7 +29,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 	});
 
 	// ---- theme switcher button ----
-	ok(await page.$('#topbar #theme-toggle') !== null, 'theme toggle button renders in the topbar');
+	// the default layout is the left rail, which docks the toggle at its foot
+	// (the classic layout keeps it in the top bar; see the layout section)
+	ok(await page.$('#toolbar #theme-toggle') !== null, 'theme toggle button renders at the rail foot');
 	await page.click('#theme-toggle');
 	await sleep(300);
 	ok(await page.evaluate(() => document.body.classList.contains('dark')),
@@ -123,7 +125,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 	const nodesBefore = await page.evaluate(() => document.querySelectorAll('.mapjs-node').length);
 	await page.keyboard.press('Enter');
 	await sleep(500);
-	await page.mouse.click(30, 300); // blur the fresh editor without typing
+	// blur the fresh editor without typing, on bare canvas — x=30 used to be
+	// empty map, but the 46px rail now sits there, so click clear of it
+	await page.mouse.click(200, 850);
 	await sleep(500);
 	const afterAbandoned = await page.evaluate(() => ({
 		inputEnabled: window.__because.engine.mapModel.getInputEnabled(),
@@ -834,6 +838,291 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 	ok(gaPayload.indexOf('Premise') < 0 && gaPayload.indexOf('dblclick') < 0 &&
 		gaPayload.indexOf('Claim number') < 0 && gaPayload.indexOf('SECRET7') < 0,
 		'no map text or typed labels leak into any analytics event');
+
+	// ---- chrome layouts: left (default) / floating / classic ----
+	// Three arrangements of the same controls, chosen from the View menu and
+	// remembered in localStorage. Like dark mode this is a view preference:
+	// the .mup must serialize byte-identical in every one of them.
+	await page.evaluate(() => {
+		if (window.__because.darkMode.isDark()) { window.__because.darkMode.toggle(); }
+	});
+	await sleep(200);
+	const layoutState = () => page.evaluate(() => {
+		const el = id => document.getElementById(id),
+			box = id => { const r = el(id).getBoundingClientRect(); return r.width > 0 && r.height > 0; },
+			toolbar = el('toolbar');
+		return {
+			stored: localStorage.getItem('because.layout'),
+			mode: window.__because.layout.getLayout(),
+			bodyClass: document.body.className,
+			topbarShown: !el('topbar').hidden,
+			menubarShown: !el('menubar').hidden,
+			railOrientation: toolbar.getAttribute('aria-orientation'),
+			toolbarRole: toolbar.getAttribute('role'),
+			toolbarLabel: toolbar.getAttribute('aria-label'),
+			toolbarShown: !toolbar.hidden,
+			toolbarButtons: toolbar.querySelectorAll('.tb-btn').length,
+			hasNewDoc: !!toolbar.querySelector('.tb-btn[aria-label^="New map"]'),
+			hasOpen: !!toolbar.querySelector('.tb-btn[aria-label^="Open"]'),
+			hasSave: !!toolbar.querySelector('.tb-btn[aria-label^="Save"]'),
+			themeToggleIn: el('theme-toggle').parentElement.id,
+			themeToggleShown: !el('theme-toggle').hidden,
+			floatShown: !el('float-chrome').hidden,
+			pill: box('float-pill'), tools: box('float-tools'),
+			zoom: box('float-zoom'), chip: box('float-status'),
+			floatTools: el('float-tools').querySelectorAll('.tb-btn').length,
+			floatZoom: el('float-zoom').querySelectorAll('.tb-btn').length,
+			titleIn: el('map-title').parentElement.id,
+			statusIn: el('save-status').parentElement.id,
+			map: window.__because.engine.serialize()
+		};
+	});
+
+	const left0 = await layoutState();
+	ok(left0.stored === null && left0.mode === 'left' && left0.bodyClass.indexOf('layout-left') >= 0,
+		`the default layout is the left rail, with nothing stored yet (${left0.mode})`);
+	ok(left0.toolbarRole === 'toolbar' && left0.toolbarLabel === 'Editing toolbar' &&
+		left0.railOrientation === 'vertical',
+		`the rail is a labelled vertical toolbar (${left0.railOrientation})`);
+	ok(!left0.hasNewDoc && !left0.hasOpen && !left0.hasSave && left0.toolbarButtons === 16,
+		`the rail drops New/Open/Save — the File menu and ⌘O/⌘S cover them (${left0.toolbarButtons} buttons)`);
+	ok(left0.themeToggleIn === 'toolbar' && left0.themeToggleShown && left0.topbarShown && left0.menubarShown,
+		'left keeps the slim top bar and menus, and docks the theme toggle at the rail foot');
+	ok(!left0.floatShown, 'the floating cards stay out of the way in the left layout');
+
+	// View > Floating controls, live (no reload)
+	await clickMenu('View', 'Floating controls');
+	await sleep(400);
+	const floating = await layoutState();
+	ok(floating.mode === 'floating' && floating.bodyClass.indexOf('layout-floating') >= 0 &&
+		floating.stored === 'floating', 'View > Floating controls switches live and records the choice');
+	ok(floating.floatShown && floating.pill && floating.tools && floating.zoom && floating.chip,
+		'floating shows the identity pill, tool palette, zoom cluster and save chip');
+	ok(!floating.topbarShown && !floating.menubarShown && !floating.toolbarShown &&
+		!floating.themeToggleShown,
+		'floating hides the top bar, the menubar, the rail and the theme toggle');
+	ok(floating.titleIn === 'float-pill' && floating.statusIn === 'float-status',
+		'the file title moves into the pill and the live save status into the chip');
+	ok(floating.floatTools === 8 && floating.floatZoom === 3,
+		`the palette carries the editing tools and the cluster the three zooms (${floating.floatTools}/${floating.floatZoom})`);
+
+	// the event carries the layout enum and nothing else
+	const layoutEvents = await page.evaluate(() =>
+		window.__because.analytics.events().filter(e => e.name === 'layout_select'));
+	ok(layoutEvents.length === 1 && layoutEvents[0].params.layout === 'floating' &&
+		Object.keys(layoutEvents[0].params).length === 1,
+		`choosing a layout fires layout_select with the layout enum only (${JSON.stringify(layoutEvents[0] && layoutEvents[0].params)})`);
+	ok(['left', 'floating', 'classic'].indexOf(layoutEvents[0].params.layout) >= 0 &&
+		JSON.stringify(layoutEvents).indexOf('Premise') < 0 &&
+		JSON.stringify(layoutEvents).indexOf('SECRET7') < 0 &&
+		JSON.stringify(layoutEvents).indexOf('.mup') < 0,
+		'no map content, title or file name rides along in the layout event');
+
+	// ---- the flyout: the same six menus behind the pill's ellipsis ----
+	await page.click('#float-menu');
+	await sleep(250);
+	const flyOpen = await page.evaluate(() => {
+		const panel = document.querySelector('.menu-flyout'),
+			rows = panel && Array.from(panel.querySelectorAll('.menu-flyrow'));
+		return panel && {
+			role: panel.getAttribute('role'),
+			expanded: document.getElementById('float-menu').getAttribute('aria-expanded'),
+			haspopup: document.getElementById('float-menu').getAttribute('aria-haspopup'),
+			titles: rows.map(r => r.textContent).join(','),
+			rowPopup: rows.every(r => r.getAttribute('aria-haspopup') === 'menu')
+		};
+	});
+	ok(!!flyOpen && flyOpen.role === 'menu' && flyOpen.expanded === 'true' && flyOpen.haspopup === 'menu',
+		'the ellipsis is a menu button opening a role=menu panel');
+	ok(flyOpen && flyOpen.titles === 'File,Insert,Edit,View,Argument,Help' && flyOpen.rowPopup,
+		`the flyout lists the same six menus, each cascading (${flyOpen && flyOpen.titles})`);
+
+	// hovering a title cascades its items beside the panel
+	await page.hover('.menu-flyrow:nth-child(4)'); // View
+	await sleep(250);
+	const cascade = await page.evaluate(() => {
+		const sub = document.querySelector('.menu-flysub'),
+			panel = document.querySelector('.menu-flyout');
+		return sub && {
+			role: sub.getAttribute('role'),
+			label: sub.getAttribute('aria-label'),
+			panelStillOpen: !!panel,
+			items: sub.querySelectorAll('.menu-item').length,
+			radios: Array.from(sub.querySelectorAll('[role=menuitemradio]')).map(i => i.textContent).join('|'),
+			beside: sub.getBoundingClientRect().left >= panel.getBoundingClientRect().right - 1
+		};
+	});
+	ok(!!cascade && cascade.role === 'menu' && cascade.label === 'View' && cascade.panelStillOpen,
+		'hovering a title cascades its items while the panel stays open');
+	ok(cascade && cascade.beside && cascade.items > 5,
+		`the submenu opens beside the panel, not over it (${cascade && cascade.items} items)`);
+	ok(cascade && cascade.radios.indexOf('✓ Floating controls') >= 0,
+		`the layout radios read their state at open time (${cascade && cascade.radios.split('|').filter(r => r.indexOf('controls') >= 0).join(', ')})`);
+
+	// hovering a second title swaps the cascade rather than stacking cards
+	await page.hover('.menu-flyrow:nth-child(2)'); // Insert
+	await sleep(250);
+	ok(await page.evaluate(() => document.querySelectorAll('.menu-flysub').length === 1 &&
+		document.querySelector('.menu-flysub').getAttribute('aria-label') === 'Insert'),
+		'hovering another title replaces the cascaded card');
+
+	// Escape from outside the menu closes the whole flyout (the level-by-level
+	// keyboard walk is the a11y suite's job — it needs focus inside the cards)
+	await page.keyboard.press('Escape');
+	await sleep(200);
+	ok(await page.evaluate(() => !document.querySelector('.menu-flyout') &&
+		!document.querySelector('.menu-flysub') &&
+		document.getElementById('float-menu').getAttribute('aria-expanded') === 'false'),
+		'Escape closes the flyout and its cascade, and resets aria-expanded');
+
+	// a flyout item really runs its command
+	const labelsBefore = await page.evaluate(() => window.__because.engine.getLabelsOn());
+	const clickFlyout = async (menu, item) => {
+		await page.click('#float-menu');
+		await sleep(200);
+		await page.evaluate(m => {
+			Array.from(document.querySelectorAll('.menu-flyrow')).find(r => r.textContent === m).click();
+		}, menu);
+		await sleep(250);
+		await page.evaluate(i => {
+			Array.from(document.querySelectorAll('.menu-flysub .menu-item'))
+				.find(x => x.textContent.indexOf(i) >= 0).click();
+		}, item);
+		await sleep(400);
+	};
+	await clickFlyout('View', 'Claim numbering');
+	ok(await page.evaluate(() => window.__because.engine.getLabelsOn()) !== labelsBefore,
+		'an item run from the flyout executes its command');
+	ok(await page.evaluate(() => !document.querySelector('.menu-flyout') && !document.querySelector('.menu-flysub')),
+		'running a flyout item closes the whole flyout');
+	await clickFlyout('View', 'Claim numbering'); // restore
+
+	// back to classic, from the flyout (there is no menubar to click here)
+	await clickFlyout('View', 'Classic top controls');
+	const classic = await layoutState();
+	ok(classic.mode === 'classic' && classic.bodyClass.indexOf('layout-classic') >= 0,
+		'Classic top controls restores the pre-overhaul arrangement');
+	ok(classic.toolbarButtons === 19 && classic.railOrientation === 'horizontal',
+		`the classic toolbar is the full horizontal strip of 19 buttons (${classic.toolbarButtons})`);
+	ok(classic.hasNewDoc && classic.hasOpen && classic.hasSave,
+		'classic keeps New/Open/Save in the toolbar');
+	ok(classic.topbarShown && classic.menubarShown && classic.themeToggleIn === 'topbar' &&
+		classic.titleIn === 'topbar' && classic.statusIn === 'topbar' && !classic.floatShown,
+		'classic puts the title, save status and theme toggle back in the top bar');
+
+	await clickMenu('View', 'Left-side controls');
+	await sleep(400);
+	const left1 = await layoutState();
+	ok(left1.mode === 'left' && left1.toolbarButtons === 16 && left1.stored === 'left',
+		'the View menu switches back to the rail');
+
+	// the fidelity rule: no layout may touch map data
+	ok(left0.map === floating.map && floating.map === classic.map && classic.map === left1.map,
+		'the .mup serializes byte-identical in every layout (left → floating → classic → left)');
+
+	// the choice survives a reload
+	await clickMenu('View', 'Floating controls');
+	await sleep(300);
+	await page.reload({ waitUntil: 'networkidle0' });
+	await page.waitForSelector('.mapjs-node', { timeout: 8000 });
+	await sleep(500);
+	const reloaded = await layoutState();
+	ok(reloaded.mode === 'floating' && reloaded.floatShown && !reloaded.topbarShown,
+		`the layout choice persists across a reload (${reloaded.mode})`);
+	await clickFlyout('View', 'Left-side controls');
+	ok(await page.evaluate(() => window.__because.layout.getLayout()) === 'left',
+		'and the flyout can put it back');
+
+	// ---- mobile breakpoint (max-width 719px) ----
+	// Below 720px the stored desktop choice is overridden, not changed: a
+	// slim top bar plus a bottom command bar with real thumb targets.
+	await page.setViewport({ width: 375, height: 700, deviceScaleFactor: 2 });
+	await sleep(500);
+	const mobile = await page.evaluate(() => {
+		const bar = document.getElementById('mobilebar'),
+			btns = Array.from(bar.querySelectorAll('.mb-btn')).map(b => {
+				const r = b.getBoundingClientRect();
+				return { label: b.textContent, w: Math.round(r.width), h: Math.round(r.height) };
+			});
+		return {
+			stored: localStorage.getItem('because.layout'),
+			mode: window.__because.layout.getLayout(),
+			barShown: !bar.hidden && bar.getBoundingClientRect().height > 0,
+			role: bar.getAttribute('role'), label: bar.getAttribute('aria-label'),
+			buttons: btns,
+			railHidden: document.getElementById('toolbar').hidden,
+			menubarHidden: document.getElementById('menubar').hidden,
+			floatHidden: document.getElementById('float-chrome').hidden,
+			topbarShown: !document.getElementById('topbar').hidden,
+			noOverflow: document.body.scrollWidth <= window.innerWidth + 1
+		};
+	});
+	ok(mobile.barShown && mobile.role === 'toolbar' && !!mobile.label &&
+		mobile.buttons.map(b => b.label).join(',') === 'Reason,Objection,Edit,Undo,Menu',
+		`the bottom bar carries the five thumb commands (${mobile.buttons.map(b => b.label).join(',')})`);
+	ok(mobile.buttons.every(b => b.w >= 44 && b.h >= 44),
+		`every bottom-bar target clears 44×44 (${mobile.buttons.map(b => b.w + '×' + b.h).join(' ')})`);
+	ok(mobile.railHidden && mobile.menubarHidden && mobile.floatHidden && mobile.topbarShown,
+		'the rail, the menubar and the floating cards give way to the mobile bars');
+	ok(mobile.noOverflow, 'nothing overflows the 375px viewport');
+	ok(mobile.stored === 'left' && mobile.mode === 'left',
+		`the stored desktop choice is overridden, not rewritten (${mobile.stored})`);
+
+	// the Menu button opens the same spec as a bottom sheet
+	await page.evaluate(() => {
+		Array.from(document.querySelectorAll('.mb-btn')).find(b => b.textContent === 'Menu').click();
+	});
+	await sleep(300);
+	const sheet = await page.evaluate(() => {
+		const panel = document.querySelector('.menu-flyout'),
+			bar = document.getElementById('mobilebar');
+		return panel && {
+			role: panel.getAttribute('role'),
+			titles: Array.from(panel.querySelectorAll('.menu-flyrow')).map(r => r.textContent).join(','),
+			aboveBar: panel.getBoundingClientRect().bottom <= bar.getBoundingClientRect().top + 1,
+			withinViewport: panel.getBoundingClientRect().left >= 0 &&
+				panel.getBoundingClientRect().right <= window.innerWidth
+		};
+	});
+	ok(!!sheet && sheet.role === 'menu' && sheet.titles === 'File,Insert,Edit,View,Argument,Help',
+		'the mobile Menu button opens the same six menus');
+	ok(sheet && sheet.aboveBar && sheet.withinViewport,
+		'the sheet is anchored above the bar and stays inside the 375px viewport');
+	await page.keyboard.press('Escape');
+	await sleep(200);
+	ok(await page.evaluate(() => !document.querySelector('.menu-flyout')), 'Escape closes the sheet');
+
+	// and the bar's own buttons run the map commands
+	const mobileAdd = await page.evaluate(() => {
+		const m = window.__because.engine.mapModel,
+			firstClaim = function (idea) {
+				for (const k of Object.keys(idea.ideas || {})) {
+					const child = idea.ideas[k];
+					if (!(child.attr && child.attr.group)) { return child; }
+					const found = firstClaim(child);
+					if (found) { return found; }
+				}
+				return null;
+			};
+		m.selectNode(firstClaim(m.getIdea()).id);
+		return document.querySelectorAll('.mapjs-node').length;
+	});
+	await page.evaluate(() => {
+		Array.from(document.querySelectorAll('.mb-btn')).find(b => b.textContent === 'Reason').click();
+	});
+	await sleep(600);
+	await page.keyboard.type('from the phone');
+	await page.keyboard.press('Enter'); // commit the new claim's editor
+	await sleep(500);
+	const mobileAfter = await page.evaluate(() => document.querySelectorAll('.mapjs-node').length);
+	ok(mobileAfter > mobileAdd,
+		`the bottom bar's Reason button adds a reason (${mobileAdd} → ${mobileAfter})`);
+
+	await page.setViewport({ width: 1500, height: 950, deviceScaleFactor: 2 });
+	await sleep(400);
+	ok(await page.evaluate(() => !document.getElementById('toolbar').hidden &&
+		document.getElementById('mobilebar').hidden),
+		'widening the viewport hands control back to the stored desktop layout');
 
 	if (errors.length) { console.log('PAGE ERRORS:', errors.join(' | ')); failures += 1; }
 	await browser.close();

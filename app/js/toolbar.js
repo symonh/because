@@ -1,86 +1,127 @@
 /*global document*/
 /*
  * Icon toolbar. Every button maps to a command (commands.js) or a file op.
- * Icons are inline SVGs (16x16 viewBox, stroke-based) — no external assets.
+ * The same vocabulary renders in four places — the classic top bar, the
+ * left rail, the floating palettes and the mobile bottom bar — so each tool
+ * is described once in TOOLS and every layout is just a group string
+ * ("a,b|c" = two groups separated by a rule). Icons come from icons.js.
  */
 
-const ICONS = {
-	newDoc: '<path d="M4 1h6l3 3v11H4z" fill="none"/><path d="M10 1v3h3"/>',
-	open: '<path d="M1 4h5l2 2h7v8H1z" fill="none"/>',
-	save: '<path d="M2 2h10l2 2v10H2z" fill="none"/><path d="M5 2v4h6V2M5 14v-5h6v5"/>',
-	undo: '<path d="M6 3L2 7l4 4"/><path d="M2 7h8a4 4 0 014 4v1" fill="none"/>',
-	redo: '<path d="M10 3l4 4-4 4"/><path d="M14 7H6a4 4 0 00-4 4v1" fill="none"/>',
-	reason: '<rect x="5" y="1" width="7" height="4" rx="1" fill="none"/><path d="M8.5 5v3" stroke="#339966" stroke-width="2"/><path d="M2 8h13M2 8q0 2 2 2m9-2q0 2 2 2" stroke="#339966" stroke-width="2" fill="none"/><rect x="2" y="11" width="5" height="4" rx="1" fill="none"/><rect x="9" y="11" width="5" height="4" rx="1" fill="none"/>',
-	objection: '<rect x="5" y="1" width="7" height="4" rx="1" fill="none"/><path d="M8.5 5v3" stroke="#e02222" stroke-width="2"/><path d="M2 8h13M2 8q0 2 2 2m9-2q0 2 2 2" stroke="#e02222" stroke-width="2" fill="none"/><rect x="4" y="11" width="8" height="4" rx="1" fill="none"/>',
-	copremise: '<rect x="1" y="6" width="6" height="5" rx="1" fill="none"/><rect x="9" y="6" width="6" height="5" rx="1" fill="none"/><path d="M7 8.5h2" stroke-dasharray="1.5,1.5"/>',
-	sticky: '<path d="M2 2h12v9l-3 3H2z" fill="#ffef8a" stroke="#8a7b00"/><path d="M11 14v-3h3"/>',
-	edit: '<path d="M3 13l1-4 7-7 3 3-7 7z" fill="none"/><path d="M10 3l3 3"/>',
-	trash: '<path d="M3 4h10M6 4V2h4v2M4 4l1 10h6l1-10" fill="none"/>',
-	implicit: '<rect x="2" y="4" width="12" height="8" rx="2" fill="none" stroke-dasharray="3,2"/>',
-	flip: '<path d="M4 6q4-4 8 0" fill="none" stroke="#339966" stroke-width="2"/><path d="M4 10q4 4 8 0" fill="none" stroke="#e02222" stroke-width="2"/><path d="M12 4v2h-2M4 12v-2h2"/>',
-	evalMark: '<circle cx="8" cy="8" r="6" fill="none" stroke="#1987b5" stroke-width="2"/><path d="M4 12L12 4" stroke="#e02222" stroke-width="2"/>',
-	zoomIn: '<circle cx="7" cy="7" r="5" fill="none"/><path d="M11 11l4 4M5 7h4M7 5v4"/>',
-	zoomOut: '<circle cx="7" cy="7" r="5" fill="none"/><path d="M11 11l4 4M5 7h4"/>',
-	zoomReset: '<circle cx="7" cy="7" r="5" fill="none"/><path d="M11 11l4 4"/><path d="M5.5 8.5v-3l3 3v-3" stroke-width="1.2"/>',
-	collapse: '<path d="M3 6l5-4 5 4M3 10l5 4 5-4" fill="none"/>',
-	numbering: '<circle cx="8" cy="8" r="6.5" fill="#1987b5" stroke="#fff"/><text x="8" y="11" font-size="8" text-anchor="middle" fill="#fff" stroke="none" font-family="sans-serif" font-weight="bold">1.1</text>'
-};
+import { iconSVG } from './icons.js';
 
-function iconSVG(name) {
-	return '<svg aria-hidden="true" focusable="false" viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">' + ICONS[name] + '</svg>';
+// icon name -> [tooltip / accessible name, action]
+function tools(commands, io) {
+	return {
+		newDoc: ['New map', () => io.newMap()],
+		open: ['Open .mup…', () => io.open()],
+		save: ['Save', () => io.save(false)],
+		undo: ['Undo (⌘Z)', commands.undo],
+		redo: ['Redo (⌘⇧Z)', commands.redo],
+		reason: ['Add reason (Enter)', commands.addReason],
+		objection: ['Add objection (Alt+O)', commands.addObjection],
+		copremise: ['Add co-premise (Tab)', commands.addCoPremise],
+		sticky: ['Add sticky note (Alt+N)', commands.addSticky],
+		edit: ['Edit text (F2 / double-click)', commands.editNode],
+		trash: ['Delete (⌫)', commands.deleteNode],
+		implicit: ['Toggle implicit claim (Alt+T)', commands.toggleImplicit],
+		flip: ['Toggle reason ⇄ objection (Alt+T on a bracket)', commands.toggleReasonObjection],
+		evalMark: ['Mark claim false / true / clear', commands.cycleEvaluation],
+		zoomOut: ['Zoom out (Shift+Z)', commands.zoomOut],
+		zoomReset: ['Reset view', commands.zoomReset],
+		zoomIn: ['Zoom in (Z)', commands.zoomIn],
+		collapse: ['Collapse / expand branch (F)', commands.toggleCollapse],
+		numbering: ['Toggle claim numbering', commands.toggleNumbering]
+	};
 }
 
-export function buildToolbar(el, commands, io) {
-	const groups = [
-		[
-			{ icon: 'newDoc', title: 'New map', run: () => io.newMap() },
-			{ icon: 'open', title: 'Open .mup…', run: () => io.open() },
-			{ icon: 'save', title: 'Save', run: () => io.save(false) }
-		],
-		[
-			{ icon: 'undo', title: 'Undo (⌘Z)', run: commands.undo },
-			{ icon: 'redo', title: 'Redo (⌘⇧Z)', run: commands.redo }
-		],
-		[
-			{ icon: 'reason', title: 'Add reason (Enter)', run: commands.addReason },
-			{ icon: 'objection', title: 'Add objection (Alt+O)', run: commands.addObjection },
-			{ icon: 'copremise', title: 'Add co-premise (Tab)', run: commands.addCoPremise },
-			{ icon: 'sticky', title: 'Add sticky note (Alt+N)', run: commands.addSticky }
-		],
-		[
-			{ icon: 'edit', title: 'Edit text (F2 / double-click)', run: commands.editNode },
-			{ icon: 'trash', title: 'Delete (⌫)', run: commands.deleteNode }
-		],
-		[
-			{ icon: 'implicit', title: 'Toggle implicit claim (Alt+T)', run: commands.toggleImplicit },
-			{ icon: 'flip', title: 'Toggle reason ⇄ objection (Alt+T on a bracket)', run: commands.toggleReasonObjection },
-			{ icon: 'evalMark', title: 'Mark claim false / true / clear', run: commands.cycleEvaluation }
-		],
-		[
-			{ icon: 'zoomOut', title: 'Zoom out (Shift+Z)', run: commands.zoomOut },
-			{ icon: 'zoomReset', title: 'Reset view', run: commands.zoomReset },
-			{ icon: 'zoomIn', title: 'Zoom in (Z)', run: commands.zoomIn }
-		],
-		[
-			{ icon: 'collapse', title: 'Collapse / expand branch (F)', run: commands.toggleCollapse },
-			{ icon: 'numbering', title: 'Toggle claim numbering', run: commands.toggleNumbering }
-		]
+const EDITING = 'reason,objection,copremise,sticky|edit,trash',
+	ZOOM = 'zoomOut,zoomReset,zoomIn',
+	// classic is the pre-overhaul group list, unchanged; the rail drops
+	// New/Open/Save (the File menu and ⌘O/⌘S cover them) and parks zoom at
+	// the foot, below a flex spacer
+	GROUPS = {
+		classic: 'newDoc,open,save|undo,redo|' + EDITING + '|implicit,flip,evalMark|' +
+			ZOOM + '|collapse,numbering',
+		left: 'undo,redo|' + EDITING + '|implicit,flip,evalMark|collapse,numbering',
+		leftFoot: ZOOM,
+		floating: EDITING + '|undo,redo',
+		floatingZoom: ZOOM
+	},
+	// the five commands worth a thumb on a phone; the rest live in the menu
+	MOBILE = [
+		['reason', 'Reason'],
+		['objection', 'Objection'],
+		['edit', 'Edit'],
+		['undo', 'Undo']
 	];
-	groups.forEach((group, gi) => {
-		if (gi) {
-			const sep = document.createElement('span');
-			sep.className = 'tb-sep';
-			el.appendChild(sep);
-		}
-		group.forEach(btn => {
-			const b = document.createElement('button');
-			b.className = 'tb-btn';
-			b.title = btn.title;
-			b.setAttribute('aria-label', btn.title);
-			b.innerHTML = iconSVG(btn.icon);
-			b.addEventListener('mousedown', e => e.preventDefault()); // keep map focus
-			b.addEventListener('click', () => btn.run());
-			el.appendChild(b);
+
+function toolButton(name, title, run) {
+	const b = document.createElement('button');
+	b.type = 'button';
+	b.className = 'tb-btn';
+	b.title = title;
+	b.setAttribute('aria-label', title);
+	b.innerHTML = iconSVG(name);
+	b.addEventListener('mousedown', e => e.preventDefault()); // keep map focus
+	b.addEventListener('click', () => run());
+	return b;
+}
+
+function separator(el) {
+	const sep = document.createElement('span');
+	sep.className = 'tb-sep';
+	el.appendChild(sep);
+}
+
+function renderGroups(el, table, groups) {
+	groups.split('|').forEach(function (group, gi) {
+		if (gi) { separator(el); }
+		group.split(',').forEach(function (name) {
+			const tool = table[name];
+			el.appendChild(toolButton(name, tool[0], tool[1]));
 		});
 	});
+}
+
+// mode: 'classic' | 'left' | 'floating' | 'floatingZoom'. The caller empties
+// the container first — layout.js rebuilds these on every mode change.
+export function buildToolbar(el, commands, io, mode) {
+	const table = tools(commands, io),
+		which = GROUPS[mode] ? mode : 'classic';
+	renderGroups(el, table, GROUPS[which]);
+	if (which === 'left') {
+		const spacer = document.createElement('span');
+		spacer.className = 'tb-spacer';
+		el.appendChild(spacer);
+		renderGroups(el, table, GROUPS.leftFoot);
+		separator(el); // layout.js appends #theme-toggle after this
+	}
+}
+
+// Bottom bar for the mobile breakpoint: icon over a short visible label, so
+// the label IS the accessible name (WCAG 2.5.3). Returns the Menu button for
+// the caller to wire to the flyout.
+export function buildMobileBar(el, commands, io) {
+	const table = tools(commands, io);
+	MOBILE.forEach(function ([name, label]) {
+		const b = toolButton(name, table[name][0], table[name][1]),
+			text = document.createElement('span');
+		b.className = 'mb-btn';
+		b.removeAttribute('aria-label');
+		text.className = 'mb-label';
+		text.textContent = label;
+		b.appendChild(text);
+		el.appendChild(b);
+	});
+	const menu = document.createElement('button'),
+		text = document.createElement('span');
+	menu.type = 'button';
+	menu.className = 'mb-btn';
+	menu.title = 'Menu';
+	menu.innerHTML = iconSVG('hamburger');
+	text.className = 'mb-label';
+	text.textContent = 'Menu';
+	menu.appendChild(text);
+	el.appendChild(menu);
+	return menu;
 }

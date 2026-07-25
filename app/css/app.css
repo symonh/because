@@ -1,5 +1,33 @@
-/* Because chrome (topbar, menus, toolbar, panels) — the map canvas
- * itself is styled by argmap.css + the generated theme CSS. */
+/* Because chrome (topbar, rail, floating cards, menus, panels) — the map
+ * canvas itself is styled by argmap.css + the generated theme CSS. */
+
+/* Chrome tokens. One set of surfaces for every layout, flipped wholesale
+ * by body.dark; the map's own colours are never touched by these. */
+:root {
+	--chrome-bg: #f7f8fa;
+	--chrome-line: #e1e4e8;
+	--chrome-ic: #4a5158;
+	--chrome-hover: #e8f2f8;
+	--chrome-active: #d8eaf4;
+	--chrome-title: #333;
+	--chrome-muted: #6e6e6e;
+	--card-bg: #ffffff;
+	--card-shadow: 0 4px 18px rgba(30,40,50,0.14), 0 1px 3px rgba(30,40,50,0.10);
+	--accent: #16749f;
+}
+body.dark {
+	--chrome-bg: #23262b;
+	--chrome-line: #383d44;
+	--chrome-ic: #c3c8cd;
+	--chrome-hover: #32373d;
+	--chrome-active: #3b4148;
+	--chrome-title: #e2e5e7;
+	--chrome-muted: #a2a9b0;
+	--card-bg: #2a2e34;
+	--card-shadow: 0 4px 18px rgba(0,0,0,0.45), 0 1px 3px rgba(0,0,0,0.40);
+	--accent: #6cc4ee;
+}
+
 * { box-sizing: border-box; }
 html, body {
 	margin: 0;
@@ -8,12 +36,38 @@ html, body {
 	color: #444;
 	overflow: hidden;
 }
-/* flex column so the chrome reflows (topbar/toolbar wrap) instead of
- * clipping at 200% text zoom or narrow widths (WCAG 1.4.4, 1.4.10) */
+
+/* ---- layout modes (layout.js; body carries the class) -------------------
+ * A grid so the left rail can span the full window height beside the top
+ * bar. Rows are auto-sized, so the top bar still wraps rather than clips at
+ * 200% text zoom (WCAG 1.4.4, 1.4.10); below 720px every mode reflows to
+ * the mobile arrangement at the foot of this file. */
 body {
-	display: flex;
-	flex-direction: column;
+	display: grid;
+	grid-template:
+		"topbar" auto
+		"toolbar" auto
+		"map" 1fr
+		/ 1fr;
 }
+body.layout-left {
+	grid-template:
+		"rail topbar" auto
+		"rail map" 1fr
+		/ 46px 1fr;
+}
+body.layout-floating {
+	grid-template: "map" 1fr / 1fr;
+}
+#topbar { grid-area: topbar; }
+body.layout-classic #toolbar { grid-area: toolbar; }
+body.layout-left #toolbar { grid-area: rail; }
+#map-container { grid-area: map; }
+#mobilebar { grid-area: mobilebar; }
+
+/* layout.js owns visibility; these beat the id selectors' own display */
+#topbar[hidden], #toolbar[hidden], #menubar[hidden], #theme-toggle[hidden],
+#float-chrome[hidden], #mobilebar[hidden] { display: none; }
 
 /* keyboard bypass link (WCAG 2.4.1): visually hidden until focused */
 #skip-link {
@@ -39,18 +93,17 @@ body {
 	display: flex;
 	align-items: center;
 	flex-wrap: wrap;
-	flex: none;
 	gap: 14px;
-	min-height: 44px;
+	min-height: 40px;
 	padding: 0 12px;
-	background: #fff;
-	border-bottom: 1px solid #e3e3e3;
+	background: var(--chrome-bg);
+	border-bottom: 1px solid var(--chrome-line);
 }
 .brand { display: flex; align-items: center; }
 #map-title {
-	font-size: 14px;
-	font-weight: 700;
-	color: #333;
+	font-size: 13px;
+	font-weight: 650;
+	color: var(--chrome-title);
 	white-space: nowrap;
 	max-width: 260px;
 	overflow: hidden;
@@ -65,16 +118,16 @@ body {
 	text-align: left;
 	padding: 6px 10px;
 	font-size: 13px;
-	color: #555;
+	color: var(--chrome-ic);
 	border-radius: 4px;
 	cursor: pointer;
 	user-select: none;
 }
-.menu-title:hover, .menu-title.open { background: #eef6fb; color: #16749f; }
+.menu-title:hover, .menu-title.open { background: var(--chrome-hover); color: var(--accent); }
 #save-status {
 	margin-left: auto;
 	font-size: 12px;
-	color: #6e6e6e;
+	color: var(--chrome-muted);
 	white-space: nowrap;
 }
 #theme-toggle {
@@ -87,20 +140,20 @@ body {
 	border: none;
 	border-radius: 6px;
 	background: transparent;
-	color: #777;
+	color: var(--chrome-ic);
 	cursor: pointer;
 	padding: 0;
 }
-#theme-toggle:hover { background: #eef6fb; color: #16749f; }
+#theme-toggle:hover { background: var(--chrome-hover); color: var(--accent); }
 
 .menu-dropdown {
 	position: fixed;
 	z-index: 900;
 	min-width: 230px;
-	background: #fff;
-	border: 1px solid #ddd;
-	border-radius: 6px;
-	box-shadow: 0 4px 14px rgba(0,0,0,0.13);
+	background: var(--card-bg);
+	border: 1px solid var(--chrome-line);
+	border-radius: 8px;
+	box-shadow: var(--card-shadow);
 	padding: 4px 0;
 }
 .menu-item {
@@ -118,24 +171,40 @@ body {
 	user-select: none;
 	white-space: nowrap;
 }
-.menu-item:hover { background: #eef6fb; color: #16749f; }
-.menu-sep { border-top: 1px solid #eee; margin: 4px 0; }
+.menu-item:hover { background: var(--chrome-hover); color: var(--accent); }
+.menu-sep { border-top: 1px solid var(--chrome-line); margin: 4px 0; }
+
+/* ---- flyout menus (floating and mobile layouts; menus.js) ----
+ * The same spec as the menubar, rendered as a panel of titles with each
+ * title's items cascading beside it (or above it, on a phone). */
+.menu-flyout, .menu-flysub { overflow-y: auto; }
+.menu-flyout { min-width: 168px; }
+.menu-flyrow { display: flex; align-items: center; }
+.menu-flyrow::after {
+	content: "\203A"; /* › — cascade hint, matching the submenu side */
+	margin-left: auto;
+	padding-left: 16px;
+	font-size: 15px;
+	line-height: 1;
+	opacity: 0.55;
+}
+.menu-flyrow.open { background: var(--chrome-hover); color: var(--accent); }
 
 #toolbar {
 	display: flex;
 	align-items: center;
 	flex-wrap: wrap;
-	flex: none;
 	gap: 2px;
 	min-height: 40px;
 	padding: 0 10px;
-	background: #fafafa;
-	border-bottom: 1px solid #e3e3e3;
+	background: var(--chrome-bg);
+	border-bottom: 1px solid var(--chrome-line);
 }
 .tb-btn {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
+	flex: none;
 	width: 32px;
 	height: 32px;
 	border: none;
@@ -143,21 +212,132 @@ body {
 	border-radius: 5px;
 	cursor: pointer;
 	padding: 0;
-	color: #555; /* icon strokes use currentColor */
+	color: var(--chrome-ic); /* icon strokes use currentColor */
 }
-.tb-btn:hover { background: #e8f2f8; }
-.tb-btn:active { background: #d8eaf4; }
+.tb-btn:hover { background: var(--chrome-hover); }
+.tb-btn:active { background: var(--chrome-active); }
 .tb-sep {
+	flex: none;
 	width: 1px;
 	height: 22px;
-	background: #ddd;
+	background: var(--chrome-line);
 	margin: 0 7px;
 }
 
+/* semantic strokes inside the icons (icons.js tags the paths); these hold
+ * 3:1 non-text contrast on both chrome grounds — do not lighten */
+.ic-sup { stroke: #2e8f5f; }
+.ic-opp { stroke: #cc3333; }
+body.dark .ic-sup { stroke: #46b579; }
+body.dark .ic-opp { stroke: #e05c5c; }
+
+/* ---- left rail (layout 'left') ---- */
+body.layout-left #toolbar {
+	flex-direction: column;
+	flex-wrap: nowrap;
+	align-items: center;
+	gap: 2px;
+	min-height: 0;
+	padding: 6px 0;
+	overflow-y: auto;
+	border-bottom: none;
+	border-right: 1px solid var(--chrome-line);
+}
+body.layout-left .tb-btn { width: 30px; height: 30px; border-radius: 6px; }
+body.layout-left .tb-sep { width: 18px; height: 1px; margin: 4px 0; }
+.tb-spacer { flex: 1 1 auto; min-height: 4px; }
+
+/* ---- floating cards (layout 'floating') ---- */
+#float-chrome {
+	position: fixed;
+	inset: 0;
+	z-index: 600;
+	pointer-events: none;
+}
+.fl-card {
+	position: absolute;
+	pointer-events: auto;
+	background: var(--card-bg);
+	border: 1px solid var(--chrome-line);
+	border-radius: 10px;
+	box-shadow: var(--card-shadow);
+}
+#float-pill {
+	top: 12px;
+	left: 12px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 8px 6px 10px;
+}
+#float-pill .brand svg { width: 20px; height: 20px; }
+#float-pill #map-title { max-width: 40vw; }
+#float-tools {
+	left: 12px;
+	top: 50%;
+	transform: translateY(-50%);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+	padding: 6px 5px;
+	border-radius: 11px;
+	max-height: calc(100vh - 140px);
+	overflow-y: auto;
+}
+#float-zoom {
+	left: 12px;
+	bottom: 12px;
+	display: flex;
+	gap: 2px;
+	padding: 4px 5px;
+}
+#float-chrome .tb-btn { width: 30px; height: 30px; border-radius: 6px; }
+#float-tools .tb-sep { width: 16px; height: 1px; margin: 3px 0; }
+#float-status {
+	top: 14px;
+	right: 14px;
+	border-radius: 999px;
+	padding: 4px 11px;
+}
+#float-status #save-status { margin-left: 0; font-size: 11px; }
+
+/* ---- mobile bottom bar (built by toolbar.js, shown below 720px) ---- */
+#mobilebar {
+	display: flex;
+	align-items: stretch;
+	justify-content: space-around;
+	gap: 2px;
+	padding: 4px 6px;
+	background: var(--chrome-bg);
+	border-top: 1px solid var(--chrome-line);
+}
+.mb-btn {
+	display: flex;
+	flex: 1 1 0;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 2px;
+	min-width: 44px;
+	min-height: 44px;
+	max-width: 88px;
+	padding: 4px 2px;
+	border: none;
+	border-radius: 9px;
+	background: transparent;
+	color: var(--chrome-ic);
+	font: inherit;
+	cursor: pointer;
+}
+.mb-btn:hover { background: var(--chrome-hover); }
+.mb-btn:active, .mb-btn.open { background: var(--chrome-active); }
+.mb-label { font-size: 9px; line-height: 1.2; }
+
 #map-container {
 	position: relative;
-	flex: 1 1 auto;
 	min-height: 0;
+	min-width: 0;
 	width: 100%;
 	background: #fff;
 	overflow: hidden;
@@ -535,35 +715,9 @@ body.dark {
 	color: #d3d7db;
 	color-scheme: dark;
 }
-body.dark #topbar {
-	background: #24272b;
-	border-bottom-color: #34383d;
-}
-body.dark #map-title { color: #e2e5e7; }
-body.dark .menu-title { color: #c3c8cd; }
-body.dark .menu-title:hover, body.dark .menu-title.open {
-	background: #31363c;
-	color: #6cc4ee;
-}
-body.dark #save-status { color: #a2a9b0; }
-body.dark #theme-toggle { color: #c3c8cd; }
-body.dark #theme-toggle:hover { background: #31363c; color: #6cc4ee; }
-body.dark .menu-dropdown {
-	background: #2a2e33;
-	border-color: #3d4248;
-	box-shadow: 0 4px 14px rgba(0,0,0,0.5);
-}
+/* the chrome surfaces themselves flip through the tokens at the top of this
+ * file; only what sits outside that token set is repeated here */
 body.dark .menu-item { color: #d3d7db; }
-body.dark .menu-item:hover { background: #31363c; color: #6cc4ee; }
-body.dark .menu-sep { border-top-color: #3d4248; }
-body.dark #toolbar {
-	background: #24272b;
-	border-bottom-color: #34383d;
-}
-body.dark .tb-btn { color: #c3c8cd; }
-body.dark .tb-btn:hover { background: #32373d; }
-body.dark .tb-btn:active { background: #3b4148; }
-body.dark .tb-sep { background: #3d4248; }
 body.dark #map-container { background: #1b1d20; }
 body.dark .panel {
 	background: #2a2e33;
@@ -655,15 +809,56 @@ body.dark #map-container:focus-visible {
  * the focused selection with .a11y-keyboard-selected for its roving-focus
  * bookkeeping; that class no longer carries a style of its own. */
 
+/* ---- mobile breakpoint --------------------------------------------------
+ * Below 720px every desktop layout reflows to the same arrangement: a slim
+ * top bar with the brand, file name and save status, and a bottom command
+ * bar with 44px targets. The rail, the classic toolbar and the floating
+ * cards are all hidden (layout.js sets `hidden`; the grid below just gives
+ * #mobilebar its row). The stored layout choice is untouched and takes
+ * effect again when the viewport widens. At 320px nothing clips: the title
+ * truncates and the five bottom buttons share the width. */
+@media (max-width: 719px) {
+	body.layout-left, body.layout-floating, body.layout-classic {
+		grid-template:
+			"topbar" auto
+			"map" 1fr
+			"mobilebar" auto
+			/ 1fr;
+	}
+	#topbar {
+		flex-wrap: nowrap;
+		gap: 8px;
+		min-height: 44px;
+		padding: 0 10px;
+	}
+	#map-title { min-width: 0; max-width: none; }
+	#save-status {
+		font-size: 11px;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.menu-flyout, .menu-flysub { max-width: calc(100vw - 16px); }
+	.menu-item { white-space: normal; }
+}
+
 /* ---- reduced motion (WCAG 2.3.3) ---- */
+@media (prefers-reduced-motion: no-preference) {
+	.tb-btn, .mb-btn, .menu-title, .menu-item, #theme-toggle {
+		transition: background-color 0.12s ease-out;
+	}
+}
 @media (prefers-reduced-motion: reduce) {
 	.loading-spinner { animation: none; }
 	#skip-link { transition: none; }
 }
 
 @media print {
-	#topbar, #toolbar { display: none; }
-	/* map-container is flex:1 1 auto in the column, so with the chrome hidden
-	 * it already fills the page height; keep the white background for print */
+	#topbar, #toolbar, #mobilebar, #float-chrome { display: none; }
+	/* collapse the grid to the map alone: the left rail's 46px column would
+	 * otherwise stay as an empty gutter on the page */
+	body.layout-left, body.layout-floating, body.layout-classic {
+		grid-template: "map" 1fr / 1fr;
+	}
 	#map-container { background: #fff !important; }
 }

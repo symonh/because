@@ -43,6 +43,7 @@ GA4 is the replacement and its web streams use `G-…` measurement ids.
    | Save mode | `mode` | Event |
    | Connector action | `action` | Event |
    | Theme | `theme` | Event |
+   | Layout | `layout` | Event |
    | Help panel | `panel` | Event |
    | Intro trigger | `trigger` | Event |
    | Dark mode | `dark_mode` | User |
@@ -67,6 +68,7 @@ GA4 is the replacement and its web streams use `G-…` measurement ids.
 | `node_style` | `action` (`popover_open`, `background_swatch`, `background_custom`, `background_clear`), `swatch`, `method` | right-click style popover |
 | `theme_select` | `theme` (`simple`, `high_impact`, `high_impact_upward`) | View-menu theme switch |
 | `dark_mode_toggle` | `enabled` (`on`/`off`) | any dark-mode toggle (also kept as the `dark_mode` user property) |
+| `layout_select` | `layout` (`left`, `floating`, `classic`) | View-menu chrome layout switch (left rail / floating cards / classic top bars); persisted in `localStorage` as `because.layout` |
 | `intro_shown` / `intro_dismissed` | `trigger` (`first_visit`, `menu`); `dont_show_again` (`yes`/`no`) | welcome modal |
 | `help_open` | `panel` (`shortcuts`, `about`, `drive_setup`, `onedrive_setup`) | Help panels (`shortcuts` covers both the ? key and the Help menu) |
 | `help_platform` | `platform` (`mac`, `windows`) | the keyboard reference's Mac/Windows switch, when the reader picks the other one |

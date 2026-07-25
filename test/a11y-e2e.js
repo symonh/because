@@ -177,7 +177,11 @@ const AXE_OPTS = {
 
 	// ---- toolbar: focused button activates, no map hijack ----
 	const nodesBefore = await page.evaluate(() => document.querySelectorAll('.mapjs-node').length);
-	await page.evaluate(() => { document.querySelectorAll('.tb-btn')[3].focus(); }); // undo
+	// by name, not by index: the rail and the classic bar order their groups
+	// differently, and index 3 is Add objection in the rail
+	await page.evaluate(() => {
+		document.querySelector('#toolbar .tb-btn[aria-label^="Undo"]').focus();
+	});
 	await page.keyboard.press('Enter');
 	await page.waitForTimeout(250);
 	ok(await page.evaluate(() => document.querySelectorAll('.mapjs-node').length) === nodesBefore,
@@ -349,17 +353,129 @@ const AXE_OPTS = {
 	ok(await page.evaluate(() => getComputedStyle(document.getElementById('save-status')).color) === 'rgb(162, 169, 176)',
 		'dark save status contrast color applied');
 
+	// ---- left rail: a labelled toolbar landmark with a visible focus ring ----
+	await page.evaluate(() => window.__because.darkMode.toggle()); // back to light
+	await page.waitForTimeout(300);
+	const rail = await page.evaluate(() => {
+		const t = document.getElementById('toolbar');
+		return {
+			mode: window.__because.layout.getLayout(),
+			role: t.getAttribute('role'),
+			label: t.getAttribute('aria-label'),
+			orientation: t.getAttribute('aria-orientation'),
+			themeAtFoot: t.lastElementChild.id,
+			allNamed: Array.from(t.querySelectorAll('.tb-btn'))
+				.every(b => !!b.getAttribute('aria-label') && b.querySelector('svg[aria-hidden=true]'))
+		};
+	});
+	ok(rail.mode === 'left' && rail.role === 'toolbar' && rail.label === 'Editing toolbar' &&
+		rail.orientation === 'vertical',
+		`the default rail is a labelled vertical toolbar (${rail.role}/${rail.orientation})`);
+	ok(rail.themeAtFoot === 'theme-toggle' && rail.allNamed,
+		'the theme toggle sits at the rail foot and every rail button is named');
+	// Tab must reach the rail, and keyboard focus must be visible on it
+	await page.evaluate(() => { if (document.activeElement) { document.activeElement.blur(); } });
+	await page.keyboard.press('Tab'); // skip link
+	await page.keyboard.press('Tab'); // menubar (one roving stop)
+	await page.keyboard.press('Tab'); // first rail button
+	const railFocus = await page.evaluate(() => {
+		const a = document.activeElement, c = getComputedStyle(a);
+		return {
+			inRail: document.getElementById('toolbar').contains(a),
+			name: a.getAttribute('aria-label'),
+			style: c.outlineStyle, width: c.outlineWidth, color: c.outlineColor
+		};
+	});
+	ok(railFocus.inRail, `the third Tab stop is a rail button (${railFocus.name})`);
+	ok(railFocus.style === 'solid' && parseFloat(railFocus.width) >= 2 &&
+		railFocus.color === 'rgb(22, 116, 159)',
+		`rail buttons draw a focus-visible ring (${railFocus.style} ${railFocus.width} ${railFocus.color})`);
+
+	// ---- floating layout: axe clean, and the flyout is a real menu button ----
+	await page.evaluate(() => window.__because.layout.setLayout('floating'));
+	await page.waitForTimeout(400);
+	await axeScan('floating layout, light');
+	await page.evaluate(() => window.__because.darkMode.toggle());
+	await page.waitForTimeout(300);
+	await axeScan('floating layout, dark');
+	await page.evaluate(() => window.__because.darkMode.toggle());
+	await page.waitForTimeout(300);
+
+	const trigger = await page.evaluate(() => {
+		const b = document.getElementById('float-menu');
+		return { haspopup: b.getAttribute('aria-haspopup'), expanded: b.getAttribute('aria-expanded'),
+			name: b.getAttribute('aria-label') };
+	});
+	ok(trigger.haspopup === 'menu' && trigger.expanded === 'false' && trigger.name === 'Menu',
+		`the flyout trigger follows the menu-button pattern (${trigger.haspopup}/${trigger.expanded})`);
+	await page.evaluate(() => document.getElementById('float-menu').focus());
+	await page.keyboard.press('Enter');
+	await page.waitForTimeout(250);
+	const opened = await page.evaluate(() => {
+		const panel = document.querySelector('.menu-flyout'), a = document.activeElement;
+		return panel && {
+			role: panel.getAttribute('role'),
+			expanded: document.getElementById('float-menu').getAttribute('aria-expanded'),
+			onFirstRow: a === panel.querySelector('.menu-flyrow'),
+			itemRole: a.getAttribute('role'), name: a.textContent
+		};
+	});
+	ok(!!opened && opened.role === 'menu' && opened.expanded === 'true',
+		'Enter on the trigger opens the panel and sets aria-expanded');
+	ok(opened && opened.onFirstRow && opened.itemRole === 'menuitem',
+		`Enter focuses the first menuitem (${opened && opened.name})`);
+	await page.keyboard.press('ArrowRight');
+	await page.waitForTimeout(250);
+	const cascaded = await page.evaluate(() => {
+		const sub = document.querySelector('.menu-flysub'), a = document.activeElement;
+		return sub && {
+			role: sub.getAttribute('role'), label: sub.getAttribute('aria-label'),
+			rowExpanded: document.querySelector('.menu-flyrow').getAttribute('aria-expanded'),
+			onFirstItem: a === sub.querySelector('.menu-item'), name: a.textContent
+		};
+	});
+	ok(!!cascaded && cascaded.role === 'menu' && cascaded.label === 'File' &&
+		cascaded.rowExpanded === 'true',
+		'ArrowRight opens the submenu and marks its row expanded');
+	ok(cascaded && cascaded.onFirstItem, `and focuses the submenu's first item (${cascaded && cascaded.name})`);
+	await axeScan('floating flyout, cascaded');
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(200);
+	ok(await page.evaluate(() => !document.querySelector('.menu-flysub') &&
+		!!document.querySelector('.menu-flyout') &&
+		document.activeElement === document.querySelector('.menu-flyrow')),
+		'Escape closes just the submenu and returns focus to its row');
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(200);
+	ok(await page.evaluate(() => !document.querySelector('.menu-flyout') &&
+		document.activeElement === document.getElementById('float-menu') &&
+		document.getElementById('float-menu').getAttribute('aria-expanded') === 'false'),
+		'a second Escape closes the flyout and returns focus to the trigger');
+	await page.evaluate(() => window.__because.layout.setLayout('left'));
+	await page.waitForTimeout(300);
+
 	// ---- reflow: narrow viewport keeps chrome usable ----
+	// below 720px every layout reflows to the mobile bars, so "the toolbar"
+	// at this width IS the bottom command bar
 	await page.setViewportSize({ width: 640, height: 800 });
 	await page.waitForTimeout(400);
 	const reflow = await page.evaluate(() => ({
 		bodyScroll: document.body.scrollWidth <= window.innerWidth + 1,
-		toolbarVisible: document.querySelectorAll('#toolbar .tb-btn').length ===
-			Array.from(document.querySelectorAll('#toolbar .tb-btn'))
-				.filter(b => b.getBoundingClientRect().right <= window.innerWidth + 1 && b.getBoundingClientRect().width > 0).length
+		toolbarVisible: document.querySelectorAll('#mobilebar .mb-btn').length === 5 &&
+			Array.from(document.querySelectorAll('#mobilebar .mb-btn'))
+				.every(b => b.getBoundingClientRect().right <= window.innerWidth + 1 &&
+					b.getBoundingClientRect().width >= 44 && b.getBoundingClientRect().height >= 44),
+		named: Array.from(document.querySelectorAll('#mobilebar .mb-btn'))
+			.every(b => b.textContent.trim().length > 0 &&
+				(b.getAttribute('title') || '').toLowerCase().indexOf(b.textContent.trim().toLowerCase()) >= 0)
 	}));
 	ok(reflow.bodyScroll, 'no horizontal body overflow at 640px');
-	ok(reflow.toolbarVisible, 'every toolbar button visible at 640px');
+	ok(reflow.toolbarVisible, 'every bottom-bar button is visible and at least 44×44 at 640px');
+	// no aria-label overrides these, so the accessible name IS the visible
+	// label (WCAG 2.5.3 satisfied by construction); this checks the longer
+	// tooltip stays consistent with the word actually shown
+	ok(reflow.named, 'each bottom-bar label is a word of the tooltip it abbreviates');
+	await axeScan('mobile layout');
 
 	ok(errors.length === 0, 'no page errors (' + errors.join('; ').slice(0, 200) + ')');
 	await browser.close();

@@ -12,13 +12,11 @@ import { makeNodeStyle } from './node-style.js';
 import { makeLoading } from './loading.js';
 import { makeIntro } from './intro.js';
 import { makeShortcutHelp } from './shortcut-help.js';
-import { buildToolbar } from './toolbar.js';
-import { buildMenus } from './menus.js';
+import { makeMenus } from './menus.js';
+import { initLayout } from './layout.js';
+import { iconSVG } from './icons.js';
 import { bindShortcuts } from './shortcuts.js';
 import { initAnalytics, track, setUserProperty, noteMapSource, takeMapSource, countEdit, nodeBucket, analyticsApi } from './analytics.js';
-
-const SUN_ICON = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.4"/><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5.3 5.3l1.7 1.7M17 17l1.7 1.7M18.7 5.3L17 7M7 17l-1.7 1.7"/></svg>',
-	MOON_ICON = '<svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M20.6 14.6A8.6 8.6 0 019.4 3.4a8.6 8.6 0 1011.2 11.2z"/></svg>';
 
 const status = {
 	el: null,
@@ -71,8 +69,15 @@ document.addEventListener('DOMContentLoaded', function () {
 		loading = makeLoading(),
 		intro = makeIntro();
 
-	buildToolbar(document.getElementById('toolbar'), instrument('toolbar'), io);
-	buildMenus(document.getElementById('menubar'), instrument('menu'), io, engine, drive, onedrive, darkMode, labelEdit, nodeStyle, intro, numberEdit);
+	// menus and layout each need the other — the View menu switches layout,
+	// and the floating and mobile layouts render the menu spec as a flyout —
+	// but only from inside callbacks, so a forward declaration is enough
+	let layout = null;
+	const menus = makeMenus(instrument('menu'), io, engine, drive, onedrive, darkMode,
+		labelEdit, nodeStyle, intro, numberEdit,
+		{ get: () => layout.getLayout(), set: m => layout.setLayout(m) });
+	menus.renderMenubar(document.getElementById('menubar'));
+	layout = initLayout(instrument('toolbar'), io, menus);
 	bindShortcuts(engine, instrument('shortcut'));
 
 	// one map_open per load, whatever the path (picker, drop, Drive, ?src=,
@@ -98,7 +103,7 @@ document.addEventListener('DOMContentLoaded', function () {
 		refreshThemeToggle = function () {
 			const dark = darkMode.isDark(),
 				label = dark ? 'Switch to light mode' : 'Switch to dark mode';
-			themeToggle.innerHTML = dark ? SUN_ICON : MOON_ICON;
+			themeToggle.innerHTML = iconSVG(dark ? 'sun' : 'moon');
 			// the key hint rides in the tooltip only: the accessible name
 			// stays the plain action, which is what gets announced
 			themeToggle.title = label + ' (Shift+T)';
@@ -120,7 +125,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	engine.on('loadFinished', () => loading.hide());
 
 	// dev/test handle
-	window.__because = { engine, commands, io, drive, onedrive, darkMode, labelEdit, numberEdit, nodeStyle, intro, shortcutHelp, analytics: analyticsApi };
+	window.__because = { engine, commands, io, drive, onedrive, darkMode, layout, labelEdit, numberEdit, nodeStyle, intro, shortcutHelp, analytics: analyticsApi };
 
 	// every model change marks the map unsaved (relative to its file) and
 	// refreshes the crash-recovery autosave; only File > Save clears it

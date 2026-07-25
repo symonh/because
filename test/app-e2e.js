@@ -418,7 +418,7 @@ function ok(cond, name) {
 
 	// menu path opens the same editor for the selected bracket; Escape cancels
 	await page.evaluate(() => window.__because.engine.mapModel.selectNode(12));
-	await clickMenu('Argument Visualization', 'Edit connector label');
+	await clickMenu('Argument', 'Edit connector label');
 	await page.waitForSelector('.connector-label-editor', { timeout: 5000 });
 	ok(await page.$eval('.connector-label-editor', el => el.value) === 'Rachels\' central argument',
 		'menu opens the label editor for the premise\'s bracket');
