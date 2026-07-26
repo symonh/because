@@ -1,6 +1,7 @@
 {
   "name": "because-engine",
   "private": true,
+  "license": "MIT",
   "description": "Build wrapper for the vendored mindmup/mapjs engine (see vendor/mapjs)",
   "scripts": {
     "build": "./build.sh"

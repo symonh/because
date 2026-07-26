@@ -1,3 +1,4 @@
+/*! Because — MIT License, Copyright (c) 2026 Simon Cullen. Bundles: mindmup/mapjs (MIT, Copyright (c) 2013 Damjan Vujnovic, David de Florinier, Gojko Adzic); jQuery (MIT, Copyright OpenJS Foundation and other contributors); Hammer.JS and its jQuery plugin (MIT, Copyright (c) 2011-2014 Jorik Tangelder); jQuery Hotkeys (MIT, Copyright 2010 John Resig); Underscore.js (MIT, Copyright (c) 2009-2022 Jeremy Ashkenas, Julian Gonggrijp, DocumentCloud and Investigative Reporters & Editors); PolyBool.js (MIT, Copyright (c) 2016 Sean Connelly); monotone-convex-hull-2d, robust-orientation, robust-scale, robust-subtract, robust-sum, two-product, two-sum (MIT, Copyright (c) 2013 Mikola Lysenko). Full notices: https://github.com/symonh/because/blob/main/THIRD-PARTY-NOTICES.md */
 (() => {
   var __getOwnPropNames = Object.getOwnPropertyNames;
   var __commonJS = (cb, mod) => function __require() {

@@ -104,3 +104,13 @@ click-select-e2e.js`, `node drive-e2e.js`, `node onedrive-e2e.js`,
 (Playwright WebKit, the Safari-engine check) and `node a11y-e2e.js`
 (WCAG 2.2 AA gate: axe-core scans plus the keyboard model, also WebKit —
 see docs/accessibility.md). All seven must pass before deploying.
+
+## License
+
+MIT — see [LICENSE](LICENSE). Copyright (c) 2026 Simon Cullen.
+
+The vendored rendering engine ([mindmup/mapjs](https://github.com/mindmup/mapjs))
+and everything compiled into `app/bundle.js` are MIT too; the two bundled fonts
+are under the SIL Open Font License 1.1. Their notices are collected in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md), with the font license text
+next to the fonts in `app/fonts/OFL.txt`.

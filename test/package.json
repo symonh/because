@@ -1,1 +1,1 @@
-{"name":"because-test","private":true,"type":"commonjs","dependencies":{"puppeteer-core":"^23.0.0"},"devDependencies":{"playwright-core":"^1.61.1"}}
+{"name":"because-test","private":true,"license":"MIT","type":"commonjs","dependencies":{"puppeteer-core":"^23.0.0"},"devDependencies":{"playwright-core":"^1.61.1"}}
