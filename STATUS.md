@@ -1,5 +1,36 @@
 # Because (formerly ArgumentBase) — status (2026-07-25)
 
+## 2026-07-25 — MIT licensing stated properly; GCS mirror retired
+
+- GitHub reported the repo's license as "Other", not MIT: LICENSE carried
+  the mapjs attribution paragraph inside the MIT text, which put it below
+  the similarity GitHub's detector needs. LICENSE is now verbatim MIT
+  (Copyright (c) 2026 Simon Cullen) and `gh api repos/symonh/because`
+  returns `spdx_id: MIT`.
+- THIRD-PARTY-NOTICES.md collects what ships: mapjs, the MIT libraries
+  esbuild compiles into the bundles (jQuery, Hammer.JS + its jQuery
+  plugin, jQuery Hotkeys, Underscore, PolyBool.js,
+  monotone-convex-hull-2d and its robust-*/two-* deps), and the two OFL
+  1.1 fonts. The bundled set was read off the `node_modules/…` paths
+  esbuild leaves in app/bundle.js, not off package.json.
+- Fonts now ship their license (app/fonts/OFL.txt,
+  engine-demo/fonts/OFL.txt), which OFL 1.1 requires and nothing did
+  before. build.sh stamps both bundles with a `--banner:js` naming every
+  bundled copyright holder, since the bundle is the copy browsers get.
+  Rebuilding with the banner is otherwise byte-identical to the committed
+  bundles (checked by rebuilding unchanged first); all seven suites pass.
+- site/terms.html's open-source section now names the app's own MIT
+  license and links the repo and the notices file.
+- **GCS mirror retired.** Checked what it actually held before removing
+  it: `gs://argumentbase-app` contained only app/ and samples/, no
+  website config, and nothing anywhere links to it — no DNS, no redirect.
+  It could not serve as an app failover either, because OAuth needs a
+  real origin and storage.googleapis.com can never be one
+  (docs/drive-setup.md), so Drive/OneDrive sign-in never worked there.
+  The two `gcloud storage rsync` lines are gone from deploy.sh; the
+  recurring "mirror step failed, needs an interactive gcloud auth login"
+  problem goes with them.
+
 ## 2026-07-25 — Chrome overhaul: left rail by default, floating and classic as options
 
 - Three chrome layouts, chosen from a View-menu radio group and stored as

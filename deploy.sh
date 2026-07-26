@@ -39,9 +39,3 @@ sed -i '' "s/APP_VERSION = 'dev'/APP_VERSION = '${COMMIT}'/" deploy/app/js/analy
 
 GOOGLE_CLOUD_QUOTA_PROJECT=driveshare-446802 \
 	npx --yes firebase-tools deploy --only hosting:argumentbase --project driveshare-446802
-
-# secondary mirror (legacy URL): GCS bucket
-if command -v gcloud >/dev/null; then
-	gcloud storage rsync --recursive --cache-control="no-cache" deploy/app gs://argumentbase-app/app
-	gcloud storage rsync --recursive --cache-control="no-cache" deploy/samples gs://argumentbase-app/samples
-fi

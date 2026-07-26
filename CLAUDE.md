@@ -28,7 +28,7 @@ OAuth setup.
   see the script). Record vendor patches in
   `engine/vendor/mapjs/LOCAL-PATCHES.diff`.
 - Deploy with `./deploy.sh` (Firebase Hosting site `argumentbase` — a
-  legacy id from the old app name — plus a GCS mirror). Public URL:
+  legacy id from the old app name). Public URL:
   https://app.philmaps.com.
 - Tests: serve the repo root on port 8871, then run `node app-e2e.js`,
   `node click-select-e2e.js`, `node drive-e2e.js`, `node onedrive-e2e.js`,
