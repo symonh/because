@@ -1,4 +1,70 @@
-# Because (formerly ArgumentBase) — status (2026-07-25)
+# Because (formerly ArgumentBase) — status (2026-07-27)
+
+## 2026-07-27 — Objections to an inference can be labelled
+
+- A reason or objection whose parent is itself a bracket answers the
+  inference rather than the claim, and draws as a bare coloured bar under
+  the bracket it answers (select a bracket, add an objection). It could
+  not be labelled, though the rest of the argument's inferences could.
+- Nothing was missing from the rendering: the theme carries
+  `no-connector.supporting-group` / `no-connector.opposing-group` styles
+  for exactly this connector, and a label set on it already drew in the
+  right place — centred on the bar, resting just above it. What was
+  missing was any way to reach it with the mouse. That connector's path
+  is a single point, so there is no curve and no hit line to click, and
+  the label renders in the strip its PARENT bracket occupies, which is a
+  node (z-index 2) sitting above the SVG the label is drawn in (z-index
+  1). Neither the label nor the space where one would go took a click.
+- New in label-edit.js: the label band, the part of a bracket's strip
+  that overhangs a bracket nested under it — the child bracket's width,
+  one strip height above its bar, which is where the label renders. The
+  layout leaves no gap between the two, so that rectangle is exact and
+  needs no element of its own; it is read from live bounding rects at
+  event time, so zoom and scrolling need no upkeep. Clicking it opens the
+  same editor the other connector labels use, on the same
+  attr.parentConnector.label. The mousedown is suppressed first, so the
+  bracket owning those pixels is neither selected nor dragged; the rest
+  of that strip still selects it, and the nested bracket's own strip
+  below the bar still selects the nested bracket. The pointer reads as
+  text over the band. Edit > Edit connector label… already reached this
+  connector with the nested bracket selected — that is the keyboard path
+  and it is unchanged.
+- Room for the label (Simon: the first cut was cramped — the text was
+  wedged between the parent's bracket and its own bar, touching both).
+  A LABELLED nested bracket now drops 12px, taking its premises with it;
+  the claims beside it stay on their level, and an unlabelled one is
+  exactly where it was. That needed the layout, not the renderer:
+  alignGroup offsets a nested bracket by its parent's height and nothing
+  else, so a vendor patch (`calculate-top-down-layout.js`, threaded
+  through `calculate-layout.js`) reads a new theme spacing key
+  `layout.spacing.nestedGroupLabel` and adds it to the nested subtree's
+  verticalOffset when that bracket carries a connector label. The label
+  itself moved off the bar too — `aboveEnd: 5, ratio: 1` in place of
+  `ratio: 0.5`, which keeps it centred on the bar (the aboveEnd branch
+  interpolates to the child's centre at ratio 1) and lifts it clear.
+  Measured: 9px under the green bracket, 6px above the red bar.
+  The click band is now read from the two brackets themselves — the
+  parent's top down to the child's bar — so it follows the drop without
+  knowing the constant, and it covers the gap the drop opens up.
+- Theme: a second deliberate departure from the verbatim extraction
+  (documented in themes.js beside squareCorners). MindMup coloured the
+  nested SUPPORTING label green to match its bracket but left the nested
+  OPPOSING one at the default grey #4F4F4F; it is now red, at MindMup's
+  own 9px. Simon's call. Dark mode carries it to #ff5d5d with every other
+  red, and a map's own embedded theme still wins, so historical files are
+  untouched.
+- Tests: 25 checks in features-e2e (the band's bounds, the cursor hint,
+  selection left alone, the flush unlabelled layout, the 12px drop and
+  that only that subtree moves, both clearances, colour, centring,
+  re-editing by clicking the rendered text, undo restoring the flush
+  layout, the green nested-reason case, both brackets still selectable,
+  the menu path, serialization, dark mode byte-identical, zoom); the
+  layout assertions read `getCurrentLayout()` rather than DOM rects,
+  because a selected claim wears a 3px border that moves its own box.
+  webkit-e2e drives the whole
+  click-type-⌘Z cycle in real Safari, where a capture-phase interception
+  plus a floating keyboard-driven input is exactly the combination that
+  has broken before. All seven suites pass.
 
 ## 2026-07-25 — MIT licensing stated properly; GCS mirror retired
 

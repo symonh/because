@@ -14607,30 +14607,37 @@
             node.parentId = parentId;
           }
           return node;
-        }, traverse = function(idea, predicate, level, parentId) {
+        }, hasConnectorLabel = function(idea) {
+          return !!(idea.attr && idea.attr.parentConnector && idea.attr.parentConnector.label);
+        }, traverse = function(idea, predicate, level, parentId, parentIsGroup) {
           const childResults = {}, shouldIncludeSubIdeas = !(_.isEmpty(idea.ideas) || idea.attr && idea.attr.collapsed);
           level = level || 1;
           if (shouldIncludeSubIdeas) {
             Object.keys(idea.ideas).forEach(function(subNodeRank) {
-              const newLevel = isGroup(idea) ? level : level + 1, result = traverse(idea.ideas[subNodeRank], predicate, newLevel, idea.id);
+              const newLevel = isGroup(idea) ? level : level + 1, result = traverse(idea.ideas[subNodeRank], predicate, newLevel, idea.id, isGroup(idea));
               if (result) {
                 childResults[subNodeRank] = result;
               }
             });
           }
-          return predicate(idea, childResults, level, parentId);
-        }, traversalLayout = function(idea, childLayouts, level, parentId) {
+          return predicate(idea, childResults, level, parentId, parentIsGroup);
+        }, traversalLayout = function(idea, childLayouts, level, parentId, parentIsGroup) {
           const node = toNode(idea, level, parentId);
           let result;
           if (isGroup(node) && !_.isEmpty(idea.ideas)) {
             result = combineVerticalSubtrees(node, childLayouts, margin.h, true);
             alignGroup(result, idea, margin.h);
+            if (parentIsGroup && margin.nestedGroupLabel && hasConnectorLabel(idea)) {
+              _.each(result.nodes, function(subNode) {
+                subNode.verticalOffset = (subNode.verticalOffset || 0) + margin.nestedGroupLabel;
+              });
+            }
           } else {
             result = combineVerticalSubtrees(node, childLayouts, margin.h);
           }
           return result;
-        }, traversalLayoutWithoutEmptyGroups = function(idea, childLayouts, level, parentId) {
-          return (idea === aggregate || !isEmptyGroup(idea)) && traversalLayout(idea, childLayouts, level, parentId);
+        }, traversalLayoutWithoutEmptyGroups = function(idea, childLayouts, level, parentId, parentIsGroup) {
+          return (idea === aggregate || !isEmptyGroup(idea)) && traversalLayout(idea, childLayouts, level, parentId, parentIsGroup);
         }, setLevelHeights = function(nodes, levelHeights) {
           _.each(nodes, function(node) {
             node.y = levelHeights[node.level - 1] + node.verticalOffset;
@@ -14687,7 +14694,11 @@
         const layouts = optional && optional.layouts || defaultLayouts, theme = optional && optional.theme || new Theme({}), multiRootLayout = new MultiRootLayout(), margin = theme.attributeValue(["layout"], [], ["spacing"], { h: 20, v: 20 }), orientation = theme.attributeValue(["layout"], [], ["orientation"], "standard"), calculator = layouts[orientation] || layouts.standard;
         idea = contentUpgrade(idea);
         Object.keys(idea.ideas).forEach(function(rank) {
-          const rootIdea = idea.ideas[rank], rootResult = calculator(rootIdea, dimensionProvider, { h: margin.h || margin, v: margin.v || margin });
+          const rootIdea = idea.ideas[rank], rootResult = calculator(rootIdea, dimensionProvider, {
+            h: margin.h || margin,
+            v: margin.v || margin,
+            nestedGroupLabel: margin.nestedGroupLabel || 0
+          });
           multiRootLayout.appendRootNodeLayout(rootResult, rootIdea);
         });
         return formatResult(multiRootLayout.getCombinedLayout(10, optional), idea, theme, orientation);

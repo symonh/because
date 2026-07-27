@@ -249,6 +249,49 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 	ok(await page.evaluate(() => !document.body.classList.contains('dark')),
 		'Shift+T switches back to light in WebKit');
 
+	// ---- labelling an objection to an inference in real WebKit ----
+	// The click target is a coordinate band with no element of its own, so
+	// the app suppresses the mousedown that would otherwise select the
+	// bracket owning those pixels and acts on the click — the kind of
+	// capture-phase interception plus floating keyboard-driven input that
+	// has broken in Safari before.
+	await page.evaluate(() => {
+		window.__because.engine.loadMap({ formatVersion: 3, id: 'root', ideas: {
+			1: { id: 1, title: 'Claim 1', ideas: {
+				1: { id: 10, title: 'group', attr: { group: 'supporting', contentLocked: true }, ideas: {
+					1: { id: 7, title: 'Claim 7' },
+					2: { id: 20, title: 'group', attr: { group: 'opposing', contentLocked: true }, ideas: {
+						1: { id: 9, title: 'Claim 9' }
+					} }
+				} }
+			} }
+		} });
+	});
+	await page.waitForSelector('#node_9', { timeout: 8000 });
+	await page.waitForTimeout(500);
+	const infBand = await page.evaluate(() => {
+		const b = document.getElementById('node_20').getBoundingClientRect();
+		return { x: b.left + b.width / 2, y: b.top - b.height / 2 };
+	});
+	await page.evaluate(() => window.__because.engine.mapModel.selectNode(7));
+	await page.waitForTimeout(200);
+	await page.mouse.click(infBand.x, infBand.y);
+	await page.waitForSelector('.connector-label-editor', { timeout: 5000 });
+	ok(true, 'clicking above a nested bracket opens the label editor in WebKit');
+	ok(await page.evaluate(() => window.__because.engine.mapModel.getSelectedNodeId()) === 7,
+		'the suppressed mousedown leaves the selection alone in WebKit');
+	await page.keyboard.type('Inf. objection');
+	await page.keyboard.press('Enter');
+	await page.waitForTimeout(500);
+	ok(await page.evaluate(() => {
+		const t = document.querySelector('#connector_10_20 .mapjs-connector-text text');
+		return !!t && t.textContent === 'Inf. objection';
+	}), 'the inference objection carries its label in WebKit');
+	await page.keyboard.press('Meta+z');
+	await page.waitForTimeout(400);
+	ok(await page.evaluate(() => !document.querySelector('#connector_10_20 .mapjs-connector-text text')),
+		'⌘Z removes the inference-objection label in WebKit');
+
 	// ---- ? opens the keyboard reference in real WebKit ----
 	// Shift+/ is where a layout-dependent key could go wrong in Safari, and
 	// the panel's platform switch has to redraw the table there too.

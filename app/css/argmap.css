@@ -50,6 +50,17 @@
 .mapjs-node:not(.attr_group) {
 	z-index: 3;
 }
+/*
+ * The strip of a bracket that overhangs a bracket nested under it is the
+ * label band for that nested reason or objection (label-edit.js): clicking
+ * it edits the label instead of selecting the bracket the pixels belong to,
+ * so the pointer says text there. The band has no element of its own — the
+ * class rides the container while the pointer is inside one.
+ */
+#map-container.label-band-hover,
+#map-container.label-band-hover .mapjs-node {
+	cursor: text;
+}
 .mapjs-node .mapjs-decorations {
 	background: transparent;
 	border-radius: 12px;

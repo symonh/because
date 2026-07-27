@@ -89,6 +89,7 @@ export const SHORTCUT_GROUPS = [
 			{ keys: 'Right-click a claim', desc: 'Colour and text style' },
 			{ keys: 'Click a connector', desc: 'Make the line stronger or weaker, or edit its label' },
 			{ keys: 'Double-click a connector', desc: 'Edit its label' },
+			{ keys: 'Click above a nested bracket', desc: 'Label the reason or objection to that inference' },
 			{ keys: 'Drag to blank canvas', desc: 'Detach the claim — the same as D' }
 		]
 	}

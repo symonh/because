@@ -6,10 +6,22 @@
  * argMappingHighImpactUpward flips the reading: up arrowheads into the
  * parent claim, labelled "Therefore" / "Therefore, it is false that".
  *
- * One deliberate departure from the verbatim extraction: opposing-group
- * carries "squareCorners" (a local key the connector.js LOCAL PATCH reads),
- * so the objection bracket has a right-angle top instead of the rounded
- * one reasons get — color is not the only cue distinguishing an objection.
+ * Two deliberate departures from the verbatim extraction:
+ *  - opposing-group carries "squareCorners" (a local key the connector.js
+ *    LOCAL PATCH reads), so the objection bracket has a right-angle top
+ *    instead of the rounded one reasons get — color is not the only cue
+ *    distinguishing an objection;
+ *  - the label on "no-connector.opposing-group" — an objection to an
+ *    inference, whose bracket hangs under the bracket it objects to — is
+ *    red rather than the extracted #4F4F4F. MindMup coloured its sibling
+ *    "no-connector.supporting-group" label green to match its bracket and
+ *    left this one at the default grey; red follows the same rule and
+ *    reads as an objection at a glance. Simon's call, 2026-07-27.
+ *    Both nested labels also sit `aboveEnd` their bar rather than centred
+ *    on it, and layout.spacing.nestedGroupLabel (a local key the top-down
+ *    layout LOCAL PATCH reads) drops a LABELLED nested bracket 12px, since
+ *    MindMup laid it flush under its parent's bracket with no room for the
+ *    label it allowed. An unlabelled one is where it always was.
  * A map's own EMBEDDED theme JSON (mapJson.theme, see resolveThemeJson)
  * still wins over this named theme, so historical files with a fully
  * resolved theme keep rendering exactly as MindMup drew them.
@@ -31,7 +43,8 @@ export const argMappingSimple = {
   "orientation": "top-down",
   "spacing": {
    "h": 20,
-   "v": 60
+   "v": 60,
+   "nestedGroupLabel": 12
   }
  },
  "node": [
@@ -503,7 +516,8 @@ export const argMappingSimple = {
    },
    "label": {
     "position": {
-     "ratio": 0.5
+     "aboveEnd": 5,
+     "ratio": 1
     },
     "backgroundColor": "transparent",
     "borderColor": "transparent",
@@ -525,12 +539,13 @@ export const argMappingSimple = {
    },
    "label": {
     "position": {
-     "ratio": 0.5
+     "aboveEnd": 5,
+     "ratio": 1
     },
     "backgroundColor": "transparent",
     "borderColor": "transparent",
     "text": {
-     "color": "#4F4F4F",
+     "color": "#FF0000",
      "font": {
       "size": 6,
       "sizePx": 9,

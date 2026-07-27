@@ -27,6 +27,15 @@ recorded in `vendor/mapjs/LOCAL-PATCHES.diff`:
   quadratic at a head length from the endpoint) and reports that point as
   `arrowStems`, so the stroke never runs through the head and the head's
   angle follows the curve. `arrow-path.js` exports `axisLength` for it.
+- `core/layout/calculate-layout.js` + `core/layout/top-down/calculate-top-down-layout.js`
+  — a theme can set `layout.spacing.nestedGroupLabel`, which drops a bracket
+  nested inside another bracket (a reason or objection aimed at the
+  inference) by that many pixels when it carries a connector label, taking
+  its premises with it. Upstream lays it flush under its parent's bracket,
+  which leaves the label it allows on that connector nowhere to sit. Only
+  that subtree moves, so the claims beside it stay on their level; a nested
+  bracket with no label, and any theme not setting the key, lays out exactly
+  as before.
 - `update-connector-text.js` — a label position can carry
   `centerOnLine: true` so the connector runs through the middle of its label
   (masked behind the text) instead of resting on top of the line; only the

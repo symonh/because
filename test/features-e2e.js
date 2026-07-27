@@ -334,6 +334,182 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 	await page.keyboard.press('Escape');
 	await sleep(200);
 
+	// ---- labelling an objection (or reason) aimed at an inference ----
+	// A bracket nested inside a bracket answers the inference, not the claim,
+	// and draws as a bare bar under its parent's bracket. Its connector is
+	// the theme's no-connector style — no curve, no hit line — and the label
+	// it carries renders inside the parent bracket's strip, which sits above
+	// the SVG layer. The band directly above the nested bar is the click
+	// target that reaches it.
+	await page.evaluate(() => {
+		window.__because.engine.loadMap({ formatVersion: 3, id: 'root', ideas: {
+			1: { id: 1, title: 'Claim 1', ideas: {
+				1: { id: 10, title: 'group', attr: { group: 'supporting', contentLocked: true }, ideas: {
+					1: { id: 7, title: 'Claim 7' },
+					2: { id: 20, title: 'group', attr: { group: 'opposing', contentLocked: true }, ideas: {
+						1: { id: 9, title: 'Claim 9' }
+					} },
+					3: { id: 30, title: 'group', attr: { group: 'supporting', contentLocked: true }, ideas: {
+						1: { id: 11, title: 'Claim 11' }
+					} }
+				} }
+			} }
+		} });
+	});
+	await sleep(800);
+	const bracketBox = id => page.evaluate(i => {
+			const e = document.getElementById(i);
+			if (!e) { return null; }
+			const b = e.getBoundingClientRect();
+			return { l: b.left, t: b.top, w: b.width, h: b.height };
+		}, id),
+		// the band is the nested bracket's own width, one strip height above
+		// its bar — where the label renders
+		bandCentre = async function (id) {
+			const b = await bracketBox(id);
+			return { x: b.l + b.w / 2, y: b.t - b.h / 2 };
+		};
+
+	ok(await page.$('#connector_10_20') !== null,
+		'a bracket nested in a bracket gets its own connector');
+	// where everything sits before any label exists — the nested bar is flush
+	// under its parent's, which is where MindMup left it
+	// (read off the layout rather than the DOM, and relative to the parent
+	// bracket: a selected claim wears a 3px border that moves its own box)
+	const offsets = () => page.evaluate(() => {
+		const y = window.__because.engine.mapModel.getCurrentLayout().nodes;
+		return { bar: y[20].y - y[10].y, sibling: y[7].y - y[10].y, premise: y[9].y - y[10].y };
+	});
+	const flush = await offsets();
+	ok(flush.bar === 16 && flush.premise === 32 && flush.sibling === 16,
+		`an unlabelled nested bracket stays flush under its parent (${JSON.stringify(flush)})`);
+	await page.evaluate(() => window.__because.engine.mapModel.selectNode(7));
+	await sleep(150);
+	let band = await bandCentre('node_20');
+	await page.mouse.move(band.x, band.y);
+	await sleep(150);
+	ok(await page.evaluate(() => document.getElementById('map-container').classList.contains('label-band-hover')),
+		'the pointer over the band says text');
+	const parentStrip = await bracketBox('node_10');
+	await page.mouse.move(parentStrip.l + 4, parentStrip.t + parentStrip.h / 2);
+	await sleep(150);
+	ok(await page.evaluate(() => !document.getElementById('map-container').classList.contains('label-band-hover')),
+		'the rest of the parent bracket does not');
+
+	await page.mouse.click(band.x, band.y);
+	await page.waitForSelector('.connector-label-editor', { timeout: 5000 });
+	ok(true, 'clicking the band opens the label editor');
+	ok(await page.evaluate(() => window.__because.engine.mapModel.getSelectedNodeId()) === 7,
+		'the click does not select the bracket that owns those pixels');
+	await page.keyboard.type('Inf. objection');
+	await page.keyboard.press('Enter');
+	await sleep(500);
+	let nestedPc = await page.evaluate(() => window.__because.engine.mapModel.getIdea().getAttrById(20, 'parentConnector'));
+	ok(nestedPc && nestedPc.label === 'Inf. objection',
+		`the label lands in the nested bracket's parentConnector.label (${JSON.stringify(nestedPc)})`);
+
+	const infLabel = await page.evaluate(() => {
+		const text = document.querySelector('#connector_10_20 .mapjs-connector-text text'),
+			bar = document.getElementById('node_20');
+		if (!text) { return null; }
+		const t = text.getBoundingClientRect(), b = bar.getBoundingClientRect(),
+			stripTop = document.getElementById('node_10').getBoundingClientRect().top;
+		return {
+			content: text.textContent,
+			fill: getComputedStyle(text).fill,
+			above: Math.round(b.top - t.bottom),
+			below: Math.round(t.top - stripTop),
+			offCentre: Math.round(Math.abs((t.left + t.width / 2) - (b.left + b.width / 2)))
+		};
+	});
+	const dropped = await offsets();
+	ok(infLabel && infLabel.content === 'Inf. objection', 'the label renders on the map');
+	ok(infLabel && infLabel.offCentre <= 2,
+		`centred on the bar (${infLabel && infLabel.offCentre}px off)`);
+	ok(infLabel && infLabel.fill === 'rgb(255, 0, 0)',
+		`red, like the bar it labels (${infLabel && infLabel.fill})`);
+	// the label needs room, so a LABELLED nested bracket drops 12px and takes
+	// its premises with it — the claim beside it stays on its own level
+	ok(dropped.bar === flush.bar + 12,
+		`labelling drops the bar 12px below its parent's (${JSON.stringify(dropped)})`);
+	ok(dropped.premise === flush.premise + 12 && dropped.sibling === flush.sibling,
+		'its premise comes with it and the claim beside it does not move');
+	ok(infLabel && infLabel.above >= 4 && infLabel.above <= 9,
+		`the label clears the red bar (${infLabel && infLabel.above}px)`);
+	ok(infLabel && infLabel.below >= 6 && infLabel.below <= 12,
+		`and clears the bracket it hangs under (${infLabel && infLabel.below}px)`);
+
+	// the rendered label is inside the band, so clicking it re-opens the editor
+	await page.mouse.click(band.x, band.y);
+	await page.waitForSelector('.connector-label-editor', { timeout: 5000 });
+	ok(await page.$eval('.connector-label-editor', el => el.value) === 'Inf. objection',
+		'clicking the rendered label re-opens the editor on its text');
+	await page.keyboard.press('Escape');
+	await sleep(200);
+
+	// one undo takes it back; the same band labels a nested REASON in green
+	await page.evaluate(() => window.__because.commands.undo());
+	await sleep(400);
+	nestedPc = await page.evaluate(() => window.__because.engine.mapModel.getIdea().getAttrById(20, 'parentConnector'));
+	ok(!nestedPc || !nestedPc.label, `one undo removes the label (${JSON.stringify(nestedPc)})`);
+	ok((await offsets()).bar === flush.bar,
+		'and the bar goes back flush under its parent');
+	await page.evaluate(() => window.__because.commands.redo());
+	await sleep(400);
+
+	band = await bandCentre('node_30');
+	await page.mouse.click(band.x, band.y);
+	await page.waitForSelector('.connector-label-editor', { timeout: 5000 });
+	await page.keyboard.type('Inf. support');
+	await page.keyboard.press('Enter');
+	await sleep(500);
+	ok(await page.evaluate(() => {
+		const t = document.querySelector('#connector_10_30 .mapjs-connector-text text');
+		return t && t.textContent === 'Inf. support' && getComputedStyle(t).fill === 'rgb(51, 153, 102)';
+	}), 'a reason for the inference is labelled the same way, in green');
+
+	// selecting the brackets themselves still works either side of the band
+	await page.mouse.click(parentStrip.l + 4, parentStrip.t + parentStrip.h / 2);
+	await sleep(300);
+	ok(await page.evaluate(() => window.__because.engine.mapModel.getSelectedNodeId()) === 10,
+		'the rest of the parent bracket still selects it');
+	const nested = await bracketBox('node_20');
+	await page.mouse.click(nested.l + nested.w / 2, nested.t + nested.h - 3);
+	await sleep(300);
+	ok(await page.evaluate(() => window.__because.engine.mapModel.getSelectedNodeId()) === 20,
+		'the nested bracket below its bar still selects it');
+	// …and with it selected, the menu path reaches the same label
+	await page.evaluate(() => window.__because.labelEdit.editSelectedConnectorLabel());
+	await page.waitForSelector('.connector-label-editor', { timeout: 5000 });
+	ok(await page.$eval('.connector-label-editor', el => el.value) === 'Inf. objection',
+		'Edit > Edit connector label… reaches it from the selected bracket');
+	await page.keyboard.press('Escape');
+	await sleep(200);
+
+	// the label is map data: it must survive a save/load round trip untouched
+	const withLabels = await page.evaluate(() => JSON.stringify(window.__because.engine.mapModel.getIdea()));
+	ok(withLabels.indexOf('Inf. objection') > 0 && withLabels.indexOf('Inf. support') > 0,
+		'both labels serialize into the .mup');
+	await page.evaluate(() => window.__because.darkMode.toggle());
+	await sleep(500);
+	ok(await page.evaluate(() => getComputedStyle(document.querySelector('#connector_10_20 .mapjs-connector-text text')).fill) === 'rgb(255, 93, 93)',
+		'dark mode softens the label red with the rest of the theme');
+	ok(await page.evaluate(() => JSON.stringify(window.__because.engine.mapModel.getIdea())) === withLabels,
+		'dark mode leaves the labelled map byte-identical');
+	await page.evaluate(() => window.__because.darkMode.toggle());
+	await sleep(500);
+
+	// zoom scales the band with everything else
+	await page.evaluate(() => { window.__because.commands.zoomIn(); window.__because.commands.zoomIn(); });
+	await sleep(600);
+	band = await bandCentre('node_20');
+	await page.mouse.click(band.x, band.y);
+	await page.waitForSelector('.connector-label-editor', { timeout: 5000 });
+	ok(true, 'the band still lands when the map is zoomed in');
+	await page.keyboard.press('Escape');
+	await page.evaluate(() => window.__because.commands.zoomReset());
+	await sleep(500);
+
 	// ---- themes from the View menu ----
 	const clickMenu = (menu, item) => page.evaluate(([menuName, itemText]) => {
 		Array.from(document.querySelectorAll('.menu-title'))

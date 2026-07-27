@@ -12,6 +12,10 @@
  * files. Clearing the label text removes the override, falling back to
  * the theme's default label ("because…" in the high-impact theme,
  * nothing in the simple one).
+ *
+ * One connector has no line to click: the one joining a bracket to a
+ * bracket nested under it, which is how an objection to an INFERENCE is
+ * drawn. The label band at the foot of this module is its click target.
  */
 
 import { track } from './analytics.js';
@@ -30,11 +34,15 @@ export function makeLabelEdit(engine) {
 		// remember the real idea ids as the engine announces each connector
 		connectorsByDomId = {};
 
+	// invalidated with every connector change; see nestedGroupConnectors
+	let nestedGroups = null;
 	mapModel.addEventListener('connectorCreated', function (c) {
 		connectorsByDomId[connectorDomId(c)] = { from: c.from, to: c.to };
+		nestedGroups = null;
 	});
 	mapModel.addEventListener('connectorRemoved', function (c) {
 		delete connectorsByDomId[connectorDomId(c)];
+		nestedGroups = null;
 	});
 
 	function beginEdit(connector) {
@@ -207,6 +215,97 @@ export function makeLabelEdit(engine) {
 			closePopover();
 			beginEdit(connector);
 		}
+	});
+
+	/*
+	 * ---- The label on an objection to an inference ----
+	 *
+	 * A reason or objection whose parent is itself a bracket objects to (or
+	 * supports) the inference rather than the claim, and draws as a bare
+	 * coloured bar tucked directly under the bracket it answers. Its
+	 * connector resolves to the theme's `no-connector.*` style: the path is
+	 * a single point, so there is no curve to click and no hit line, and the
+	 * label it can carry renders inside the strip its PARENT bracket
+	 * occupies — which sits in the node layer, above the SVG the label is
+	 * drawn in. Neither the label nor the empty space where one would go is
+	 * reachable by the connector handlers above.
+	 *
+	 * The band below is that space: the child bracket's own width, running
+	 * from the top of the parent's strip down to the child's bar. That is
+	 * where the label renders, whether or not the theme has dropped the bar
+	 * to make room for one (layout.spacing.nestedGroupLabel), because the
+	 * band is measured from the two brackets themselves. A click there opens
+	 * the label editor. Selection and dragging are suppressed first, so the
+	 * click does not instead pick up the parent bracket that owns the
+	 * pixels; the rest of that strip still selects it as before.
+	 */
+	const nodeDomId = id => ('node_' + id).replace(/[^A-Za-z0-9_-]/g, '_'),
+		// bracket-inside-bracket pairs. Read from the content in one pass and
+		// remembered until the structure changes — a nested bracket cannot
+		// appear or disappear without its connector doing the same, and this
+		// runs on every mousemove over the map.
+		nestedGroupConnectors = function () {
+			if (nestedGroups) { return nestedGroups; }
+			const content = mapModel.getIdea(),
+				walk = function (node) {
+					const kids = (node && node.ideas) || {};
+					Object.keys(kids).forEach(function (key) {
+						const child = kids[key];
+						if (isGroup(node) && isGroup(child)) {
+							nestedGroups.push({ from: node.id, to: child.id });
+						}
+						walk(child);
+					});
+				};
+			nestedGroups = [];
+			if (content) { walk(content); }
+			return nestedGroups;
+		},
+		within = (rect, e) => !!rect && rect.width > 0 && rect.height > 0 &&
+			e.clientX >= rect.left && e.clientX <= rect.right &&
+			e.clientY >= rect.top && e.clientY <= rect.bottom,
+		// the connector whose label band holds this event, or null
+		labelBandAt = function (e) {
+			if (!e.target || !e.target.closest || !e.target.closest('#map-container')) {
+				return null;
+			}
+			return nestedGroupConnectors().find(function (connector) {
+				const bar = document.getElementById(nodeDomId(connector.to)),
+					parent = document.getElementById(nodeDomId(connector.from)),
+					r = bar && bar.getBoundingClientRect(),
+					p = parent && parent.getBoundingClientRect(),
+					// a label wider than the bar it names overhangs the band at
+					// both ends, so its own box counts too
+					text = document.querySelector('#' + connectorDomId(connector) +
+						' .mapjs-connector-text');
+				return (!!r && !!p && within({
+					left: r.left, right: r.right, top: p.top, bottom: r.top,
+					width: r.width, height: r.top - p.top
+				}, e)) || within(text && text.getBoundingClientRect(), e);
+			}) || null;
+		};
+	document.addEventListener('mousedown', function (e) {
+		if (labelBandAt(e)) {
+			e.preventDefault();
+			e.stopPropagation();
+		}
+	}, true);
+	document.addEventListener('click', function (e) {
+		const connector = labelBandAt(e);
+		if (!connector) { return; }
+		e.preventDefault();
+		e.stopPropagation();
+		if (!activeInput) { beginEdit(connector); }
+	}, true);
+	// the band carries no element of its own, so the text cursor that says
+	// "you can type here" is a class on the container while the pointer is in one
+	let inBand = false;
+	document.addEventListener('mousemove', function (e) {
+		const hit = !!labelBandAt(e),
+			container = document.getElementById('map-container');
+		if (hit === inBand || !container) { return; }
+		inBand = hit;
+		container.classList.toggle('label-band-hover', hit);
 	});
 
 	// resolve the selected node to its connector: a selected claim maps to

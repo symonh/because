@@ -35,7 +35,15 @@ module.exports = function calculateLayout(idea, dimensionProvider, optional) {
 
 	Object.keys(idea.ideas).forEach(function (rank) {
 		const rootIdea = idea.ideas[rank],
-			rootResult = calculator(rootIdea, dimensionProvider, {h: (margin.h || margin), v: (margin.v || margin)});
+			/* LOCAL PATCH: `nestedGroupLabel` rides along with the h/v
+			   spacing so the top-down layout can read it; see
+			   calculate-top-down-layout.js. Themes that do not set it get
+			   0 and lay out exactly as before. */
+			rootResult = calculator(rootIdea, dimensionProvider, {
+				h: (margin.h || margin),
+				v: (margin.v || margin),
+				nestedGroupLabel: margin.nestedGroupLabel || 0
+			});
 		multiRootLayout.appendRootNodeLayout(rootResult, rootIdea);
 	});
 

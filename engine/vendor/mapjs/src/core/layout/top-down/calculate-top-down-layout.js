@@ -16,8 +16,19 @@ module.exports  = function calculateTopDownLayout(aggregate, dimensionProvider, 
 			}
 			return node;
 		},
+		/* LOCAL PATCH: a group nested inside a group is a reason or objection
+		   aimed at the INFERENCE rather than the claim, and alignGroup drops
+		   its bracket immediately under its parent's, leaving a label on that
+		   connector nowhere to sit. A labelled one, and everything under it,
+		   is pushed down by the theme's `nestedGroupLabel` spacing to make
+		   room. Only that subtree moves, so the claims beside it stay on
+		   their own level; an unlabelled nested group is untouched, as is
+		   any theme that does not ask for the spacing. */
+		hasConnectorLabel = function (idea) {
+			return !!(idea.attr && idea.attr.parentConnector && idea.attr.parentConnector.label);
+		},
 		//TODO: adds some complexity to the standard traverse function - includes parent id, omits post order, skips groups
-		traverse = function (idea, predicate, level, parentId) {
+		traverse = function (idea, predicate, level, parentId, parentIsGroup) {
 			const childResults = {},
 				shouldIncludeSubIdeas = !(_.isEmpty(idea.ideas) || (idea.attr && idea.attr.collapsed));
 
@@ -25,28 +36,33 @@ module.exports  = function calculateTopDownLayout(aggregate, dimensionProvider, 
 			if (shouldIncludeSubIdeas) {
 				Object.keys(idea.ideas).forEach(function (subNodeRank) {
 					const newLevel = isGroup(idea) ? level : level + 1,
-						result = traverse(idea.ideas[subNodeRank], predicate, newLevel, idea.id);
+						result = traverse(idea.ideas[subNodeRank], predicate, newLevel, idea.id, isGroup(idea));
 					if (result) {
 						childResults[subNodeRank] = result;
 					}
 				});
 			}
-			return predicate(idea, childResults, level, parentId);
+			return predicate(idea, childResults, level, parentId, parentIsGroup);
 		},
-		traversalLayout = function (idea, childLayouts, level, parentId) {
+		traversalLayout = function (idea, childLayouts, level, parentId, parentIsGroup) {
 			const node = toNode(idea, level, parentId);
 			let result;
 
 			if (isGroup(node) && !_.isEmpty(idea.ideas)) {
 				result = combineVerticalSubtrees(node, childLayouts, margin.h, true);
 				alignGroup(result, idea, margin.h);
+				if (parentIsGroup && margin.nestedGroupLabel && hasConnectorLabel(idea)) {
+					_.each(result.nodes, function (subNode) {
+						subNode.verticalOffset = (subNode.verticalOffset || 0) + margin.nestedGroupLabel;
+					});
+				}
 			} else {
 				result = combineVerticalSubtrees(node, childLayouts, margin.h);
 			}
 			return result;
 		},
-		traversalLayoutWithoutEmptyGroups = function (idea, childLayouts, level, parentId) {
-			return (idea === aggregate || !isEmptyGroup(idea)) && traversalLayout(idea, childLayouts, level, parentId);
+		traversalLayoutWithoutEmptyGroups = function (idea, childLayouts, level, parentId, parentIsGroup) {
+			return (idea === aggregate || !isEmptyGroup(idea)) && traversalLayout(idea, childLayouts, level, parentId, parentIsGroup);
 		},
 		setLevelHeights = function (nodes, levelHeights) {
 			_.each(nodes, function (node) {
