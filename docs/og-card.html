@@ -4,29 +4,27 @@
 <meta charset="utf-8">
 <title>Because — og:image source</title>
 <!--
-  Source for site/og.png, the 1200x630 social card. Not part of the
-  deployed site (deploy.sh stages app/, samples/ and site/ only) — it lives
-  here so the card can be regenerated when the landing hero changes, which
-  is the one thing that puts the two out of step.
+  Source for site/og.png, the 1200x630 social card. Not part of the deployed
+  site (deploy.sh stages app/, samples/ and site/ only) — it lives here so the
+  card can be regenerated when the hero changes.
 
-  Regenerate:
-    node -e "…playwright… page.setViewportSize({width:1200,height:630});
-             page.goto('file://…/docs/og-card.html');
-             page.screenshot({path:'site/og.png'})"
-  or any headless shot of this file at 1200x630, deviceScaleFactor 1.
+  The map is the REAL figure: site/css/argmap.css draws it and
+  figures/build.mjs renders it from figures/maps/home-aging.json, the same map
+  the landing hero uses, so the card cannot drift from the page again. Never
+  edit between the argmap markers below.
 
-  The map below mirrors the hero in site/index.html; keep the two in step.
+  Regenerate the PNG (needs `python3 -m http.server 8871` at the repo root,
+  like the test suites):
+
+    cd test && node og-shot.js
 -->
+<link rel="stylesheet" href="../site/css/argmap.css">
 <style>
 	:root {
 		--bg: #17191c;
-		--bg-canvas: #1b1d20;
-		--border-strong: #3d4248;
 		--text-strong: #f1f3f5;
 		--muted: #9aa1a8;
 		--accent: #5cc8f2;
-		--green: #45c07d;
-		--radius: 14px;
 		--font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 	}
 	* { box-sizing: border-box; }
@@ -45,6 +43,7 @@
 		align-items: center;
 		gap: 34px;
 		padding: 56px 60px;
+		overflow: hidden;
 	}
 	.brand { display: flex; align-items: center; gap: 16px; margin-bottom: 30px; }
 	.brand-name { font-size: 40px; font-weight: 700; letter-spacing: -0.02em; }
@@ -59,72 +58,14 @@
 	.url { color: var(--accent); font-size: 26px; font-weight: 650; margin: 0 0 8px; }
 	.sub { color: var(--muted); font-size: 21px; margin: 0; }
 
-	/* ---- the hero map, mirroring site/index.html ---- */
-	.canvas {
-		position: relative;
-		background: var(--bg-canvas);
-		border: 1px solid var(--border-strong);
-		border-radius: var(--radius);
-		box-shadow: 0 30px 70px -30px rgba(0,0,0,0.75), 0 0 0 1px rgba(255,255,255,0.02) inset;
-		overflow: hidden;
-	}
-	.grid {
-		position: absolute;
-		inset: 0;
-		background-image: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1.4px);
-		background-size: 18px 18px;
-	}
-	.canvas-bar {
-		position: relative;
-		display: flex;
-		align-items: center;
-		gap: 9px;
-		padding: 11px 15px;
-		background: #24272b;
-		border-bottom: 1px solid #34383d;
-		font-size: 15px;
-		color: #c3c8cd;
-	}
-	.map { position: relative; padding: 32px 28px 36px; }
-	.node {
-		background: #fff;
-		color: #1b1d20;
-		border: 1px solid #c9ced4;
-		border-radius: 9px;
-		padding: 11px 15px;
-		font-size: 17px;
-		font-weight: 550;
-		line-height: 1.3;
-		text-align: center;
-		text-wrap: balance;
-		box-shadow: 0 2px 6px rgba(0,0,0,0.35);
-	}
-	.node.root {
-		background: #22aae0;
-		border-color: #1c93c4;
-		color: #fff;
-		font-weight: 650;
-		box-shadow: 0 4px 14px -2px rgba(34,170,224,0.6);
-	}
-	.conclusion { max-width: 330px; margin: 0 auto; }
-	.links { display: block; width: 100%; height: 46px; }
-	.links .link { fill: none; stroke: var(--green); stroke-width: 2; stroke-linecap: round; }
-	.group {
-		border-radius: 12px;
-		padding: 12px 12px 14px;
-		border: 1.5px solid rgba(69,192,125,0.65);
-		background: rgba(69,192,125,0.13);
-	}
-	.glabel {
-		font-size: 12.5px;
-		font-weight: 700;
-		letter-spacing: 0.09em;
-		text-transform: uppercase;
-		color: var(--green);
-		margin: 0 2px 10px;
-	}
-	.nodes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-	.nodes .node { display: flex; align-items: center; justify-content: center; }
+	/* The figure is a card here: it must never scroll (a screenshot has no
+	   scrollbar to drag) and it is drawn a size up, since the whole image gets
+	   shown small in a timeline. */
+	.card { min-width: 0; }
+	.fig .argmap { font-size: 1.0625rem; }
+	.fig-scroller { overflow: hidden; padding-block: 2rem; }
+	.fig-chrome { padding: 12px 16px; font-size: 15px; }
+	.fig-chrome svg { width: 18px; height: 18px; }
 </style>
 </head>
 <body>
@@ -138,25 +79,12 @@
 	<p class="sub">No sign-up, nothing to install.</p>
 </div>
 
-<div class="canvas">
-	<div class="grid"></div>
-	<div class="canvas-bar">
-		<svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17"><rect x="7" y="2" width="10" height="6" rx="1.5" fill="#fff" stroke="#707070"/><path d="M12 8v3" stroke="#339966" stroke-width="2"/><path d="M3 12h18M3 12q0 2.5 2.5 2.5M21 12q0 2.5-2.5 2.5" stroke="#339966" stroke-width="2" fill="none"/><rect x="2" y="16" width="8" height="6" rx="1.5" fill="#fff" stroke="#707070"/><rect x="14" y="16" width="8" height="6" rx="1.5" fill="#fff" stroke="#707070" stroke-dasharray="2.5,1.6"/></svg>
-		<span>eradicate-aging.mup</span>
-	</div>
-	<div class="map">
-		<div class="node root conclusion">We have a moral duty to eradicate aging</div>
-		<svg class="links" viewBox="0 0 100 46" preserveAspectRatio="none">
-			<path class="link" d="M50 0 L50 46" vector-effect="non-scaling-stroke"/>
-		</svg>
-		<div class="group">
-			<div class="glabel">Co-premises</div>
-			<div class="nodes">
-				<div class="node">Aging is a great evil</div>
-				<div class="node">We have a moral duty to eradicate great evils</div>
-			</div>
-		</div>
-	</div>
+<div class="card">
+	<!-- Generated by figures/build.mjs from figures/maps/home-aging.json. -->
+	<!-- argmap:home-aging -->
+	<figure class="fig" id="fig-home-aging"><div class="fig-chrome"><svg aria-hidden="true" viewBox="0 0 24 24" width="15" height="15"><rect x="7" y="2" width="10" height="6" rx="1.5" fill="#fff" stroke="#707070"/><path d="M12 8v3" stroke="#339966" stroke-width="2"/><path d="M3 12h18M3 12q0 2.5 2.5 2.5M21 12q0 2.5-2.5 2.5" stroke="#339966" stroke-width="2" fill="none"/><rect x="2" y="16" width="8" height="6" rx="1.5" fill="#fff" stroke="#707070"/><rect x="14" y="16" width="8" height="6" rx="1.5" fill="#fff" stroke="#707070" stroke-dasharray="2.5,1.6"/></svg><span class="fig-file">eradicate-aging.mup</span></div><div class="fig-canvas" data-argmap="home-aging"><div class="fig-scroller"><div class="argmap" role="tree" aria-roledescription="argument map" aria-describedby="fig-home-aging-desc" aria-activedescendant="" style="--claim-max-ch:26"><div class="am-node-wrap"><div class="am-claim" role="treeitem" tabindex="-1" aria-level="1" aria-selected="false" data-num="1.1"><span class="am-badge" aria-hidden="true">1.1</span><span class="am-text">We have a moral duty to eradicate aging.</span></div><div class="am-groups" role="group"><div class="am-group am-supporting" data-group-type="supporting" data-strength="normal"><div class="am-bracket" aria-hidden="true"><span class="am-stem" aria-hidden="true"></span></div><div class="am-claims"><div class="am-node-wrap"><div class="am-claim" role="treeitem" tabindex="-1" aria-level="2" aria-selected="false" data-num="2.1"><span class="am-badge" aria-hidden="true">2.1</span><span class="am-text">Aging is a great evil.</span></div></div><div class="am-node-wrap"><div class="am-claim" role="treeitem" tabindex="-1" aria-level="2" aria-selected="false" data-num="2.2"><span class="am-badge" aria-hidden="true">2.2</span><span class="am-text">We have a moral duty to eradicate great evils.</span></div></div></div></div></div></div><svg class="am-links" aria-hidden="true" focusable="false"></svg></div></div><p class="visually-hidden" id="fig-home-aging-desc">Conclusion (1.1): ‘We have a moral duty to eradicate aging.’ It is supported by one reason. A reason supports the conclusion, containing claims 2.1 ‘Aging is a great evil.’ and 2.2 ‘We have a moral duty to eradicate great evils.’</p></div></figure>
+	<!-- /argmap:home-aging -->
 </div>
+<script type="module" src="../site/js/argmap.js"></script>
 </body>
 </html>

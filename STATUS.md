@@ -86,6 +86,24 @@
   itself verifies: `deploy.sh` now runs `figures/build.mjs --check`
   before staging, so a page rendered from a stale map JSON aborts the
   upload under `set -e`.
+- The social card was the last imitation left, and the one nobody looks
+  at: `site/og.png` still showed the tinted-panel mock, so every shared
+  link previewed a map the site no longer draws. `docs/og-card.html` now
+  renders the hero's own map through the real component — a third figure
+  kind, `card` (framed canvas, no caption bar, nothing to click in a
+  screenshot) — and `test/og-shot.js` writes the PNG. It shoots with
+  reduced motion, because the first attempt caught the map mid-fade and
+  shipped it half-drawn; it now refuses to write at all if the map is
+  clipped, scrolling, mid-fade or unhydrated. Pointing the card at
+  `figures/maps/home-aging.json` is the point: the og:image cannot drift
+  from the page it previews again.
+- Relicensed PhilMaps MIT (Simon, 2026-07-30) — text and figures as well
+  as code, where it had been CC BY-NC 4.0. That settles the open question
+  from the port: the argument-map component now sits under identical
+  terms in both repos, rather than an NC-licensed copy having been
+  brought into an MIT one. Its `content-source/` scrapes still quote the
+  old CC line, which is correct — they record what
+  maps.simoncullen.org said, not what the site now offers.
 - All eight suites pass, including the new `test/site-e2e.js` in both
   engines.
 

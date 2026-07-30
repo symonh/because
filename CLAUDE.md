@@ -35,7 +35,9 @@ OAuth setup.
   `node figures/build.mjs`, then commit `site/index.html` and
   `site/maps/*.mup` with it; never hand-edit between the
   `<!-- argmap:id -->` markers. `deploy.sh` runs `--check` and aborts on
-  drift. See docs/figures.md.
+  drift. Change the hero and also rerun `cd test && node og-shot.js` to
+  redraw `site/og.png` — the social card renders the same map. See
+  docs/figures.md.
 - Tests: serve the repo root on port 8871, then run `node app-e2e.js`,
   `node click-select-e2e.js`, `node drive-e2e.js`, `node onedrive-e2e.js`,
   `node features-e2e.js`, `node webkit-e2e.js` (Playwright WebKit — the

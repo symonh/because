@@ -46,7 +46,11 @@ const APP_HREF = '/app/';
  * kind 'inline' is a map used as an illustration — the legend cards. Rendered
  * inert and aria-hidden: it has no frame, no caption, no download, and no place
  * in the accessibility tree, because the card's heading and sentence beside it
- * already say what it shows. */
+ * already say what it shows.
+ *
+ * kind 'card' is the framed canvas without the caption bar: the social card,
+ * which is a screenshot and so has nothing to click. Pointing it at the hero's
+ * own map is the point — the og:image cannot drift from the page again. */
 const FIGURES = [
 	{
 		id: 'home-aging',
@@ -56,7 +60,8 @@ const FIGURES = [
 	},
 	{ id: 'legend-reason', page: 'site/index.html', kind: 'inline' },
 	{ id: 'legend-objection', page: 'site/index.html', kind: 'inline' },
-	{ id: 'legend-implicit', page: 'site/index.html', kind: 'inline' }
+	{ id: 'legend-implicit', page: 'site/index.html', kind: 'inline' },
+	{ id: 'home-aging', page: 'docs/og-card.html', kind: 'card', chrome: true }
 ];
 
 const ESCAPE = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
@@ -101,7 +106,8 @@ function inlineHtml(fig, mapJson) {
 }
 
 /* The figure frame: optional title bar, the canvas with its scroller and the
- * hidden text alternative, then the caption bar with the two actions. */
+ * hidden text alternative, then — for a figure, not a card — the caption bar
+ * with the two actions. */
 function figureHtml(fig, mapJson) {
 	const figId = 'fig-' + fig.id;
 	const descId = figId + '-desc';
@@ -110,6 +116,15 @@ function figureHtml(fig, mapJson) {
 		? '<div class="fig-chrome">' + GLYPH +
 			'<span class="fig-file">' + esc(mapJson.title) + '</span></div>'
 		: '';
+	const bar = fig.kind === 'card' ? '' :
+		'<figcaption class="fig-bar">' +
+			'<span class="fig-caption">' + esc(smartquotes(fig.caption)) + '</span>' +
+			'<span class="fig-actions">' +
+				'<a class="fig-action" href="' + mupHref + '" download>Download .mup</a>' +
+				'<a class="fig-action" href="' + APP_HREF + '?src=' + encodeURIComponent(mupHref) +
+					'">Open in the editor' + ARROW + '</a>' +
+			'</span>' +
+		'</figcaption>';
 
 	return '<figure class="fig" id="' + figId + '">' +
 			chrome +
@@ -121,14 +136,7 @@ function figureHtml(fig, mapJson) {
 					esc(describe(mapJson)) +
 				'</p>' +
 			'</div>' +
-			'<figcaption class="fig-bar">' +
-				'<span class="fig-caption">' + esc(smartquotes(fig.caption)) + '</span>' +
-				'<span class="fig-actions">' +
-					'<a class="fig-action" href="' + mupHref + '" download>Download .mup</a>' +
-					'<a class="fig-action" href="' + APP_HREF + '?src=' + encodeURIComponent(mupHref) +
-						'">Open in the editor' + ARROW + '</a>' +
-				'</span>' +
-			'</figcaption>' +
+			bar +
 		'</figure>';
 }
 
@@ -168,7 +176,9 @@ for (const fig of FIGURES) {
 	}
 	const html = fig.kind === 'inline' ? inlineHtml(fig, mapJson) : figureHtml(fig, mapJson);
 	pages.set(fig.page, inject(pages.get(fig.page), fig.id, html));
-	if (fig.kind === 'inline') { continue; } // an illustration is not a download
+	// only a real figure offers a download; nothing links an illustration's or a
+	// social card's .mup (the hero entry writes the shared map's file anyway)
+	if (fig.kind) { continue; }
 	const name = mupName(fig, mapJson);
 	wanted.add(name);
 	put(path.join('site', 'maps', name), JSON.stringify(toMup(mapJson)) + '\n');

@@ -9,8 +9,9 @@ exactly what they are about to get. The hero also hands it over: it offers its
 The component came from **PhilMaps** (`symonh/PhilMaps`, `lib/argmap/` +
 `src/assets/{js,css}/argmap.*`), where it was written against this app's theme
 in the first place — its comments cite `app/js/themes.js`. This is the same
-author's code, brought back to the app it was modelled on; the copy here is
-under this repo's MIT licence.
+author's code, brought back to the app it was modelled on. PhilMaps carried
+CC BY-NC 4.0 when the port was made; on 2026-07-30 Simon relicensed that repo MIT
+too, so both copies are now under the same terms as this one.
 
 ## Files
 
@@ -25,13 +26,15 @@ figures/lib/smartquotes.js  straight quotes -> curly, for display text only
 site/css/argmap.css       the frame and the whole visual grammar
 site/js/argmap.js         hydration: layout, connectors, keyboard
 site/maps/*.mup           generated, committed, served for download
+docs/og-card.html         the social card's source — the hero's map again
+test/og-shot.js           renders that to site/og.png
 ```
 
 `figures/` is build-time only and never deployed. `site/` is what `deploy.sh`
 rsyncs to the site root, so `site/js/argmap.js` is the only JavaScript a reader
 downloads for the figures — it has no imports.
 
-## Two kinds
+## Three kinds
 
 A **figure** (`kind` omitted) is the full thing: a framed canvas with a caption
 bar offering the `.mup` and the link into the editor, plus the editor's title bar
@@ -45,6 +48,16 @@ aria-hidden because each card's own heading and sentence already say what its ma
 shows, so exposing the map too would only read the same thing twice; and inert
 because a legend is not something to navigate.
 
+A **card** (`kind: 'card'`) is the framed canvas with no caption bar, for
+`docs/og-card.html` — the source of `site/og.png`, the 1200×630 social card. It
+points at the hero's own map, so the image every shared link previews cannot
+drift from the page it previews. Regenerate the PNG with `cd test && node
+og-shot.js` (it needs the same port-8871 server the suites do, because the card
+loads `site/js/argmap.js` as a module and `file://` will not). The shot runs with
+reduced motion, so the entrance animation never half-draws the map, and it
+refuses to write anything if the map is clipped, scrolling, mid-fade, or
+unhydrated.
+
 ## Adding or changing a figure
 
 1. Write `figures/maps/<id>.json` (schema below).
@@ -55,6 +68,8 @@ because a legend is not something to navigate.
    `<!-- argmap:<id> -->` … `<!-- /argmap:<id> -->`.
 4. `node figures/build.mjs`, then commit the generated `site/index.html` and any
    `site/maps/*.mup` along with the JSON.
+5. If you changed the hero, also `cd test && node og-shot.js` and commit
+   `site/og.png` — the social card draws the same map.
 
 Keep an illustration's claims short and of similar length. A card is only ~295px
 wide, so two co-premises there have to wrap; they look balanced when both claims
