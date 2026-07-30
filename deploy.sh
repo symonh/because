@@ -26,6 +26,11 @@ fi
 echo "Pushing ${branch} to origin before deploy…"
 git push origin "$branch"
 
+# The landing page's argument-map figures are pre-rendered and committed
+# (docs/figures.md). Refuse to ship a page whose figure no longer matches the
+# map JSON it was built from.
+node figures/build.mjs --check
+
 rm -rf deploy
 mkdir -p deploy
 rsync -a app deploy/

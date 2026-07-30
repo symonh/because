@@ -5,6 +5,15 @@ app chrome, the palette used for contrast, and the places where full
 conformance is bounded by the project's rendering-fidelity rule. The
 regression gate is `test/a11y-e2e.js`.
 
+The landing page has its own gate, `test/site-e2e.js`, because its
+argument-map figures draw the same grammar the app does and so inherit
+exception 1 below — including the shape distinction between the three
+bracket kinds. The figures carry the canvas tree semantics described
+under "Canvas tree semantics" (one tab stop, `role="tree"` /
+`role="treeitem"`, `aria-level`, `aria-selected`,
+`aria-activedescendant`, arrow-key navigation) plus a prose text
+alternative for each figure; see docs/figures.md.
+
 ## App-chrome measures
 
 - **Scoped keyboard model.** Single-key shortcuts (WCAG 2.1.4) are active

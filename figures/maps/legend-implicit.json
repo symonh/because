@@ -1,0 +1,15 @@
+{
+	"id": "legend-implicit",
+	"root": {
+		"text": "Lying is wrong.",
+		"groups": [
+			{
+				"type": "supporting",
+				"claims": [
+					{ "text": "Manipulating people is wrong.", "implicit": true }
+				]
+			}
+		]
+	},
+	"options": { "numbered": false, "claimMaxCh": 15 }
+}

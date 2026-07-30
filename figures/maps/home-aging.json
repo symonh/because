@@ -1,0 +1,17 @@
+{
+	"id": "home-aging",
+	"title": "eradicate-aging.mup",
+	"root": {
+		"text": "We have a moral duty to eradicate aging.",
+		"groups": [
+			{
+				"type": "supporting",
+				"claims": [
+					{ "text": "Aging is a great evil." },
+					{ "text": "We have a moral duty to eradicate great evils." }
+				]
+			}
+		]
+	},
+	"options": { "numbered": true, "claimMaxCh": 26 }
+}

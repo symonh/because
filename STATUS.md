@@ -1,5 +1,94 @@
 # Because (formerly ArgumentBase) — status (2026-07-29)
 
+## 2026-07-29 — The landing page's map is a real map now
+
+- The hero showed a hand-built imitation: white boxes in a tinted green
+  panel captioned "CO-PREMISES", a bright blue conclusion, a straight
+  2px line. None of it was the grammar the app draws, and it could
+  drift from the app without anything noticing. PhilMaps had already
+  solved this properly — its figures are live argument maps rendered
+  from map JSON against *this* app's theme (its own comments cite
+  `app/js/themes.js`) — so the component came home. `figures/lib/` is
+  the ported renderer, `site/css/argmap.css` and `site/js/argmap.js`
+  the served figure, `docs/figures.md` the whole contract.
+- Pre-rendered and committed rather than drawn at runtime. A figure has
+  to be right with JavaScript off and must not jump when the script
+  lands, so the markup has to be in the HTML: `figures/build.mjs`
+  renders it between `<!-- argmap:id -->` markers and writes the `.mup`,
+  and both outputs are committed, which keeps `deploy.sh` doing nothing
+  but rsync. `--check` fails on drift; deploy.sh and site-e2e run it.
+  Measured cost of the two states differing: one pixel of canvas height
+  (267 → 266), because the CSS fallback stem and the SVG curve land on
+  the same bracket line by construction.
+- The figure hands the map over. "Download .mup" serves the generated
+  file and "Open in the editor" is `/app/?src=/maps/home-aging.mup` —
+  the `?src=` loader main.js already had, which until now only tests
+  used. site-e2e loads that generated file in the app and reads the
+  three claims back out, so the export cannot rot silently.
+- The third connector came along. PhilMaps predates `neutral`, so the
+  renderer, the describer, the .mup writer and the CSS all learned it:
+  `GROUP_KINDS` mirrors numbering.js, and the bracket is a bare flat bar
+  — rounded reason, square objection, flat neutral, the same shape
+  distinction `connector.js`'s `squareCorners` / `noCorners` make in the
+  app, so accessibility.md exception 1 still holds on the site.
+- Left in PhilMaps deliberately: the lesson layer (keyed demos, the
+  strength popover, quiz cards). This site has no lessons, and dead code
+  no gate exercises rots. The data model is identical, so it can come
+  over unchanged later; docs/figures.md says where.
+- Two things the new gate turned up. WebKit was reporting
+  "ResizeObserver loop completed with undelivered notifications" —
+  laying out resizes the boxes being observed, so the relayout now waits
+  a frame before running. And with the scroll-reveal animations
+  disabled (which is how axe should see the page — otherwise it reads
+  mid-fade copy as low contrast), axe found two real
+  `link-in-text-block` failures that predate all of this: the About
+  block's inline links were distinguished by colour alone. Prose links
+  are underlined now.
+- Also gone: `aria-hidden="true"` on the hero panel. The old mock was
+  decoration; the figure is content, with tree semantics matching
+  `a11y-canvas.js` (`aria-level`, `aria-selected`,
+  `aria-activedescendant`), one tab stop, arrow-key navigation, and a
+  `describe.js` prose alternative naming every claim by number.
+- The legend went the same way (Simon, same day). The three cards under
+  "See the shape of an argument" were tinted panels with white pills —
+  imitation grammar sitting directly under authentic grammar, and no
+  neutral kind anywhere. They are now real maps: one running argument,
+  "Lying is wrong." because "Lying is manipulative." and "Manipulating
+  people is wrong.", shown as a reason, as an objection ("Lying can make
+  you rich."), and with the moral principle left implicit — which is
+  exactly the sort of premise an author does leave unstated. A second
+  figure kind, `inline`, renders them — inert,
+  unnumbered, aria-hidden (each card's heading and sentence already say
+  what its map shows) and drawn at 13px, which the layout engine scales
+  every constant off, so the whole drawing shrinks coherently rather
+  than being squeezed by the fit ladder. One `min-height` keeps the
+  three panels level.
+- A claim box was splitting words down the middle: "manipulativ / e.",
+  because a wrap cap narrower than the longest word left
+  `overflow-wrap: break-word` as the only out. The floor is
+  `min-width: min-content` — min-width beats max-width, so the box
+  widens rather than breaking the word, and `break-word` (which does not
+  feed min-content sizing) goes back to being a last resort for a word
+  wider than the canvas. **Scoped to `.am-abs`**, though: on the flow
+  fallback's flex item, WebKit sized the `.am-node-wrap` cell from the
+  claim's UNCLAMPED max-content width the moment a min-width keyword
+  appeared — 346px instead of 223px — so co-premises drifted 74px apart
+  under a bracket stretched over the gap. Chrome was fine, which is the
+  third time this project has been caught by a Chrome-only reading. The
+  suite now walks every word of every claim and fails if its rendered
+  rects are not contiguous, in both states and both engines (a hyphen is
+  a legal break, so "ticking-bomb" counts as two words).
+- Which leaves `claimMaxCh` doing double duty: the fit ladder's starting
+  point, and the wrap cap the no-JS fallback uses verbatim with nothing
+  to widen it. So it has to clear the map's longest word — 15 for these,
+  where 13 broke "manipulative." on the JS-less render.
+- Deployed. First build of the landing page whose figures the deploy
+  itself verifies: `deploy.sh` now runs `figures/build.mjs --check`
+  before staging, so a page rendered from a stale map JSON aborts the
+  upload under `set -e`.
+- All eight suites pass, including the new `test/site-e2e.js` in both
+  engines.
+
 ## 2026-07-29 — A third connector: neutral, off by default
 
 - Feature request: an uninterpreted connector, "empty of content", so a

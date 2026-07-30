@@ -30,11 +30,18 @@ OAuth setup.
 - Deploy with `./deploy.sh` (Firebase Hosting site `argumentbase` — a
   legacy id from the old app name). Public URL:
   https://app.philmaps.com.
+- The landing page's argument-map figures ARE built: they are pre-rendered
+  from `figures/maps/*.json` and committed. Change a map and rerun
+  `node figures/build.mjs`, then commit `site/index.html` and
+  `site/maps/*.mup` with it; never hand-edit between the
+  `<!-- argmap:id -->` markers. `deploy.sh` runs `--check` and aborts on
+  drift. See docs/figures.md.
 - Tests: serve the repo root on port 8871, then run `node app-e2e.js`,
   `node click-select-e2e.js`, `node drive-e2e.js`, `node onedrive-e2e.js`,
   `node features-e2e.js`, `node webkit-e2e.js` (Playwright WebKit — the
-  Safari rule), and `node a11y-e2e.js` (WCAG 2.2 AA gate;
-  docs/accessibility.md) from `test/`. All must pass before deploying.
+  Safari rule), `node a11y-e2e.js` (WCAG 2.2 AA gate;
+  docs/accessibility.md), and `node site-e2e.js` (the landing-page
+  figures, both engines) from `test/`. All must pass before deploying.
 
 ## Engine background
 

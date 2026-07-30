@@ -1,0 +1,629 @@
+/*
+ * site/css/argmap.css — the argument-map figures on the landing page: the frame
+ * (.fig and its two bars) and the canvas interior (.argmap, .am-*).
+ *
+ * Authentic MindMup argument-mapping grammar (app/js/themes.js argMappingSimple
+ * + app/css/argmap.css) in the editor's own dark palette, so a figure here is
+ * the same drawing the reader will get after clicking "Open in the editor".
+ * Every value the figure needs is a --am-* token declared below, so this file is
+ * self-contained and cannot collide with the page's own variables.
+ *
+ * Ported from PhilMaps (src/assets/css/argmap.css + site.css §13); see
+ * docs/figures.md.
+ *
+ * Bracket construction: MindMup's group node wraps only its claim boxes, so the
+ * bracket must hug the CLAIMS ROW and never widen to a descendant subtree. In
+ * the no-JS flow layout each claim cell (.am-node-wrap) is as wide as its whole
+ * subtree, so a single spanning element cannot do this. Instead the bracket is
+ * drawn as overlapping segments:
+ *   - every cell draws a top-line segment bridging half the inter-cell gap each
+ *     side; the FIRST cell starts its segment at 50% (behind its claim, which is
+ *     centred in the cell) and the LAST ends at 50%;
+ *   - the first/last CLAIM boxes draw corner caps (top line + descending side
+ *     arm) over exactly their own width.
+ * The union renders one continuous bracket from the first claim's left edge to
+ * the last claim's right edge, regardless of subtree width. Once site/js/
+ * argmap.js hydrates, .am-abs replaces all of it with one measured element.
+ *
+ * Geometry contract with the JS: the CSS fallback stems and the hydrated SVG
+ * curves land on the same bracket line; hydration hides the stems and changes
+ * nothing else, so there is zero layout shift.
+ */
+
+/* Map text is the editor's own Noto Sans, loaded from the app's copy — the
+ * relative path resolves to /app/fonts/ both from the deployed /css/ and from
+ * /site/css/ on a server rooted at the repo (as the test suites are). */
+@font-face {
+	font-family: 'NotoSans';
+	src: url('../../app/fonts/NotoSans-400.woff2') format('woff2');
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+@font-face {
+	font-family: 'NotoSans';
+	src: url('../../app/fonts/NotoSans-700.woff2') format('woff2');
+	font-weight: 700;
+	font-style: normal;
+	font-display: swap;
+}
+
+/* ------------------------------------------------------------------ tokens */
+/* On :root, not on .fig, because a map is not always framed: the legend cards
+ * use bare inline maps. Every name is --am-* namespaced, so nothing here can
+ * collide with the page's own variables. */
+:root {
+	/* map content — the editor's dark-mode mapping of the authentic theme
+	   (DARK_COLORS in app/js/themes.js), not an approximation of it */
+	--am-paper: #26292d;
+	--am-ink: #e2e5e7;
+	--am-border: #9aa0a6;
+	--am-green: #3fb377;
+	--am-red: #ff5d5d;
+	--am-neutral: #4aa3e8;
+	--am-select: #22aae0;
+	--am-badge: rgba(34, 170, 224, 0.8);
+	--am-shadow: 2px 2px 3px rgba(0, 0, 0, 0.45);
+	--am-canvas: #1b1d20;
+	--am-grid-dot: rgba(255, 255, 255, 0.05);
+
+	/* the frame around it — the landing page's own surfaces */
+	--am-frame: #212429;
+	--am-frame-line: #2f343a;
+	--am-frame-line-strong: #3d4248;
+	--am-chrome: #24272b;
+	--am-chrome-line: #34383d;
+	--am-chrome-ink: #c3c8cd;
+	--am-muted: #9aa1a8;
+	--am-accent: #5cc8f2;
+	--am-radius: 14px;
+	--am-font-map: 'NotoSans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+	--am-font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+.argmap {
+	--am-row-gap: 2.933em;      /* vertical gap parent-claim bottom -> bracket bar */
+	--am-claim-gap: 0.8em;      /* horizontal gap between sibling claims */
+	--am-bracket-h: 0.667em;    /* corner-cap height (the arms' descent) */
+	--am-bracket-air: 0.933em;  /* clearance from arm ends to claim-box tops:
+	                               badges straddle box tops at -11px (+2px ring)
+	                               so >13px keeps them clear of the bracket */
+	--am-drop: calc(var(--am-bracket-h) + var(--am-bracket-air));
+	--am-w-normal: 3px;
+	--am-w-strong: 5px;
+	--am-w-weak: 1.5px;
+}
+
+/* ------------------------------------------------- a map without a frame */
+/* Used where a map is an illustration rather than a figure — the legend cards.
+ * The canvas treatment, tighter, no bars, and aria-hidden in the markup because
+ * the card's own heading and sentence already say what it shows. */
+.argmap-inline {
+	position: relative;
+	/* one height for a row of them, with the map centred in whatever it needs:
+	   a two-claim reason is taller than a one-claim objection, and cards in a
+	   row should still line up */
+	display: grid;
+	align-content: center;
+	min-height: 208px;
+	border: 1px solid var(--am-frame-line);
+	border-radius: 10px;
+	overflow: hidden;
+	background-color: var(--am-canvas);
+	background-image: radial-gradient(var(--am-grid-dot) 1px, transparent 1.4px);
+	background-size: 18px 18px;
+}
+.argmap-inline > .fig-scroller { padding-block: 0.75rem; }
+/* An illustration is drawn a step smaller than a figure. The layout engine
+ * scales every one of its constants off the map's font size, so this shrinks the
+ * whole drawing coherently — gaps, brackets and badges with it — instead of
+ * leaving a full-size map to be squeezed by the fit ladder. */
+.argmap-inline .argmap { font-size: 0.8125rem; }
+
+/* --------------------------------------------------------------- the frame */
+.fig {
+	margin: 0;
+	background: var(--am-frame);
+	border: 1px solid var(--am-frame-line-strong);
+	border-radius: var(--am-radius);
+	box-shadow: 0 30px 70px -30px rgba(0, 0, 0, 0.75),
+	            0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+	overflow: hidden;
+}
+
+/* title bar: the map's own file name, as the editor shows it */
+.fig-chrome {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 9px 13px;
+	background: var(--am-chrome);
+	border-bottom: 1px solid var(--am-chrome-line);
+	font-family: var(--am-font-ui);
+	font-size: 12.5px;
+	line-height: 1.5;
+	color: var(--am-muted);
+}
+.fig-chrome svg { display: block; flex: none; }
+.fig-file { color: var(--am-chrome-ink); }
+
+/* caption bar: what the figure shows, and the two ways to take it with you */
+.fig-bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px 18px;
+	flex-wrap: wrap;
+	padding: 11px 14px;
+	background: var(--am-frame);
+	border-top: 1px solid var(--am-frame-line);
+	font-family: var(--am-font-ui);
+}
+.fig-caption {
+	font-size: 13.5px;
+	line-height: 1.45;
+	color: var(--am-muted);
+}
+.fig-actions {
+	display: flex;
+	align-items: center;
+	gap: 18px;
+}
+.fig-action {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--am-muted);
+	text-decoration: none;
+	transition: color 150ms ease-out;
+}
+.fig-action:hover { color: var(--am-accent); text-decoration: underline; }
+.fig-action:focus-visible {
+	outline: 2px solid var(--am-select);
+	outline-offset: 3px;
+	border-radius: 4px;
+}
+
+/* ----------------------------------------------------- canvas + scroller */
+.fig-canvas {
+	display: block;
+	position: relative;
+	overflow: visible;
+	background-color: var(--am-canvas);
+	background-image: radial-gradient(var(--am-grid-dot) 1px, transparent 1.4px);
+	background-size: 18px 18px;
+}
+.fig-scroller {
+	position: relative;
+	overflow-x: auto;
+	overflow-y: hidden;
+	padding-block: 1.75rem;
+	scroll-padding-inline: 24px;
+	overscroll-behavior-x: contain;
+}
+/* visible scroll affordance: a styled (hence always-shown) scrollbar… */
+.fig-scroller::-webkit-scrollbar { height: 9px; }
+.fig-scroller::-webkit-scrollbar-track { background: transparent; }
+.fig-scroller::-webkit-scrollbar-thumb {
+	background: var(--am-frame-line-strong);
+	border-radius: 5px;
+	border: 2px solid var(--am-canvas);
+}
+.fig-scroller { scrollbar-width: thin; scrollbar-color: var(--am-frame-line-strong) transparent; }
+.fig-scroller:focus-visible {
+	outline: 2px solid var(--am-select);
+	outline-offset: -2px;
+}
+/* …plus edge-fade masks while more content hides beyond an edge (JS toggles
+ * .am-scroll-l/.am-scroll-r on the canvas). */
+.fig-canvas::before,
+.fig-canvas::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 28px;
+	z-index: 2;
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity 150ms ease-out;
+}
+.fig-canvas::before {
+	left: 0;
+	background: linear-gradient(to right, var(--am-canvas), transparent);
+}
+.fig-canvas::after {
+	right: 0;
+	background: linear-gradient(to left, var(--am-canvas), transparent);
+}
+.fig-canvas.am-scroll-l::before { opacity: 1; }
+.fig-canvas.am-scroll-r::after { opacity: 1; }
+
+/* -------------------------------------------------------------- the map box */
+.argmap {
+	position: relative;
+	box-sizing: border-box;
+	font-size: 0.9375rem;
+	width: max-content;
+	min-width: 100%;
+	margin-inline: auto;
+	padding-inline: 24px;
+	/* room above the root claim for its top-straddling badge */
+	padding-top: 14px;
+	font-family: var(--am-font-map);
+}
+
+/* recursive vertical stack: claim, then its groups row, centred */
+.am-node-wrap {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	position: relative;
+}
+/* the root wrap centres in the map */
+.argmap > .am-node-wrap { margin-inline: auto; width: max-content; }
+
+/* --------------------------------------------------------------- claim box */
+.am-claim {
+	position: relative;
+	box-sizing: border-box;
+	max-width: calc(var(--claim-max-ch, 26) * 1ch);
+	width: max-content;
+	background: var(--am-paper);
+	border: 1px solid var(--am-border);
+	border-radius: 0.333em;
+	box-shadow: var(--am-shadow);
+	color: var(--am-ink);
+	font: 400 1em/1.42 var(--am-font-map);
+	padding: 0.667em 0.8em;
+	text-align: left;
+	cursor: default;
+	scroll-margin-inline: 24px;
+	transition: border-color 150ms ease-out;
+}
+.am-claim .am-text {
+	display: block;
+	white-space: normal;
+	overflow-wrap: break-word;
+	text-wrap: balance;
+}
+.am-claim { --am-claim-bw: 1px; } /* border width; caps compensate for it */
+.am-implicit {
+	border-style: dashed;
+	border-width: 1.5px;
+	--am-claim-bw: 1.5px;
+}
+
+/* number badge — straddles the top-right corner. Blue fill + white 1px ring +
+ * outer blue rim (box-shadow), exactly as the editor draws it. */
+.am-badge {
+	position: absolute;
+	top: -0.733em;
+	right: -0.533em;
+	height: 1.333em;
+	min-width: 1.333em;
+	box-sizing: border-box;
+	padding: 0 0.333em;
+	border: 1px solid #fff;
+	border-radius: 0.667em;
+	background: var(--am-badge);
+	box-shadow: 0 0 0 2px var(--am-badge);
+	color: #fff;
+	font: 700 0.8em/1.2em var(--am-font-map);
+	text-align: center;
+	white-space: nowrap;
+	pointer-events: none;
+	z-index: 1;
+}
+
+/* -------------------------------------------------- groups row + brackets */
+.am-groups {
+	display: flex;
+	flex-direction: row;
+	align-items: flex-start;
+	justify-content: center;
+	gap: 20px;
+	margin-top: var(--am-row-gap);
+	position: relative;
+}
+
+/* one group: bracket zone above a flex row of claim cells */
+.am-group {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	padding-top: var(--am-drop);
+	--am-line: var(--am-green);
+	--am-w: var(--am-w-normal);
+}
+.am-opposing { --am-line: var(--am-red); }
+.am-neutral { --am-line: var(--am-neutral); }
+.am-strong { --am-w: var(--am-w-strong); }
+.am-weak { --am-w: var(--am-w-weak); }
+
+.am-claims {
+	position: relative;
+	display: flex;
+	flex-direction: row;
+	align-items: flex-start;
+	justify-content: center;
+	gap: var(--am-claim-gap);
+}
+.am-claims > .am-node-wrap { position: relative; }
+
+/* bracket segments: cells bridge the gaps… */
+.am-claims > .am-node-wrap::before {
+	content: '';
+	position: absolute;
+	top: calc(-1 * var(--am-drop));
+	left: calc(var(--am-claim-gap) / -2);
+	right: calc(var(--am-claim-gap) / -2);
+	height: 0;
+	border-top: var(--am-w) solid var(--am-line);
+	pointer-events: none;
+}
+.am-claims > .am-node-wrap:first-child::before { left: 50%; }
+.am-claims > .am-node-wrap:last-child::before { right: 50%; }
+.am-claims > .am-node-wrap:only-child::before { content: none; }
+
+/* …and the outer claims draw the corner caps over exactly their own width.
+ * Shape carries the group's kind as well as colour, so the three kinds stay
+ * distinguishable with colour perception removed (docs/accessibility.md
+ * exception 1): a reason's corners are rounded, an objection's are square, and
+ * the neutral connector's bracket is a bare flat bar with no corners at all.
+ * Absolutely positioned pseudos anchor to the claim's PADDING box, i.e. inside
+ * its border, so offsets compensate by --am-claim-bw to land on the same line as
+ * the (borderless) cell segments. */
+.am-claims > .am-node-wrap:first-child > .am-claim::before,
+.am-claims > .am-node-wrap:last-child > .am-claim::after {
+	content: '';
+	position: absolute;
+	top: calc(-1 * var(--am-drop) - var(--am-claim-bw));
+	left: calc(-1 * var(--am-claim-bw));
+	right: calc(-1 * var(--am-claim-bw));
+	height: var(--am-bracket-h);
+	box-sizing: border-box;
+	border-top: var(--am-w) solid var(--am-line);
+	pointer-events: none;
+}
+.am-claims > .am-node-wrap:first-child > .am-claim::before {
+	border-left: var(--am-w) solid var(--am-line);
+	border-top-left-radius: 10px;
+}
+.am-claims > .am-node-wrap:last-child > .am-claim::after {
+	border-right: var(--am-w) solid var(--am-line);
+	border-top-right-radius: 10px;
+}
+.am-opposing > .am-claims > .am-node-wrap:first-child > .am-claim::before,
+.am-opposing > .am-claims > .am-node-wrap:last-child > .am-claim::after {
+	border-radius: 0;
+}
+.am-neutral > .am-claims > .am-node-wrap:first-child > .am-claim::before,
+.am-neutral > .am-claims > .am-node-wrap:last-child > .am-claim::after {
+	border-radius: 0;
+	border-left: none;
+	border-right: none;
+	height: 0;
+}
+
+/* invisible bracket-line anchor: carries the CSS fallback stem and marks the
+ * group's top for the hydrated connectors. No borders of its own. */
+.am-bracket {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: var(--am-bracket-h);
+	pointer-events: none;
+}
+
+/* --------------------------------------------- hydrated absolute layout */
+/* The JS envelope layout flips the map to .am-abs: wrappers stop generating
+ * boxes, every claim box / bracket / io-bar is absolutely positioned by measured
+ * coordinates, and the bracket becomes a SINGLE element sized to hug exactly the
+ * packed claims row — the segment construction above only serves the no-JS
+ * nested fallback. */
+.argmap.am-abs {
+	width: auto;
+	min-width: 0;
+	padding: 0;
+}
+.am-abs .am-node-wrap,
+.am-abs .am-groups,
+.am-abs .am-group,
+.am-abs .am-claims,
+.am-abs .am-inference-objection {
+	display: contents;
+}
+.am-abs .am-claim,
+.am-abs .am-io-bar {
+	position: absolute;
+	margin: 0;
+}
+/* A box is never narrower than its longest word: min-width beats max-width, so a
+ * wrap cap too tight for "manipulative" widens the box instead of splitting the
+ * word down the middle. (overflow-wrap: break-word does not feed min-content
+ * sizing, so it stays a last resort for a word wider than the whole canvas.)
+ *
+ * Only here, not on .am-claim itself. In the flow fallback the claim is a flex
+ * item, and WebKit then sizes its .am-node-wrap cell from the claim's UNCLAMPED
+ * max-content width — the cell grew to the claim's one-line width, pushing
+ * co-premises apart and stretching the bracket over the gap. Absolutely
+ * positioned claims have no flex parent to mis-measure them. */
+.am-abs .am-claim { min-width: min-content; }
+.am-abs .am-claims > .am-node-wrap::before,
+.am-abs .am-claims > .am-node-wrap:first-child > .am-claim::before,
+.am-abs .am-claims > .am-node-wrap:last-child > .am-claim::after {
+	content: none;
+}
+.am-abs .am-bracket {
+	position: absolute;
+	box-sizing: border-box;
+	left: auto;
+	right: auto;
+	height: calc(var(--am-bracket-h) + var(--am-w));
+	border: var(--am-w) solid var(--am-line);
+	border-bottom: none;
+	border-radius: 0.667em 0.667em 0 0;
+}
+.am-abs .am-opposing > .am-bracket { border-radius: 0; }
+.am-abs .am-neutral > .am-bracket {
+	border-radius: 0;
+	border-left: none;
+	border-right: none;
+	height: var(--am-w);
+}
+/* inference objection, authentic form: a square red bracket over the objecting
+ * claims (in the same row as the reason's claims) whose bar extends left as a
+ * tail beneath the green bracket. JS positions the bar; the io group's own
+ * bracket is replaced. */
+.am-abs .am-io-bar {
+	left: auto;
+	right: auto;
+	box-sizing: border-box;
+	height: var(--am-w);
+	border-top: var(--am-w) solid var(--am-red);
+}
+.am-abs .am-inference-objection .am-group > .am-bracket { display: none; }
+
+/* CSS-only fallback stem: a coloured vertical line rising from the bracket bar
+ * to the parent claim (height = the row gap). Hydration hides it and draws the
+ * SVG curve into the same geometry -> no layout shift. */
+.am-stem {
+	position: absolute;
+	left: 50%;
+	bottom: 100%;
+	transform: translateX(-50%);
+	width: var(--am-w);
+	height: var(--am-row-gap);
+	background: var(--am-line);
+	border-radius: 2px;
+	pointer-events: none;
+}
+.argmap[data-hydrated] .am-stem { display: none; }
+
+/* ---------------------------------------------- inference objection */
+/* a red bar ~70% of the bracket width, centred, 4px under the supporting
+ * bracket's bar; the objection GROUP (square red bracket + claims) hangs below
+ * the claims row. */
+.am-io-bar {
+	position: absolute; /* against the owning .am-group */
+	top: calc(var(--am-w-normal) + 4px);
+	left: 15%;
+	right: 15%;
+	height: 0;
+	border-top: var(--am-w-normal) solid var(--am-red);
+	pointer-events: none;
+}
+.am-inference-objection {
+	display: flex;
+	justify-content: center;
+	margin-top: var(--am-row-gap);
+}
+
+/* ------------------------------------------------------------- connectors */
+.am-links {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	overflow: visible;
+}
+.am-links path.am-link {
+	fill: none;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+/* ------------------------------------------------------------- selection */
+.am-claim.is-selected {
+	outline: 3px dotted var(--am-select);
+	outline-offset: 1px;
+}
+.am-claim.am-implicit.is-selected {
+	outline-style: dashed;
+}
+.am-claim:focus { outline: 3px dotted var(--am-select); outline-offset: 1px; }
+.am-claim.am-implicit:focus { outline-style: dashed; }
+.am-claim:focus:not(:focus-visible) { outline: none; }
+.am-claim.is-selected:focus:not(:focus-visible) {
+	outline: 3px dotted var(--am-select);
+}
+
+/* ---------------------------------------------------------------- hover */
+/* subtle emphasis; never re-layouts. JS thickens the matched connector. */
+.am-claim:hover { border-color: color-mix(in srgb, var(--am-border) 82%, #fff); }
+
+/* mini-maps rendered inert (render.js's `inert` option) take no interaction */
+.argmap.am-inert .am-claim { cursor: default; }
+.argmap.am-inert .am-claim:hover { border-color: var(--am-border); }
+
+/* --------------------------------------------------- entrance (the hero) */
+/* The map assembles itself by argumentative level once the connectors are
+ * drawn: conclusion, then the curve, then the reason it hangs from. Opacity
+ * only — the layout engine measures these boxes, and a transform on them would
+ * move what it measures. */
+@media (prefers-reduced-motion: no-preference) {
+	.argmap[data-hydrated] .am-claim,
+	.argmap[data-hydrated] .am-bracket,
+	.argmap[data-hydrated] .am-links { animation: am-fade 450ms ease both; }
+	.argmap[data-hydrated] .am-claim[aria-level='1'] { animation-delay: 60ms; }
+	.argmap[data-hydrated] .am-links { animation-delay: 340ms; }
+	.argmap[data-hydrated] .am-bracket,
+	.argmap[data-hydrated] .am-claim[aria-level='2'] { animation-delay: 520ms; }
+	.argmap[data-hydrated] .am-claim[aria-level='3'] { animation-delay: 640ms; }
+	.argmap[data-hydrated] .am-claim[aria-level='4'] { animation-delay: 720ms; }
+}
+@keyframes am-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* --------------------------------------------------------- a11y helper */
+.visually-hidden {
+	position: absolute !important;
+	width: 1px; height: 1px;
+	margin: -1px; padding: 0; border: 0;
+	clip: rect(0 0 0 0); clip-path: inset(50%);
+	overflow: hidden; white-space: nowrap;
+}
+
+/* ---------------------------------------------------- reduced motion */
+@media (prefers-reduced-motion: reduce) {
+	.am-claim,
+	.fig-action,
+	.fig-canvas::before,
+	.fig-canvas::after {
+		transition: none !important;
+		animation: none !important;
+	}
+}
+
+/* --------------------------------------------------------------- print */
+@media print {
+	/* figures print in the LIGHT map grammar, on white */
+	:root {
+		--am-paper: #fff;
+		--am-ink: #4f4f4f;
+		--am-border: #707070;
+		--am-green: #339966;
+		--am-red: #ff0000;
+		--am-neutral: #0070c0;
+		--am-shadow: none;
+		--am-canvas: #fff;
+		--am-grid-dot: rgba(0, 0, 0, 0.045);
+		--am-frame: #fff;
+		--am-frame-line: #ccc;
+		--am-frame-line-strong: #ccc;
+		--am-chrome: #fff;
+		--am-chrome-line: #ccc;
+		--am-chrome-ink: #333;
+		--am-muted: #444;
+	}
+	.fig { box-shadow: none; }
+	.fig-canvas,
+	.argmap-inline { background-color: #fff; }
+	.fig-scroller { overflow: visible; }
+	.am-claim { box-shadow: none; }
+	.fig-actions { display: none; }
+}

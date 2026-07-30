@@ -25,6 +25,9 @@
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="icon" href="favicon.png" type="image/png" sizes="48x48">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<!-- Argument-map figures: the frame and the authentic map grammar. Loaded
+     before the page's own <style> so the page can still override it. -->
+<link rel="stylesheet" href="css/argmap.css">
 <script type="application/ld+json">
 {
 	"@context": "https://schema.org",
@@ -101,6 +104,17 @@
 		outline: 2px solid var(--accent);
 		outline-offset: 3px;
 		border-radius: 4px;
+	}
+	/* Links inside a run of prose are underlined at rest: colour alone must not
+	 * be what tells a reader a word is a link (WCAG 1.4.1). Standalone links —
+	 * the nav, the CTAs, the footer's row — read as links from their position,
+	 * so they keep the quieter treatment. */
+	.prose a,
+	.about a,
+	.foot-copy a {
+		text-decoration: underline;
+		text-decoration-thickness: from-font;
+		text-underline-offset: 2px;
 	}
 
 	strong { color: var(--text-strong); font-weight: 650; }
@@ -210,113 +224,13 @@
 	}
 	.note svg { flex: none; color: var(--green); }
 
-	/* ---- hero map (a small argument map, rendered as the editor draws it) - */
-	.canvas {
-		position: relative;
-		background: var(--bg-canvas);
-		border: 1px solid var(--border-strong);
-		border-radius: var(--radius);
-		box-shadow: 0 30px 70px -30px rgba(0,0,0,0.75),
-		            0 0 0 1px rgba(255,255,255,0.02) inset;
-		overflow: hidden;
-	}
-	/* faint dotted grid, like the map canvas */
-	.canvas .grid {
-		position: absolute;
-		inset: 0;
-		background-image: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1.4px);
-		background-size: 18px 18px;
-		pointer-events: none;
-	}
-	.canvas-bar {
-		position: relative;
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		padding: 9px 13px;
-		background: #24272b;
-		border-bottom: 1px solid #34383d;
-		font-size: 12.5px;
-		color: var(--muted);
-	}
-	.canvas-bar .file { color: #c3c8cd; }
-	.canvas-bar .moon { margin-left: auto; color: #8b9198; display: flex; }
-
-	.map { position: relative; padding: 30px 26px 34px; }
-	.node {
-		background: #ffffff;
-		color: #1b1d20;
-		border: 1px solid #c9ced4;
-		border-radius: 9px;
-		padding: 9px 13px;
-		font-size: 14px;
-		font-weight: 550;
-		line-height: 1.3;
-		text-align: center;
-		/* even the two lines out rather than stranding a last word
-		   ("…to eradicate / aging."); ignored where unsupported */
-		text-wrap: balance;
-		box-shadow: 0 2px 6px rgba(0,0,0,0.35);
-	}
-	.node.implicit { border-style: dashed; border-color: #8a9299; }
-	.node.root {
-		background: #22aae0;
-		border-color: #1c93c4;
-		color: #ffffff;
-		font-weight: 650;
-		box-shadow: 0 4px 14px -2px rgba(34,170,224,0.6);
-	}
-
-	.map .conclusion { max-width: 300px; margin: 0 auto; }
-
-	/* curved parent→child connectors, like the editor draws them */
-	.links { display: block; width: 100%; height: 46px; }
-	.links .link { fill: none; stroke-width: 2; stroke-linecap: round; }
-	.links .link.support { stroke: var(--green); }
-	.links .link.object { stroke: var(--red); }
-
-	.branches {
-		display: grid;
-		gap: 20px;
-	}
-	.branch { display: flex; flex-direction: column; align-items: stretch; }
-	/* co-premises sit side by side inside one bracket — that adjacency is
-	   the thing the grouping means, so they never stack while there is
-	   width for both (see the narrow-screen rule at the end) */
-	.group .nodes {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 9px;
-		align-items: stretch;
-	}
-	.group .nodes .node { display: flex; align-items: center; justify-content: center; }
-
-	.group {
-		border-radius: 12px;
-		padding: 10px 10px 12px;
-		border: 1.5px solid;
-	}
-	.group.support {
-		background: rgba(69,192,125,0.13);
-		border-color: rgba(69,192,125,0.65);
-	}
-	.group.object {
-		background: rgba(239,111,102,0.13);
-		border-color: rgba(239,111,102,0.6);
-	}
-	.glabel {
-		font-size: 10.5px;
-		font-weight: 700;
-		letter-spacing: 0.09em;
-		text-transform: uppercase;
-		margin: 0 2px 9px;
-		display: flex;
-		align-items: center;
-		gap: 6px;
-	}
-	.group.support .glabel { color: var(--green); }
-	.group.object .glabel { color: var(--red); }
-	.group .node + .node { margin-top: 9px; }
+	/* ---- hero figure ------------------------------------------------------ */
+	/* The map itself is a real argument-map figure: site/css/argmap.css owns
+	 * the frame and the authentic MindMup grammar, figures/build.mjs renders it
+	 * from figures/maps/home-aging.json, site/js/argmap.js lays it out. This
+	 * rule only gives the grid cell somewhere to put it. min-width:0 lets the
+	 * figure's own scroller shrink instead of widening the column. */
+	.hero-fig { min-width: 0; }
 
 	/* ---- generic section -------------------------------------------------- */
 	section { padding: 30px 0; }
@@ -354,27 +268,8 @@
 		transition: border-color 0.15s ease, background 0.15s ease;
 	}
 	.legend-card:hover { border-color: var(--border-strong); background: var(--surface-2); }
-	.legend-swatch {
-		height: 44px;
-		border-radius: 8px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		margin-bottom: 13px;
-	}
-	.legend-swatch .mini {
-		background: #fff;
-		color: #1b1d20;
-		font-size: 11px;
-		font-weight: 600;
-		padding: 4px 10px;
-		border-radius: 6px;
-		border: 1px solid #c9ced4;
-	}
-	.sw-green { background: rgba(69,192,125,0.13); border: 1.5px solid rgba(69,192,125,0.65); }
-	.sw-red { background: rgba(239,111,102,0.13); border: 1.5px solid rgba(239,111,102,0.6); }
-	.sw-dashed { background: transparent; }
-	.sw-dashed .mini { border-style: dashed; border-color: #8a9299; }
+	/* the map panel; its interior is css/argmap.css's .argmap-inline */
+	.legend-card .argmap-inline { margin-bottom: 15px; }
 	.legend-card h3 { margin: 0 0 4px; font-size: 15.5px; color: var(--text-strong); }
 	.legend-card p { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.5; }
 
@@ -460,18 +355,11 @@
 	@media (prefers-reduced-motion: no-preference) {
 		.reveal { opacity: 0; transform: translateY(14px); animation: rise 0.6s ease forwards; }
 		.hero-copy { animation-delay: 0.02s; }
-		.canvas { animation-delay: 0.12s; }
+		.hero-fig { animation-delay: 0.12s; }
 		@keyframes rise { to { opacity: 1; transform: none; } }
 
-		/* the hero map assembles itself: conclusion, then the connectors,
-		 * then each group rises into place. (Connectors fade rather than
-		 * draw on: dash animation breaks under non-scaling-stroke.) */
-		.map .conclusion { opacity: 0; transform: translateY(-6px); animation: rise 0.45s ease 0.5s forwards; }
-		.links .link { opacity: 0; animation: fadein 0.45s ease forwards; }
-		.links .link.support { animation-delay: 0.85s; }
-		.branch { opacity: 0; transform: translateY(10px); animation: rise 0.5s ease forwards; }
-		.branch.support { animation-delay: 1.05s; }
-		@keyframes fadein { to { opacity: 1; } }
+		/* the map inside then assembles itself by argumentative level; those
+		 * keyframes live with the figure, in css/argmap.css */
 
 		/* sections fade up as they scroll into view (JS adds the classes;
 		 * without JS nothing is ever hidden) */
@@ -484,7 +372,7 @@
 		.hero { grid-template-columns: 1fr; gap: 40px; padding: 56px 0 48px; }
 		.hero-copy h1 { font-size: 46px; }
 		.hero-copy .tagline { max-width: none; }
-		.canvas { max-width: 460px; }
+		.hero-fig { max-width: 560px; }
 	}
 	@media (max-width: 760px) {
 		.legend { grid-template-columns: 1fr; }
@@ -532,30 +420,12 @@
 			</p>
 		</div>
 
-		<div class="canvas reveal" aria-hidden="true">
-			<div class="grid"></div>
-			<div class="canvas-bar">
-				<svg viewBox="0 0 24 24" width="15" height="15"><rect x="7" y="2" width="10" height="6" rx="1.5" fill="#fff" stroke="#707070"/><path d="M12 8v3" stroke="#339966" stroke-width="2"/><path d="M3 12h18M3 12q0 2.5 2.5 2.5M21 12q0 2.5-2.5 2.5" stroke="#339966" stroke-width="2" fill="none"/><rect x="2" y="16" width="8" height="6" rx="1.5" fill="#fff" stroke="#707070"/><rect x="14" y="16" width="8" height="6" rx="1.5" fill="#fff" stroke="#707070" stroke-dasharray="2.5,1.6"/></svg>
-				<span class="file">eradicate-aging.mup</span>
-				<span class="moon"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></span>
-			</div>
-			<div class="map">
-				<div class="node root conclusion">We have a moral duty to eradicate aging</div>
-				<svg class="links" viewBox="0 0 100 46" preserveAspectRatio="none">
-					<path class="link support" d="M50 0 L50 46" vector-effect="non-scaling-stroke"/>
-				</svg>
-				<div class="branches">
-					<div class="branch support">
-						<div class="group support">
-							<div class="glabel">Co-premises</div>
-							<div class="nodes">
-								<div class="node">Aging is a great evil</div>
-								<div class="node">We have a moral duty to eradicate great evils</div>
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
+		<div class="hero-fig reveal">
+			<!-- Generated by figures/build.mjs from figures/maps/home-aging.json —
+			     edit the map there and rerun it, never edit between the markers. -->
+			<!-- argmap:home-aging -->
+			<figure class="fig" id="fig-home-aging"><div class="fig-chrome"><svg aria-hidden="true" viewBox="0 0 24 24" width="15" height="15"><rect x="7" y="2" width="10" height="6" rx="1.5" fill="#fff" stroke="#707070"/><path d="M12 8v3" stroke="#339966" stroke-width="2"/><path d="M3 12h18M3 12q0 2.5 2.5 2.5M21 12q0 2.5-2.5 2.5" stroke="#339966" stroke-width="2" fill="none"/><rect x="2" y="16" width="8" height="6" rx="1.5" fill="#fff" stroke="#707070"/><rect x="14" y="16" width="8" height="6" rx="1.5" fill="#fff" stroke="#707070" stroke-dasharray="2.5,1.6"/></svg><span class="fig-file">eradicate-aging.mup</span></div><div class="fig-canvas" data-argmap="home-aging"><div class="fig-scroller"><div class="argmap" role="tree" aria-roledescription="argument map" aria-describedby="fig-home-aging-desc" aria-activedescendant="" style="--claim-max-ch:26"><div class="am-node-wrap"><div class="am-claim" role="treeitem" tabindex="-1" aria-level="1" aria-selected="false" data-num="1.1"><span class="am-badge" aria-hidden="true">1.1</span><span class="am-text">We have a moral duty to eradicate aging.</span></div><div class="am-groups" role="group"><div class="am-group am-supporting" data-group-type="supporting" data-strength="normal"><div class="am-bracket" aria-hidden="true"><span class="am-stem" aria-hidden="true"></span></div><div class="am-claims"><div class="am-node-wrap"><div class="am-claim" role="treeitem" tabindex="-1" aria-level="2" aria-selected="false" data-num="2.1"><span class="am-badge" aria-hidden="true">2.1</span><span class="am-text">Aging is a great evil.</span></div></div><div class="am-node-wrap"><div class="am-claim" role="treeitem" tabindex="-1" aria-level="2" aria-selected="false" data-num="2.2"><span class="am-badge" aria-hidden="true">2.2</span><span class="am-text">We have a moral duty to eradicate great evils.</span></div></div></div></div></div></div><svg class="am-links" aria-hidden="true" focusable="false"></svg></div></div><p class="visually-hidden" id="fig-home-aging-desc">Conclusion (1.1): ‘We have a moral duty to eradicate aging.’ It is supported by one reason. A reason supports the conclusion, containing claims 2.1 ‘Aging is a great evil.’ and 2.2 ‘We have a moral duty to eradicate great evils.’</p></div><figcaption class="fig-bar"><span class="fig-caption">Two co-premises that jointly support a conclusion.</span><span class="fig-actions"><a class="fig-action" href="/maps/eradicate-aging.mup" download>Download .mup</a><a class="fig-action" href="/app/?src=%2Fmaps%2Feradicate-aging.mup">Open in the editor<svg aria-hidden="true" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg></a></span></figcaption></figure>
+			<!-- /argmap:home-aging -->
 		</div>
 	</section>
 
@@ -574,19 +444,27 @@
 			discuss, evaluate, and teach.</p>
 		</div>
 
+		<!-- The swatches are real maps of one running argument, rendered by
+		     figures/build.mjs from figures/maps/legend-*.json. -->
 		<div class="legend">
 			<div class="legend-card">
-				<div class="legend-swatch sw-green"><span class="mini">reason</span></div>
+				<!-- argmap:legend-reason -->
+				<div class="argmap-inline" data-argmap="legend-reason" aria-hidden="true"><div class="fig-scroller"><div class="argmap am-inert" role="tree" aria-roledescription="argument map" style="--claim-max-ch:15"><div class="am-node-wrap"><div class="am-claim" role="treeitem" aria-level="1" data-num="1.1"><span class="am-text">Lying is wrong.</span></div><div class="am-groups" role="group"><div class="am-group am-supporting" data-group-type="supporting" data-strength="normal"><div class="am-bracket" aria-hidden="true"><span class="am-stem" aria-hidden="true"></span></div><div class="am-claims"><div class="am-node-wrap"><div class="am-claim" role="treeitem" aria-level="2" data-num="2.1"><span class="am-text">Lying is manipulative.</span></div></div><div class="am-node-wrap"><div class="am-claim" role="treeitem" aria-level="2" data-num="2.2"><span class="am-text">Manipulating people is wrong.</span></div></div></div></div></div></div><svg class="am-links" aria-hidden="true" focusable="false"></svg></div></div></div>
+				<!-- /argmap:legend-reason -->
 				<h3>Green brackets</h3>
 				<p>Group <strong>supporting reasons</strong> — co-premises that work together.</p>
 			</div>
 			<div class="legend-card">
-				<div class="legend-swatch sw-red"><span class="mini">objection</span></div>
+				<!-- argmap:legend-objection -->
+				<div class="argmap-inline" data-argmap="legend-objection" aria-hidden="true"><div class="fig-scroller"><div class="argmap am-inert" role="tree" aria-roledescription="argument map" style="--claim-max-ch:15"><div class="am-node-wrap"><div class="am-claim" role="treeitem" aria-level="1" data-num="1.1"><span class="am-text">Lying is wrong.</span></div><div class="am-groups" role="group"><div class="am-group am-opposing" data-group-type="opposing" data-strength="normal"><div class="am-bracket" aria-hidden="true"><span class="am-stem" aria-hidden="true"></span></div><div class="am-claims"><div class="am-node-wrap"><div class="am-claim" role="treeitem" aria-level="2" data-num="2.1"><span class="am-text">Lying can make you rich.</span></div></div></div></div></div></div><svg class="am-links" aria-hidden="true" focusable="false"></svg></div></div></div>
+				<!-- /argmap:legend-objection -->
 				<h3>Red brackets</h3>
 				<p>Mark <strong>objections</strong> raised against a claim.</p>
 			</div>
 			<div class="legend-card">
-				<div class="legend-swatch sw-dashed"><span class="mini">claim</span></div>
+				<!-- argmap:legend-implicit -->
+				<div class="argmap-inline" data-argmap="legend-implicit" aria-hidden="true"><div class="fig-scroller"><div class="argmap am-inert" role="tree" aria-roledescription="argument map" style="--claim-max-ch:15"><div class="am-node-wrap"><div class="am-claim" role="treeitem" aria-level="1" data-num="1.1"><span class="am-text">Lying is wrong.</span></div><div class="am-groups" role="group"><div class="am-group am-supporting" data-group-type="supporting" data-strength="normal"><div class="am-bracket" aria-hidden="true"><span class="am-stem" aria-hidden="true"></span></div><div class="am-claims"><div class="am-node-wrap"><div class="am-claim am-implicit" role="treeitem" aria-level="2" data-num="2.1" data-implicit="1"><span class="am-text">Manipulating people is wrong.</span></div></div></div></div></div></div><svg class="am-links" aria-hidden="true" focusable="false"></svg></div></div></div>
+				<!-- /argmap:legend-implicit -->
 				<h3>Dashed borders</h3>
 				<p>Mark <strong>implicit claims</strong> the author left unstated.</p>
 			</div>
@@ -665,6 +543,7 @@
 		});
 	})();
 </script>
+<script type="module" src="js/argmap.js"></script>
 <script type="module">
 	// same GA4 stream as the editor (measurement id lives in one place);
 	// on this static page it only sends the page_view

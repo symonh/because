@@ -1,0 +1,16 @@
+{
+	"id": "legend-reason",
+	"root": {
+		"text": "Lying is wrong.",
+		"groups": [
+			{
+				"type": "supporting",
+				"claims": [
+					{ "text": "Lying is manipulative." },
+					{ "text": "Manipulating people is wrong." }
+				]
+			}
+		]
+	},
+	"options": { "numbered": false, "claimMaxCh": 15 }
+}

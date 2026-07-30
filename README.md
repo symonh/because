@@ -101,17 +101,25 @@ engine/        vendored mapjs source + build script (see engine/README.md)
 engine-demo/   raw engine playground (drag a .mup onto it; ?src=&labels=0)
 samples/       synthetic .mup fixtures safe for a public repo
 samples-local/ real course maps — gitignored, never commit
-test/          seven e2e suites (Chrome + real WebKit) and render-map.js (headless renders)
+site/          the landing page and its root-level pages (/privacy, /terms)
+figures/       the landing page's argument-map figures: source maps + renderer
+test/          eight e2e suites (Chrome + real WebKit) and render-map.js (headless renders)
 docs/          rendered proofs
 ```
 
+The maps on the landing page are live argument maps in the editor's own grammar,
+pre-rendered from `figures/maps/*.json` and committed — including the `.mup` each
+figure offers for download and hands to the editor. Edit the JSON, rerun
+`node figures/build.mjs`: see [docs/figures.md](docs/figures.md).
+
 Tests: `cd test && npm ci`, serve the repo root (`python3 -m http.server
-8871`), then run all seven suites — `node app-e2e.js`, `node
+8871`), then run all eight suites — `node app-e2e.js`, `node
 click-select-e2e.js`, `node drive-e2e.js`, `node onedrive-e2e.js`,
 `node features-e2e.js` (Chrome via puppeteer-core), `node webkit-e2e.js`
-(Playwright WebKit, the Safari-engine check) and `node a11y-e2e.js`
+(Playwright WebKit, the Safari-engine check), `node a11y-e2e.js`
 (WCAG 2.2 AA gate: axe-core scans plus the keyboard model, also WebKit —
-see docs/accessibility.md). All seven must pass before deploying.
+see docs/accessibility.md) and `node site-e2e.js` (the landing page's figures,
+both engines). All eight must pass before deploying.
 
 ## License
 

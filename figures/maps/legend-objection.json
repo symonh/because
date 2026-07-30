@@ -1,0 +1,15 @@
+{
+	"id": "legend-objection",
+	"root": {
+		"text": "Lying is wrong.",
+		"groups": [
+			{
+				"type": "opposing",
+				"claims": [
+					{ "text": "Lying can make you rich." }
+				]
+			}
+		]
+	},
+	"options": { "numbered": false, "claimMaxCh": 15 }
+}
