@@ -17,14 +17,14 @@
  * survives a mode change. Only the button strips are rebuilt.
  */
 
-import { buildToolbar, buildMobileBar } from './toolbar.js';
+import { buildToolbar, buildMobileBar, applyToolbarRoving } from './toolbar.js';
 import { iconSVG } from './icons.js';
 
 const KEY = 'because.layout',
 	MODES = ['left', 'floating', 'classic'],
 	MOBILE_QUERY = '(max-width: 719px)';
 
-export function initLayout(commands, io, menus) {
+export function initLayout(commands, io, menus, neutralPref) {
 	const topbar = document.getElementById('topbar'),
 		toolbar = document.getElementById('toolbar'),
 		menubar = document.getElementById('menubar'),
@@ -55,6 +55,7 @@ export function initLayout(commands, io, menus) {
 
 	// what is actually on screen: the stored mode, or mobile below 720px
 	const effective = () => (mobileQuery.matches ? 'mobile' : mode),
+		allowNeutral = () => !!(neutralPref && neutralPref.isOn()),
 		apply = function () {
 			const eff = effective();
 			menus.closeAll();
@@ -78,20 +79,33 @@ export function initLayout(commands, io, menus) {
 			toolbar.setAttribute('aria-orientation', eff === 'left' ? 'vertical' : 'horizontal');
 
 			if (eff === 'left') {
-				buildToolbar(toolbar, commands, io, 'left');
+				buildToolbar(toolbar, commands, io, 'left', allowNeutral());
 				toolbar.appendChild(themeToggle); // the rail foot
+				applyToolbarRoving(toolbar); // after the toggle: it is in the set
 			} else if (eff === 'classic') {
-				buildToolbar(toolbar, commands, io, 'classic');
+				buildToolbar(toolbar, commands, io, 'classic', allowNeutral());
+				applyToolbarRoving(toolbar);
 			} else if (eff === 'floating') {
-				buildToolbar(floatTools, commands, io, 'floating');
-				buildToolbar(floatZoom, commands, io, 'floatingZoom');
+				buildToolbar(floatTools, commands, io, 'floating', allowNeutral());
+				buildToolbar(floatZoom, commands, io, 'floatingZoom', allowNeutral());
+				applyToolbarRoving(floatTools);
+				applyToolbarRoving(floatZoom);
 				floatPill.insertBefore(mapTitle, floatMenu);
 				floatStatus.appendChild(saveStatus);
 			} else {
 				// mobile: the theme toggle and the menubar live in the flyout's
 				// View menu, which Shift+T also reaches
 				menus.bindFlyoutTrigger(buildMobileBar(mobilebar, commands, io), 'up');
+				applyToolbarRoving(mobilebar);
 			}
+			// The two chrome buttons that stand outside a role=toolbar strip
+			// need the tabindex themselves, for the same WebKit reason (see
+			// applyToolbarRoving): the theme toggle while it sits in the top
+			// bar, and the floating layout's menu button. In the left rail the
+			// toggle is inside the strip and the roving pattern has just set
+			// its tabindex, so leave that one alone.
+			if (eff !== 'left') { themeToggle.setAttribute('tabindex', '0'); }
+			floatMenu.setAttribute('tabindex', '0');
 		},
 		setLayout = function (next) {
 			if (MODES.indexOf(next) < 0 || next === mode) { return; }
@@ -105,6 +119,9 @@ export function initLayout(commands, io, menus) {
 	} else {
 		mobileQuery.addListener(apply); // Safari before 14
 	}
+	// the neutral-connector tool appears in three of the four button strips, so
+	// switching the preference rebuilds them the same way a mode change does
+	if (neutralPref) { neutralPref.onChange(apply); }
 	apply();
 
 	return {

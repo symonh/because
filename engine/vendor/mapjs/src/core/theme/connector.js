@@ -23,9 +23,18 @@ const _ = require('underscore'),
 			   the two quadratic-bezier corners below for right-angle turns —
 			   same start/end points and span, so shape alone (not just color)
 			   distinguishes objections from reasons for colorblind users */
-			square = calculatedConnector.connectorTheme && calculatedConnector.connectorTheme.squareCorners;
+			square = calculatedConnector.connectorTheme && calculatedConnector.connectorTheme.squareCorners,
+			/* LOCAL PATCH: `noCorners: true` is the third bracket shape — a
+			   bare bar with no turns at all, used by the neutral-group
+			   connector. Same y and the same full span as the square one, so
+			   the three group kinds differ in shape as well as color:
+			   rounded = reason, square = objection, flat = neutral. */
+			flat = calculatedConnector.connectorTheme && calculatedConnector.connectorTheme.noCorners;
 
-		if (calculatedConnector.nodeOverline && square) {
+		if (calculatedConnector.nodeOverline && flat) {
+			connectorCurve.d += 'm' + (-1 * halfWidth) + ',0' +
+				' h' + (2 * halfWidth);
+		} else if (calculatedConnector.nodeOverline && square) {
 			connectorCurve.d += 'm' + (-1 * halfWidth) + ',' + initialRadius +
 				'v' + (-1 * initialRadius) +
 				' h' + (2 * halfWidth) +

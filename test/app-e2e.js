@@ -191,6 +191,130 @@ function ok(cond, name) {
 		document.querySelectorAll('.mapjs-node.attr_group_opposing').length);
 	ok(opposingNow >= 1, 'Cmd+Shift+Z redoes the objection');
 
+	// ---- the neutral connector is off until View > Allow neutral connectors ----
+	// Off is the default, and off means the app is the app it was before the
+	// feature existed: no icon in the rail, no Insert item, and Alt+Q not even
+	// intercepted (so no group appears and the key reaches the browser).
+	const neutralOff = await page.evaluate(() => ({
+		stored: localStorage.getItem('because.neutral'),
+		on: window.__because.neutralPref.isOn(),
+		railIcon: !!document.querySelector('#toolbar .tb-btn[aria-label^="Add neutral"]'),
+		railButtons: document.querySelectorAll('#toolbar .tb-btn').length
+	}));
+	ok(neutralOff.stored === null && neutralOff.on === false,
+		`neutral connectors are off on a first visit, with nothing stored (${neutralOff.stored})`);
+	ok(!neutralOff.railIcon && neutralOff.railButtons === 16,
+		`the rail carries no neutral icon while it is off (${neutralOff.railButtons} buttons)`);
+	await page.evaluate(() => {
+		window.__because.engine.mapModel.selectNode(1);
+		document.getElementById('map-container').focus();
+	});
+	await new Promise(r => setTimeout(r, 250));
+	await page.keyboard.down('Alt');
+	await page.keyboard.press('q');
+	await page.keyboard.up('Alt');
+	await new Promise(r => setTimeout(r, 400));
+	ok(await page.evaluate(() =>
+		document.querySelectorAll('.mapjs-node.attr_group_neutral').length) === 0,
+		'Alt+Q does nothing while neutral connectors are off');
+	// the command itself is guarded too, for anything reaching it directly
+	await page.evaluate(() => window.__because.commands.addNeutral());
+	await new Promise(r => setTimeout(r, 400));
+	ok(await page.evaluate(() =>
+		document.querySelectorAll('.mapjs-node.attr_group_neutral').length) === 0,
+		'commands.addNeutral is a no-op while neutral connectors are off');
+	ok(await page.evaluate(() => {
+		Array.from(document.querySelectorAll('.menu-title')).find(t => t.textContent === 'Insert').click();
+		const items = Array.from(document.querySelectorAll('.menu-item')).map(i => i.textContent);
+		document.body.click();
+		return items.every(t => t.indexOf('Neutral') < 0);
+	}), 'the Insert menu has no Neutral connector item while it is off');
+
+	// switch it on from the View menu, exactly as a user would
+	await page.evaluate(() => {
+		Array.from(document.querySelectorAll('.menu-title')).find(t => t.textContent === 'View').click();
+		Array.from(document.querySelectorAll('.menu-item'))
+			.find(i => i.textContent.indexOf('Allow neutral connectors') >= 0).click();
+	});
+	await new Promise(r => setTimeout(r, 400));
+	const neutralOn = await page.evaluate(() => ({
+		stored: localStorage.getItem('because.neutral'),
+		railIcon: !!document.querySelector('#toolbar .tb-btn[aria-label^="Add neutral"]'),
+		railButtons: document.querySelectorAll('#toolbar .tb-btn').length,
+		insertItem: (function () {
+			Array.from(document.querySelectorAll('.menu-title')).find(t => t.textContent === 'Insert').click();
+			const found = Array.from(document.querySelectorAll('.menu-item'))
+				.some(i => i.textContent.indexOf('Neutral connector (Alt+Q)') >= 0);
+			document.body.click();
+			return found;
+		}())
+	}));
+	ok(neutralOn.stored === '1', 'View > Allow neutral connectors persists the choice');
+	ok(neutralOn.railIcon && neutralOn.railButtons === 17,
+		`switching it on rebuilds the rail with the neutral icon (${neutralOn.railButtons} buttons)`);
+	ok(neutralOn.insertItem, 'and puts the Neutral connector item into the Insert menu');
+
+	// ---- Alt+Q: the neutral connector ----
+	// An uninterpreted bracket, added exactly as a reason or objection is. It
+	// is blue, and — the point of the shape, not just the colour — its bracket
+	// is a bare bar: none of the corner turns a reason (q…) or an objection
+	// (v…) draws. Alt+N must still be the sticky note, which is why this key
+	// is Q and not N.
+	await page.evaluate(() => {
+		window.__because.engine.mapModel.selectNode(1);
+		document.getElementById('map-container').focus();
+	});
+	await new Promise(r => setTimeout(r, 250));
+	await page.keyboard.down('Alt');
+	await page.keyboard.press('q');
+	await page.keyboard.up('Alt');
+	await new Promise(r => setTimeout(r, 400));
+	await page.keyboard.type('What makes an action right?');
+	await page.keyboard.press('Enter');
+	await new Promise(r => setTimeout(r, 500));
+	const neutral = await page.evaluate(() => {
+		let group = null, parent = null;
+		(function walk(n) {
+			Object.values(n.ideas || {}).forEach(function (k) {
+				if (k.attr && k.attr.group === 'neutral') { group = k; parent = n; }
+				walk(k);
+			});
+		}(window.__because.engine.mapModel.getIdea()));
+		const domId = group && ('connector_' + parent.id + '_' + group.id).replace(/[^A-Za-z0-9_-]/g, '_'),
+			path = domId && document.querySelector('#' + domId + ' path.mapjs-connector');
+		return {
+			count: document.querySelectorAll('.mapjs-node.attr_group_neutral').length,
+			stroke: path && getComputedStyle(path).stroke,
+			d: path && path.getAttribute('d'),
+			premise: group && Object.values(group.ideas || {}).map(k => k.title).join()
+		};
+	});
+	ok(neutral.count >= 1, `Alt+Q adds a neutral (blue) group (${neutral.count})`);
+	ok(neutral.premise === 'What makes an action right?',
+		`the neutral group opens an editor on its new claim (${neutral.premise})`);
+	ok(neutral.stroke === 'rgb(0, 112, 192)',
+		`the neutral bracket draws in #0070C0 (${neutral.stroke})`);
+	ok(/m-?[\d.]+,0 h-?[\d.]+$/.test(neutral.d || ''),
+		`the neutral bracket ends in a bare bar, no corners (…${(neutral.d || '').slice(-20)})`);
+
+	// Alt+N is still the sticky note — the binding Alt+Q was chosen to avoid.
+	// The preference goes back off first, both so nothing downstream inherits a
+	// rebuilt toolbar and because Alt+N has to work in the default state.
+	await page.evaluate(() => {
+		window.__because.neutralPref.set(false);
+		window.__because.engine.mapModel.selectNode(1);
+		document.getElementById('map-container').focus();
+	});
+	await new Promise(r => setTimeout(r, 250));
+	await page.keyboard.down('Alt');
+	await page.keyboard.press('n');
+	await page.keyboard.up('Alt');
+	await new Promise(r => setTimeout(r, 400));
+	await page.keyboard.press('Escape');
+	await new Promise(r => setTimeout(r, 250));
+	ok(await page.evaluate(() => document.querySelectorAll('.mapjs-node.sticky_note').length) >= 1,
+		'Alt+N still adds a sticky note');
+
 	// numbering badges present, then toggle off via View menu command
 	const badges = await page.$$eval('.mapjs-label', els => els.filter(e => e.offsetParent !== null).length);
 	ok(badges >= 3, `numbering badges render (${badges})`);
@@ -213,6 +337,7 @@ function ok(cond, name) {
 	const all = roots.length ? walk(roots[0], []) : [];
 	ok(all.some(n => n.attr && n.attr.group === 'supporting'), 'saved .mup contains supporting group');
 	ok(all.some(n => n.attr && n.attr.group === 'opposing'), 'saved .mup contains opposing group');
+	ok(all.some(n => n.attr && n.attr.group === 'neutral'), 'saved .mup contains neutral group');
 	ok(all.some(n => n.attr && (n.attr.styleNames || []).includes('attr_implicit_claim')), 'saved .mup keeps implicit styleName');
 
 	// ---- copy / paste: ⌘C copies the selected claim and everything beneath

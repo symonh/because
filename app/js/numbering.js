@@ -1,7 +1,7 @@
 /*
  * Renderer-computed claim numbering: level.index (1.1, 2.1, 2.2, 3.1 …),
- * breadth-first by content depth; reason/objection groups and sticky notes
- * are skipped (they are structure, not claims).
+ * breadth-first by content depth; brackets of every kind (reason, objection,
+ * neutral) and sticky notes are skipped (they are structure, not claims).
  *
  * A claim may carry its own badge text in attr.claimLabel (set by clicking
  * the badge — see number-edit.js). An override replaces the number on that
@@ -11,8 +11,12 @@
  */
 export const MAX_CLAIM_LABEL = 10;
 
+// the bracket kinds this app writes; an unrecognised attr.group is left to be
+// numbered as a claim rather than silently swallowed as structure
+export const GROUP_KINDS = ['supporting', 'opposing', 'neutral'];
+
 export const isGroupNode = n =>
-	n.attr && (n.attr.group === 'supporting' || n.attr.group === 'opposing');
+	!!(n.attr && GROUP_KINDS.indexOf(n.attr.group) >= 0);
 
 export const isStickyNode = n =>
 	n.attr && Array.isArray(n.attr.styleNames) && n.attr.styleNames.indexOf('sticky_note') >= 0;

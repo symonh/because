@@ -4,6 +4,10 @@
  *   Enter  add reason under selected claim
  *   Tab    add co-premise to selected claim
  *   Alt+O  add objection
+ *   Alt+Q  add neutral connector — uninterpreted, for questions and their
+ *   answers ("Q" for question; Alt+N was already the sticky note). Bound only
+ *   while View > Allow neutral connectors is on: with it off the key is not
+ *   intercepted at all, so it reaches the browser exactly as it used to.
  *   T (or Alt+T)  toggle reason/objection (bracket) or implicit/explicit (claim)
  *   d      detach the selection (a claim, or a whole reason/objection)
  *   Alt+N  add sticky note
@@ -25,7 +29,7 @@
  * Arrows / F2 / delete / undo-redo stay with the engine's own handlers.
  */
 
-export function bindShortcuts(engine, commands) {
+export function bindShortcuts(engine, commands, neutralPref) {
 	const mapModel = engine.mapModel;
 	window.addEventListener('keydown', function (e) {
 		if (!mapModel.getInputEnabled()) { return; } // editing a node title
@@ -86,6 +90,8 @@ export function bindShortcuts(engine, commands) {
 			command = commands.addCoPremise;
 		} else if (alt && e.code === 'KeyO') {
 			command = commands.addObjection;
+		} else if (alt && e.code === 'KeyQ' && neutralPref && neutralPref.isOn()) {
+			command = commands.addNeutral;
 		} else if ((bare && e.key === 't') || (alt && e.code === 'KeyT')) {
 			// T toggles whatever is selected: a bracket flips
 			// reason ⇄ objection, a claim flips implicit ⇄ explicit

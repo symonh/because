@@ -22,7 +22,7 @@ const SOURCE = 'ui',
 		if (node.ideas) { Object.keys(node.ideas).forEach(k => stripPositions(node.ideas[k])); }
 	};
 
-export function makeCommands(engine, darkMode, shortcutHelp) {
+export function makeCommands(engine, darkMode, shortcutHelp, neutralPref) {
 	// in-memory clipboard: the JSON subtree copied by the last Copy. Kept in
 	// the app layer because mapjs exposes clone/paste on content but no
 	// clipboard of its own (MindMup's cut/copy/paste lived in its closed app).
@@ -65,6 +65,17 @@ export function makeCommands(engine, darkMode, shortcutHelp) {
 	const commands = {
 		addReason() { mapModel.addGroupSubidea(SOURCE, { group: 'supporting' }); },
 		addObjection() { mapModel.addGroupSubidea(SOURCE, { group: 'opposing' }); },
+		// An uninterpreted connector: it says only that the two are related,
+		// leaving what the relation is to the map's author. The use it exists
+		// for is questions — a claim that answers a question, or a question the
+		// reasoning above it raised — but nothing here commits it to that.
+		// Off unless View > Allow neutral connectors is on. The surfaces hide
+		// their own affordances (no icon, no Insert item, no Alt+Q); this guard
+		// is the backstop for anything that reaches the command directly.
+		addNeutral() {
+			if (neutralPref && !neutralPref.isOn()) { return; }
+			mapModel.addGroupSubidea(SOURCE, { group: 'neutral' });
+		},
 		addCoPremise() {
 			// a co-premise is a sibling claim inside the same reason/objection
 			// group; on a node with no group parent there is nothing to join
@@ -157,7 +168,10 @@ export function makeCommands(engine, darkMode, shortcutHelp) {
 		},
 		toggleReasonObjection() {
 			// flips the group that contains the selection (or the selected
-			// group itself) between supporting and opposing
+			// group itself) between supporting and opposing. A neutral bracket
+			// falls to supporting rather than cycling on to a third state:
+			// deliberate, so T stays the two-way flip students learned
+			// (Simon's call, 2026-07-29) — Alt+Q is the way back to neutral.
 			const node = selectedIdea(),
 				group = isGroup(node) ? node : findParent(selectedId());
 			if (isGroup(group)) {

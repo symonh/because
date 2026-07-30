@@ -228,8 +228,12 @@ body.layout-left #toolbar { grid-area: rail; }
  * 3:1 non-text contrast on both chrome grounds — do not lighten */
 .ic-sup { stroke: #2e8f5f; }
 .ic-opp { stroke: #cc3333; }
+/* the neutral blue needs no darkening for the chrome: the canvas value
+ * already holds 4.1:1 on the darkest light ground (--chrome-active) */
+.ic-neu { stroke: #0070c0; }
 body.dark .ic-sup { stroke: #46b579; }
 body.dark .ic-opp { stroke: #e05c5c; }
+body.dark .ic-neu { stroke: #4aa3e8; }
 
 /* ---- left rail (layout 'left') ---- */
 body.layout-left #toolbar {

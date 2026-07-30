@@ -47,6 +47,7 @@ GA4 is the replacement and its web streams use `G-…` measurement ids.
    | Help panel | `panel` | Event |
    | Intro trigger | `trigger` | Event |
    | Dark mode | `dark_mode` | User |
+   | Neutral connectors | `neutral_connectors` | User |
 
    Numeric parameters worth registering as **custom metrics**:
    `node_count` (map size) and `changes` (edits per batch).
@@ -69,6 +70,7 @@ GA4 is the replacement and its web streams use `G-…` measurement ids.
 | `theme_select` | `theme` (`simple`, `high_impact`, `high_impact_upward`) | View-menu theme switch |
 | `dark_mode_toggle` | `enabled` (`on`/`off`) | any dark-mode toggle (also kept as the `dark_mode` user property) |
 | `layout_select` | `layout` (`left`, `floating`, `classic`) | View-menu chrome layout switch (left rail / floating cards / classic top bars); persisted in `localStorage` as `because.layout` |
+| `neutral_pref` | `enabled` (`on`/`off`) | View > Allow neutral connectors toggled; persisted in `localStorage` as `because.neutral` and also kept as the `neutral_connectors` user property |
 | `intro_shown` / `intro_dismissed` | `trigger` (`first_visit`, `menu`); `dont_show_again` (`yes`/`no`) | welcome modal |
 | `help_open` | `panel` (`shortcuts`, `about`, `drive_setup`, `onedrive_setup`) | Help panels (`shortcuts` covers both the ? key and the Help menu) |
 | `help_platform` | `platform` (`mac`, `windows`) | the keyboard reference's Mac/Windows switch, when the reader picks the other one |

@@ -45,6 +45,7 @@ below are written Mac-first; on Windows and Linux read ⌘ as Ctrl and ⌥ as Al
 | Enter | add reason under selected claim |
 | Tab | add co-premise to selected claim |
 | Alt+O | add objection |
+| Alt+Q | add neutral connector — only while **View > Allow neutral connectors** is on |
 | T (or Alt+T) | toggle reason/objection (on a bracket) or implicit/explicit (on a claim) |
 | Alt+N | add sticky note |
 | D | detach the selection — a claim, or a whole reason / objection — from the tree |
@@ -65,7 +66,14 @@ without a line in the reference fails the suite.
 - Co-premises (claims that jointly make one reason) share **one bracket** with
   a single stem; independent reasons get **separate brackets** with fanning
   stems.
-- Green brackets support; **red brackets are objections**.
+- Green rounded brackets support; **red square brackets are objections**.
+- **Blue flat brackets are neutral** — an uninterpreted connector that asserts
+  no relation, so a question can carry the claims that answer it, or a claim
+  the question it raises. Switch it on under **View > Allow neutral
+  connectors**; it is off by default, and with it off there is no neutral tool
+  in the toolbars and no Alt+Q. Maps that already use it always render it,
+  whichever way the preference is set. The three bracket kinds differ in shape
+  as well as colour.
 - **Dashed borders** mark implicit claims; sticky notes are yellow handwriting
   notes; claim numbering (1.1, 2.1 …) is a view toggle. Click a number to put
   your own text there instead (up to 10 characters, stored per claim as

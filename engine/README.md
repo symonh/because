@@ -19,6 +19,10 @@ recorded in `vendor/mapjs/LOCAL-PATCHES.diff`:
   rounded default; the argument-mapping theme's `opposing-group` style uses
   it, so an objection's bracket is square while a reason's stays rounded
   (a non-color cue, not part of the verbatim MindMup theme extraction).
+  `noCorners: true` is the third shape: a bare bar with no turns at all, at
+  the same y and over the same full span as the square one. The
+  `neutral-group` style uses it, so the three bracket kinds differ in shape
+  as well as color — rounded = reason, square = objection, flat = neutral.
   A connector style can also set `arrow` (drawn via `theme/arrow-path.js`,
   extracted from `theme/link.js`): `'to'` puts the head at the child end
   pointing down into the group (High-impact downward), `'from'` puts it at

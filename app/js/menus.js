@@ -18,11 +18,12 @@
 import { track } from './analytics.js';
 import { initModal } from './a11y.js';
 
-export function makeMenus(commands, io, engine, drive, onedrive, darkMode, labelEdit, nodeStyle, intro, numberEdit, layout) {
+export function makeMenus(commands, io, engine, drive, onedrive, darkMode, labelEdit, nodeStyle, intro, numberEdit, layout, neutralPref) {
 	const chooseLayout = mode => () => {
 			track('layout_select', { layout: mode });
 			layout.set(mode);
 		},
+		allowNeutral = () => !!(neutralPref && neutralPref.isOn()),
 		driveItem = run => () => {
 			if (drive && drive.isConfigured()) { run(); } else { showDriveSetup(); }
 		},
@@ -60,6 +61,9 @@ export function makeMenus(commands, io, engine, drive, onedrive, darkMode, label
 		['Insert', () => [
 			['Reason (Enter)', commands.addReason],
 			['Objection (Alt+O)', commands.addObjection],
+			// only once View > Allow neutral connectors is on; the spec closure
+			// runs at open time, so the item appears the moment it is switched on
+			...(allowNeutral() ? [['Neutral connector (Alt+Q)', commands.addNeutral]] : []),
 			['Co-premise (Tab)', commands.addCoPremise],
 			['Sticky note (Alt+N)', commands.addSticky],
 			['—'],
@@ -93,6 +97,15 @@ export function makeMenus(commands, io, engine, drive, onedrive, darkMode, label
 			['Collapse / expand branch (F)', commands.toggleCollapse],
 			[(engine.getLabelsOn() ? '✓ ' : '') + 'Claim numbering', commands.toggleNumbering, { check: engine.getLabelsOn() }],
 			[(darkMode && darkMode.isDark() ? '✓ ' : '') + 'Dark mode (Shift+T)', () => darkMode.toggle(), { check: !!(darkMode && darkMode.isDark()) }],
+			['—'],
+			// off by default: with it off there is no neutral tool in the
+			// toolbars, no Insert item and no Alt+Q. Maps that already use the
+			// connector always draw it, whatever this is set to.
+			[(allowNeutral() ? '✓ ' : '') + 'Allow neutral connectors', function () {
+				const on = !allowNeutral();
+				track('neutral_pref', { enabled: on ? 'on' : 'off' });
+				neutralPref.set(on);
+			}, { check: allowNeutral() }],
 			['—'],
 			[(engine.getThemeName() === 'argMappingSimple' ? '✓ ' : '') + 'Theme: Simple', () => {
 				track('theme_select', { theme: 'simple' });
@@ -639,6 +652,10 @@ export function makeMenus(commands, io, engine, drive, onedrive, darkMode, label
 			'<p>Co-premises share one bracket (joint support); independent reasons get separate brackets. ' +
 			'Green rounded bracket = supporting, red square bracket = objection, ' +
 			'dashed = implicit claim.</p>' +
+			'<p>Switch on <b>View &gt; Allow neutral connectors</b> for a third, ' +
+			'uninterpreted connector — a blue flat bracket that asserts no relation, ' +
+			'for tying a question to the claims that answer it, or a claim to a ' +
+			'question it raises.</p>' +
 			'<p><a href="https://app.philmaps.com/privacy" target="_blank">Privacy policy</a> · ' +
 			'<a href="https://app.philmaps.com/terms" target="_blank">Terms of service</a></p>'
 		);

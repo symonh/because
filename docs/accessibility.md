@@ -18,6 +18,22 @@ regression gate is `test/a11y-e2e.js`.
   `menuitemcheckbox`, or `menuitemradio` as appropriate (`app/js/menus.js`).
   Menu titles and items are real `<button>` elements; `app/css/app.css`
   resets native button chrome so they render as before.
+- **Toolbar semantics.** Each button strip (`#toolbar` as the left rail or
+  the classic bar, `#float-tools`, `#float-zoom`, `#mobilebar`) is a
+  WAI-ARIA toolbar: one Tab stop, with the arrow keys, Home and End moving
+  between the buttons and the tab stop following the last one used
+  (`applyToolbarRoving` in `app/js/toolbar.js`). The explicit `tabindex`
+  that pattern puts on the roving button is load-bearing beyond the
+  pattern itself: WebKit leaves a `<button>` out of the sequential focus
+  order unless it carries one (on macOS, Safari's "Press Tab to highlight
+  each item on a webpage" is off by default), so while these buttons had
+  no `tabindex` at all the strips were skipped entirely and the rail could
+  not be reached by keyboard in Safari — a WCAG 2.1.1 failure that the
+  suite now covers. The two chrome buttons outside a strip (`#theme-toggle`
+  while it sits in the top bar, and the floating layout's `#float-menu`)
+  carry `tabindex="0"` for the same reason. Dialog buttons need no such
+  treatment: `initModal` moves focus itself rather than relying on the
+  browser's tab order.
 - **Modal dialogs.** Every overlay (menu info panels, the intro, the
   unsaved-changes guard) goes through `initModal` in `app/js/a11y.js`,
   which sets `role="dialog"` + `aria-modal`, labels the dialog from its
@@ -94,14 +110,29 @@ for the same reasons.
    groups with bracket text ("Because" / "But"), implicit claims carry
    dashed borders, claims are numbered, dark mode offers an alternative
    luminance, and — since color alone previously distinguished a
-   reason's bracket from an objection's — the objection (opposing-group)
-   bracket now renders with square corners where a reason's stays
-   rounded (`app/js/themes.js`'s `squareCorners` flag, read by the
+   reason's bracket from an objection's — **each bracket kind has its own
+   shape**: a reason's stays rounded, an objection's (opposing-group)
+   renders with square corners, and the neutral connector's
+   (neutral-group) is a bare flat bar with no corners at all
+   (`app/js/themes.js`'s `squareCorners` / `noCorners` flags, read by the
    `appendOverLine` LOCAL PATCH in
    `engine/vendor/mapjs/src/core/theme/connector.js`; see
-   `engine/README.md`). This one shape change is intentional and applies
-   only to this app's own named themes — a map with a fully embedded
-   theme (historical MindMup exports) still renders exactly as saved.
+   `engine/README.md`). So the three kinds are still told apart with
+   color perception removed entirely. These shape changes are
+   intentional and apply only to this app's own named themes — a map
+   with a fully embedded theme (historical MindMup exports) still
+   renders exactly as saved. The neutral connector's `#0070C0` is the
+   one group color that is a local addition rather than an extraction
+   (MindMup's grammar had no neutral bracket); it was chosen to clear
+   3:1 non-text contrast and in fact holds 5.1:1 on white paper and
+   5.3:1 on the dark canvas, so unlike the authentic green and red it
+   needed no separate treatment for the chrome icons. Authoring the
+   neutral connector is off by default behind **View > Allow neutral
+   connectors** (a `localStorage` preference, like dark mode and the
+   layout choice), which adds and removes one toolbar button, one Insert
+   item, one keyboard-reference row and the Alt+Q binding together — so
+   the reference never lists a key the app is ignoring. Rendering is
+   never gated: a map that uses the connector draws it either way.
    Focus and selection are shown with border style and width (dotted vs
    dashed, 1px vs 3px) and ARIA state, not color alone.
 2. **Connector curves are thin click targets.** The connecting lines are

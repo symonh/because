@@ -390,6 +390,37 @@ const AXE_OPTS = {
 	ok(railFocus.style === 'solid' && parseFloat(railFocus.width) >= 2 &&
 		railFocus.color === 'rgb(22, 116, 159)',
 		`rail buttons draw a focus-visible ring (${railFocus.style} ${railFocus.width} ${railFocus.color})`);
+	// The rail is ONE Tab stop with the arrows moving inside it (the WAI-ARIA
+	// toolbar pattern its role=toolbar promises). The explicit tabindex that
+	// pattern puts on the roving button is also the only reason Tab reaches
+	// this strip in WebKit at all: Safari leaves a <button> out of the
+	// sequential focus order unless it carries one, so before this the whole
+	// rail was unreachable by keyboard here and the two assertions above failed.
+	ok(await page.evaluate(() =>
+		Array.from(document.querySelectorAll('#toolbar button'))
+			.filter(b => b.getAttribute('tabindex') === '0').length === 1),
+		'the rail is a single Tab stop, not one per button');
+	const railArrows = [];
+	for (const key of ['ArrowDown', 'ArrowDown', 'ArrowUp', 'End', 'Home']) {
+		await page.keyboard.press(key);
+		await page.waitForTimeout(80);
+		railArrows.push(await page.evaluate(() => {
+			const a = document.activeElement;
+			return (document.getElementById('toolbar').contains(a) ? '' : '!') +
+				a.getAttribute('aria-label');
+		}));
+	}
+	// down, down, up, End, Home from the first button: two steps in, one back
+	// to where the first step landed, then the foot of the rail and the head
+	ok(railArrows.every(n => n.charAt(0) !== '!') &&
+		railArrows[0] !== railArrows[1] && railArrows[2] === railArrows[0] &&
+		railArrows[3] === 'Switch to dark mode' && railArrows[4] === 'Undo (⌘Z)',
+		`arrows, Home and End move within the rail (${railArrows.join(' → ')})`);
+	// and Tab still leaves it, rather than trapping focus in the strip
+	await page.keyboard.press('Tab');
+	await page.waitForTimeout(150);
+	ok(await page.evaluate(() => !document.getElementById('toolbar').contains(document.activeElement)),
+		'Tab moves on out of the rail instead of trapping focus');
 
 	// ---- floating layout: axe clean, and the flyout is a real menu button ----
 	await page.evaluate(() => window.__because.layout.setLayout('floating'));

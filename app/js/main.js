@@ -6,6 +6,7 @@ import { makeFileIO } from './file-io.js';
 import { makeDrive } from './drive.js';
 import { makeOneDrive } from './onedrive.js';
 import { makeDarkMode } from './dark-mode.js';
+import { makeNeutralPref } from './neutral-pref.js';
 import { makeLabelEdit } from './label-edit.js';
 import { makeNumberEdit } from './number-edit.js';
 import { makeNodeStyle } from './node-style.js';
@@ -41,8 +42,11 @@ document.addEventListener('DOMContentLoaded', function () {
 	// the command set needs both in hand
 	const engine = initEngine(document.getElementById('map-container')),
 		darkMode = makeDarkMode(engine),
-		shortcutHelp = makeShortcutHelp(),
-		commands = makeCommands(engine, darkMode, shortcutHelp);
+		// off by default; gates the neutral connector's toolbar icon, Insert
+		// item, Alt+Q and help row — never its rendering (neutral-pref.js)
+		neutralPref = makeNeutralPref(),
+		shortcutHelp = makeShortcutHelp(neutralPref),
+		commands = makeCommands(engine, darkMode, shortcutHelp, neutralPref);
 	initCanvasA11y(engine, document.getElementById('map-container'));
 	document.getElementById('skip-link').addEventListener('click', function (e) {
 		e.preventDefault();
@@ -75,10 +79,10 @@ document.addEventListener('DOMContentLoaded', function () {
 	let layout = null;
 	const menus = makeMenus(instrument('menu'), io, engine, drive, onedrive, darkMode,
 		labelEdit, nodeStyle, intro, numberEdit,
-		{ get: () => layout.getLayout(), set: m => layout.setLayout(m) });
+		{ get: () => layout.getLayout(), set: m => layout.setLayout(m) }, neutralPref);
 	menus.renderMenubar(document.getElementById('menubar'));
-	layout = initLayout(instrument('toolbar'), io, menus);
-	bindShortcuts(engine, instrument('shortcut'));
+	layout = initLayout(instrument('toolbar'), io, menus, neutralPref);
+	bindShortcuts(engine, instrument('shortcut'), neutralPref);
 
 	// one map_open per load, whatever the path (picker, drop, Drive, ?src=,
 	// autosave, New) — the loader noted its source just before loading
@@ -119,13 +123,18 @@ document.addEventListener('DOMContentLoaded', function () {
 		track('dark_mode_toggle', { enabled: dark ? 'on' : 'off' });
 		setUserProperty('dark_mode', dark ? 'on' : 'off');
 	});
+	// same shape for the neutral connector, so adoption of an off-by-default
+	// feature is visible rather than guessed at (the toggle itself fires
+	// neutral_pref from the View menu)
+	setUserProperty('neutral_connectors', neutralPref.isOn() ? 'on' : 'off');
+	neutralPref.onChange(on => setUserProperty('neutral_connectors', on ? 'on' : 'off'));
 
 	// large maps lay out for seconds; engine defers so this can paint
 	engine.on('loadStarted', () => loading.show('Opening map…'));
 	engine.on('loadFinished', () => loading.hide());
 
 	// dev/test handle
-	window.__because = { engine, commands, io, drive, onedrive, darkMode, layout, labelEdit, numberEdit, nodeStyle, intro, shortcutHelp, analytics: analyticsApi };
+	window.__because = { engine, commands, io, drive, onedrive, darkMode, neutralPref, layout, labelEdit, numberEdit, nodeStyle, intro, shortcutHelp, analytics: analyticsApi };
 
 	// every model change marks the map unsaved (relative to its file) and
 	// refreshes the crash-recovery autosave; only File > Save clears it

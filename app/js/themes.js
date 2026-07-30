@@ -6,11 +6,24 @@
  * argMappingHighImpactUpward flips the reading: up arrowheads into the
  * parent claim, labelled "Therefore" / "Therefore, it is false that".
  *
- * Two deliberate departures from the verbatim extraction:
+ * Three deliberate departures from the verbatim extraction:
  *  - opposing-group carries "squareCorners" (a local key the connector.js
  *    LOCAL PATCH reads), so the objection bracket has a right-angle top
  *    instead of the rounded one reasons get — color is not the only cue
  *    distinguishing an objection;
+ *  - neutral-group is a LOCAL ADDITION with no MindMup source: MindMup's
+ *    grammar had only supporting and opposing. It is an uninterpreted
+ *    connector, asserting no relation, so a claim can be tied to a question
+ *    it answers or a question to the reasoning that raised it (feature
+ *    request, 2026-07-29). Its #0070C0 is sampled from the requester's own
+ *    figure (the dominant blue of 9244 blue pixels in an sRGB-tagged PNG,
+ *    so no display-P3 shift), and holds 5.1:1 against white paper — better
+ *    than the authentic green (3.6:1) or red (4.0:1). It carries
+ *    "noCorners" (the companion connector.js LOCAL PATCH), giving a third
+ *    bracket SHAPE rather than a third colour alone: rounded = reason,
+ *    square = objection, flat = neutral. Its nested `no-connector` form is
+ *    flat like the other two — that connector's path is a single point, so
+ *    none of the three draws corners there;
  *  - the label on "no-connector.opposing-group" — an objection to an
  *    inference, whose bracket hangs under the bracket it objects to — is
  *    red rather than the extracted #4F4F4F. MindMup coloured its sibling
@@ -406,6 +419,51 @@ export const argMappingSimple = {
    }
   },
   {
+   "name": "attr_group_neutral",
+   "connections": {
+    "style": "neutral-group",
+    "childstyle": "no-connector",
+    "default": {
+     "h": "center",
+     "v": "base"
+    },
+    "from": {
+     "below": {
+      "h": "center",
+      "v": "base"
+     }
+    },
+    "to": {
+     "h": "center",
+     "v": "top"
+    }
+   }
+  },
+  {
+   "name": "attr_group_neutral.level_1",
+   "backgroundColor": "rgba(0, 112, 192, 0.2)",
+   "border": {
+    "type": "surround",
+    "line": {
+     "color": "transparent",
+     "width": 2,
+     "style": "solid"
+    }
+   }
+  },
+  {
+   "name": "attr_group_neutral.activated",
+   "backgroundColor": "rgba(0, 112, 192, 0.2)",
+   "border": {
+    "type": "surround",
+    "line": {
+     "color": "#0070C0",
+     "width": 3,
+     "style": "dotted"
+    }
+   }
+  },
+  {
    "name": "attr_group_supporting.droppable",
    "backgroundColor": "rgba(0, 255, 0, 0.6)",
    "border": {
@@ -424,6 +482,18 @@ export const argMappingSimple = {
     "type": "surround",
     "line": {
      "color": "#FF0000",
+     "width": 3,
+     "style": "dashed"
+    }
+   }
+  },
+  {
+   "name": "attr_group_neutral.droppable",
+   "backgroundColor": "rgba(0, 112, 192, 0.6)",
+   "border": {
+    "type": "surround",
+    "line": {
+     "color": "#0070C0",
      "width": 3,
      "style": "dashed"
     }
@@ -508,6 +578,30 @@ export const argMappingSimple = {
     }
    }
   },
+  "neutral-group": {
+   "type": "vertical-quadratic-s-curve",
+   "noCorners": true,
+   "line": {
+    "color": "#0070C0",
+    "width": 3
+   },
+   "label": {
+    "position": {
+     "aboveEnd": 15,
+     "ratio": 0.8
+    },
+    "backgroundColor": "white",
+    "borderColor": "white",
+    "text": {
+     "color": "#0070C0",
+     "font": {
+      "size": 9,
+      "sizePx": 12,
+      "weight": "normal"
+     }
+    }
+   }
+  },
   "no-connector.supporting-group": {
    "type": "no-connector",
    "line": {
@@ -553,6 +647,29 @@ export const argMappingSimple = {
      }
     }
    }
+  },
+  "no-connector.neutral-group": {
+   "type": "no-connector",
+   "line": {
+    "color": "#0070C0",
+    "width": 4
+   },
+   "label": {
+    "position": {
+     "aboveEnd": 5,
+     "ratio": 1
+    },
+    "backgroundColor": "transparent",
+    "borderColor": "transparent",
+    "text": {
+     "color": "#0070C0",
+     "font": {
+      "size": 6,
+      "sizePx": 9,
+      "weight": "normal"
+     }
+    }
+   }
   }
  }
 };
@@ -563,12 +680,17 @@ export const argMappingHighImpact = (() => {
 	// every reason/objection is auto-labelled; slightly thicker lines (the
 	// bracket is drawn as part of the connector path, so it thickens too);
 	// arrowheads point down into the reason/objection group
+	// the neutral connector is deliberately left unlabelled: it asserts no
+	// relation, so there is no word that fits every use of it. It still takes
+	// the heavier line and the arrowhead, so it reads as one of the family.
 	t.connector['supporting-group'].label.defaultText = 'Because';
 	t.connector['opposing-group'].label.defaultText = 'But';
 	t.connector['supporting-group'].line.width = 4;
 	t.connector['opposing-group'].line.width = 4;
+	t.connector['neutral-group'].line.width = 4;
 	t.connector['supporting-group'].arrow = 'to';
 	t.connector['opposing-group'].arrow = 'to';
+	t.connector['neutral-group'].arrow = 'to';
 	// halfway along the curve, with the connector running through the middle
 	// of the text (which masks the line behind it). MindMup's own placement
 	// is a fixed offset above the bracket (aboveEnd), which on these heavier
@@ -576,6 +698,7 @@ export const argMappingHighImpact = (() => {
 	// ends. argMappingSimple keeps the authentic placement.
 	t.connector['supporting-group'].label.position = {midSpan: true, ratio: 0.5, centerOnLine: true};
 	t.connector['opposing-group'].label.position = {midSpan: true, ratio: 0.5, centerOnLine: true};
+	t.connector['neutral-group'].label.position = {midSpan: true, ratio: 0.5, centerOnLine: true};
 	t.connectorEditingContext.defaults.width = 4;
 	return t;
 })();
@@ -589,11 +712,12 @@ export const argMappingHighImpactUpward = (() => {
 	// midpoint placement as the downward theme: halfway along the curve,
 	// clear of the head at either end, with the line running through the
 	// middle of the text
-	['supporting-group', 'opposing-group'].forEach(k => {
+	['supporting-group', 'opposing-group', 'neutral-group'].forEach(k => {
 		t.connector[k].line.width = 4;
 		t.connector[k].arrow = 'from';
 		t.connector[k].label.position = {midSpan: true, ratio: 0.5, centerOnLine: true};
 	});
+	// no defaultText for neutral-group — see the downward theme
 	t.connector['supporting-group'].label.defaultText = 'Therefore';
 	t.connector['opposing-group'].label.defaultText = 'Therefore, it is false that';
 	t.connectorEditingContext.defaults.width = 4;
@@ -668,7 +792,8 @@ const DARK_COLORS = {
 	'#4f4f4f': '#e2e5e7', // claim text
 	'#707070': '#9aa0a6', // borders, implicit dashes, note links
 	'#339966': '#3fb377', // supporting green, brightened for dark paper
-	'#ff0000': '#ff5d5d'  // opposing red, softened
+	'#ff0000': '#ff5d5d', // opposing red, softened
+	'#0070c0': '#4aa3e8'  // neutral blue, brightened (2.9:1 on dark paper -> 5.3:1)
 };
 
 export function darkenThemeJson(json) {

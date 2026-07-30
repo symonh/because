@@ -16839,8 +16839,10 @@
       };
       var appendOverLine = function(connectorCurve, calculatedConnector) {
         "use strict";
-        const initialRadius = connectorCurve.initialRadius || 0, halfWidth = calculatedConnector.nodeOverline && Math.floor(0.5 * Math.abs(calculatedConnector.nodeOverline.to.x - calculatedConnector.nodeOverline.from.x)) - 1, square = calculatedConnector.connectorTheme && calculatedConnector.connectorTheme.squareCorners;
-        if (calculatedConnector.nodeOverline && square) {
+        const initialRadius = connectorCurve.initialRadius || 0, halfWidth = calculatedConnector.nodeOverline && Math.floor(0.5 * Math.abs(calculatedConnector.nodeOverline.to.x - calculatedConnector.nodeOverline.from.x)) - 1, square = calculatedConnector.connectorTheme && calculatedConnector.connectorTheme.squareCorners, flat = calculatedConnector.connectorTheme && calculatedConnector.connectorTheme.noCorners;
+        if (calculatedConnector.nodeOverline && flat) {
+          connectorCurve.d += "m" + -1 * halfWidth + ",0 h" + 2 * halfWidth;
+        } else if (calculatedConnector.nodeOverline && square) {
           connectorCurve.d += "m" + -1 * halfWidth + "," + initialRadius + "v" + -1 * initialRadius + " h" + 2 * halfWidth + "v" + initialRadius;
         } else if (calculatedConnector.nodeOverline) {
           connectorCurve.d += "m" + -1 * halfWidth + "," + initialRadius + "q0," + -1 * initialRadius + " " + initialRadius + "," + -1 * initialRadius + " h" + 2 * (halfWidth - initialRadius) + "q" + initialRadius + ",0 " + initialRadius + "," + initialRadius;

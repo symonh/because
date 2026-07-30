@@ -1,4 +1,98 @@
-# Because (formerly ArgumentBase) — status (2026-07-27)
+# Because (formerly ArgumentBase) — status (2026-07-29)
+
+## 2026-07-29 — A third connector: neutral, off by default
+
+- Feature request: an uninterpreted connector, "empty of content", so a
+  map can say a claim ANSWERS a question, or that a question is motivated
+  by a claim, without asserting support or opposition. The requester's
+  term for the practice is reasoning mapping — argument mapping plus
+  questions, which lets a map state the question at issue, frame rival
+  claims as answers to a common question, object to a question that fails
+  some criterion, and pose questions the reasoning has raised.
+- `attr.group: 'neutral'`, alongside `supporting` and `opposing`. Nothing
+  in the engine needed teaching about the value: `theme.nodeStyles`
+  already derives `attr_group_<value>`, so the theme's new
+  `attr_group_neutral` / `neutral-group` entries were enough to make it
+  render. numbering.js is the one place that listed the kinds by name
+  (brackets are structure, not claims, so they are skipped and never
+  numbered) — it now reads a `GROUP_KINDS` list.
+- Shape, not just colour. docs/accessibility.md exception 1 claims each
+  bracket kind is distinguishable with colour perception removed, which
+  was true of two kinds (`squareCorners` made objections square in July)
+  and would have quietly stopped being true with a third. So connector.js
+  gained the companion flag `noCorners`: a bare bar, no turns, at the
+  same y and over the same span as the square one. Rounded = reason,
+  square = objection, flat = neutral — which is also exactly how the
+  requester drew it. features-e2e measures the three path tails and the
+  bars' insets rather than trusting the flags.
+- `#0070C0`, sampled from the requester's own figure (the dominant blue of
+  9244 blue pixels; the PNG is sRGB-tagged, so the display-P3 caveat on
+  Simon's screenshots does not apply). It holds 5.1:1 on white — better
+  than the authentic green (3.6:1) or red (4.0:1) — and 5.3:1 on the dark
+  canvas as `#4aa3e8`, so unlike green and red it needed no separate
+  darkening for the chrome icons. This is the first group colour that is a
+  local addition rather than an extraction; MindMup had no neutral bracket.
+- Alt+Q, not Alt+N: Alt+N was already the sticky note, and Q is for
+  question. T keeps its two-way reason ⇄ objection flip rather than
+  cycling through three states — the key students learned does not change,
+  and a neutral bracket falling to supporting under T is not a dead end
+  because Alt+Q is the way back.
+- Off by default, behind **View > Allow neutral connectors** (Simon's call
+  after seeing it working). With it off the app is the app it was: no icon
+  in any of the four button strips, no Insert item, no row in the keyboard
+  reference, and Alt+Q not intercepted at all, so the key still reaches
+  the browser. `commands.addNeutral` is guarded too, for anything reaching
+  it directly. Turning it on rebuilds the toolbars the same way a layout
+  change does. The preference is `because.neutral` in localStorage,
+  built like dark mode and the layout choice, and never touches map data.
+- What the preference deliberately does NOT gate is RENDERING. The theme
+  keeps its neutral styles either way, so a .mup that already uses the
+  connector opens drawn correctly for everyone — gating the theme too
+  would have repainted those brackets green (an unrecognised `attr.group`
+  falls back to `attr_group`, whose connector is supporting-group), which
+  is far worse than one icon somebody did not ask for. features-e2e loads
+  such a map with the preference off and checks it still draws blue.
+- The keyboard reference keeps the Alt+Q row in `SHORTCUT_GROUPS` whatever
+  the preference says — the drift check reads that table and the binding
+  is in shortcuts.js either way — but filters it out of the rendered table
+  while the feature is off, via a `needs: 'neutral'` flag. A reference
+  listing a key the app ignores just reads as broken.
+- Test-setup gap found on the way: `test/package.json` never listed
+  `axe-core`, which a11y-e2e requires. Now a devDependency, so the suite
+  can be set up from the manifest.
+
+## 2026-07-29 — The toolbars were unreachable by keyboard in Safari
+
+- Found while running the suite for the neutral connector: a11y-e2e failed
+  two assertions on clean `main` — "the third Tab stop is a rail button"
+  and "rail buttons draw a focus-visible ring". One bug, two symptoms, and
+  a real one rather than a test artefact.
+- WebKit leaves a `<button>` out of the sequential focus order unless it
+  carries an explicit `tabindex` (on macOS, Safari's "Press Tab to
+  highlight each item on a webpage" is off by default). None of the button
+  strips set one, so in Safari Tab went skip link → menubar → straight
+  into the map and the rail could not be reached by keyboard at all: WCAG
+  2.1.1, in Simon's own browser. The menubar was fine only because
+  menus.js gives its titles a tabindex for the roving pattern. The focus
+  ring was never broken either — `:focus-visible` gives the right 2px
+  `#16749f` on a rail button reached with `.focus()`. Nothing could put
+  focus there to show it.
+- Fixed by giving each strip the WAI-ARIA toolbar pattern its
+  `role="toolbar"` was already promising: one Tab stop, arrows plus Home
+  and End moving between the buttons, the stop following the last one used
+  (`applyToolbarRoving`, toolbar.js; the same shape menus.js uses for the
+  menubar). The roving button's `tabindex="0"` is what makes WebKit
+  include the strip. The two chrome buttons outside a strip — the theme
+  toggle while it is in the top bar, and the floating layout's menu
+  button — carry `tabindex="0"` directly. Dialog buttons needed nothing:
+  `initModal` moves focus itself instead of relying on the tab order.
+- Side effect worth knowing: in Chrome the rail used to be 16 separate tab
+  stops and is now one. That is what the APG pattern asks for and it takes
+  15 stops out of the page's tab order, but it IS a change for anyone who
+  was tabbing through the buttons — arrows now do that.
+- a11y-e2e covers the pattern itself now (single tab stop, arrow/Home/End
+  walk, and Tab still leaving the strip rather than trapping focus), so
+  this cannot regress into "the ring is fine, nothing can reach it" again.
 
 ## 2026-07-27 — Objections to an inference can be labelled
 

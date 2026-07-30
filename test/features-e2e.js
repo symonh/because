@@ -699,6 +699,134 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 			.filter(a => a.style.display !== 'none').length) === 0,
 		'switching back to Simple removes the arrows');
 
+	// ---- three bracket kinds, three bracket SHAPES ----
+	// docs/accessibility.md exception 1 claims each group kind is told apart
+	// with colour perception removed entirely: a reason's bracket turns up in
+	// two quadratic corners, an objection's in two right angles, and the
+	// neutral connector's not at all. That claim is only true while the theme
+	// keeps `squareCorners`/`noCorners` and the connector.js LOCAL PATCH keeps
+	// reading them, so measure the geometry rather than trusting the flags.
+	// Also checked in both high-impact themes: the head trims the curve at the
+	// bracket end, and the bar must not move when it does.
+	//
+	// The map is loaded with the preference still OFF on purpose: authoring a
+	// neutral connector is gated, but drawing one never is, or a map shared by
+	// somebody who has the feature on would open with its blue brackets
+	// silently repainted green for everyone else.
+	await page.evaluate(() => {
+		window.__because.engine.loadMap({ formatVersion: 3, id: 'root', ideas: {
+			1: { id: 2, title: 'Conclusion', ideas: {
+				1: { id: 11, title: 'group', attr: { group: 'supporting', contentLocked: true }, ideas: {
+					1: { id: 12, title: 'A reason' }
+				} },
+				2: { id: 21, title: 'group', attr: { group: 'opposing', contentLocked: true }, ideas: {
+					1: { id: 22, title: 'An objection' }
+				} },
+				3: { id: 31, title: 'group', attr: { group: 'neutral', contentLocked: true }, ideas: {
+					1: { id: 32, title: 'Neither — just related' }
+				} }
+			} }
+		} });
+	});
+	await sleep(900);
+	// the bracket is the tail of the connector path, appended relative to the
+	// curve's last point: everything from the final relative moveto onward
+	const shapesOf = () => page.evaluate(() => {
+		const tail = id => {
+			const p = document.querySelector('#connector_2_' + id + ' path.mapjs-connector'),
+				d = p && p.getAttribute('d');
+			return d ? d.slice(d.lastIndexOf('m')) : null;
+		},
+			// Where the bar itself lies. Not the path's bounding box: a reason
+			// and an objection turn 10px DOWN at each end, so their box runs
+			// below their bar and the flat one's does not. Sample the curve
+			// instead and keep the points sitting on the bracket node's top
+			// edge — that is the bar, whatever shape reached it. `inset` is how
+			// far short of the node's full width it stops (the corner radius
+			// for a reason; nothing much for the other two).
+			bar = id => {
+				const p = document.querySelector('#connector_2_' + id + ' path.mapjs-connector'),
+					box = document.querySelector('#node_' + id).getBoundingClientRect(),
+					len = p.getTotalLength(),
+					ctm = p.getScreenCTM();
+				let lo = Infinity, hi = -Infinity, hits = 0, i, pt, sp;
+				for (i = 0; i <= 800; i++) {
+					pt = p.getPointAtLength(len * i / 800);
+					sp = new DOMPoint(pt.x, pt.y).matrixTransform(ctm);
+					if (Math.abs(sp.y - box.top) <= 1.5) {
+						lo = Math.min(lo, sp.x);
+						hi = Math.max(hi, sp.x);
+						hits += 1;
+					}
+				}
+				return { hits: hits, inset: hits ? Math.round(box.width - (hi - lo)) : null };
+			},
+			stroke = id => getComputedStyle(
+				document.querySelector('#connector_2_' + id + ' path.mapjs-connector')).stroke;
+		return {
+			reason: tail(11), objection: tail(21), neutral: tail(31),
+			bars: [bar(11), bar(21), bar(31)],
+			strokes: [stroke(11), stroke(21), stroke(31)],
+			classes: [11, 21, 31].map(id => document.querySelector('#node_' + id).className
+				.split(/\s+/).filter(c => /^attr_group_/.test(c)).join()),
+			// the ARIA name a screen reader reads for each bracket
+			labels: [11, 21, 31].map(id =>
+				document.querySelector('#node_' + id).getAttribute('aria-label'))
+		};
+	});
+	const shapes = await shapesOf();
+	ok(await page.evaluate(() => !window.__because.neutralPref.isOn()),
+		'a map using neutral connectors draws them with the preference still off');
+	ok(/^m-?[\d.]+,[\d.]+q/.test(shapes.reason || ''),
+		`a reason's bracket turns in quadratic corners (${shapes.reason})`);
+	ok(/^m-?[\d.]+,[\d.]+v-?[\d.]+ h-?[\d.]+v-?[\d.]+$/.test(shapes.objection || ''),
+		`an objection's bracket turns in right angles (${shapes.objection})`);
+	ok(/^m-?[\d.]+,0 h-?[\d.]+$/.test(shapes.neutral || ''),
+		`the neutral bracket is a bare bar — no q, no v (${shapes.neutral})`);
+	ok(shapes.bars.every(b => b.hits > 0),
+		`all three bars lie on the top edge of the bracket they belong to (${shapes.bars.map(b => b.hits).join('/')} sampled points)`);
+	// the flat bar must reach as far as the square one, or dropping the corners
+	// would have quietly shortened the neutral bracket rather than just
+	// squaring it off; a reason's is inset by its 10px corner radius at each end
+	ok(Math.abs(shapes.bars[2].inset - shapes.bars[1].inset) <= 1,
+		`the flat bar spans its bracket exactly as the square one does (inset ${shapes.bars[2].inset}px vs ${shapes.bars[1].inset}px)`);
+	// a reason's bar stops a corner radius short at each end. The gap measures
+	// smaller than the 10px radius doubled, because the band that counts as
+	// "on the top edge" is 1.5px deep and the corner curve is inside it for
+	// its last couple of pixels — the point is that only this kind is inset.
+	ok(shapes.bars[0].inset - shapes.bars[1].inset >= 10,
+		`a reason's bar stops short at each end for its corners (inset ${shapes.bars[0].inset}px vs ${shapes.bars[1].inset}px)`);
+	ok(shapes.strokes.join() === 'rgb(51, 153, 102),rgb(255, 0, 0),rgb(0, 112, 192)',
+		`green / red / blue, in that order (${shapes.strokes.join(' ')})`);
+	ok(shapes.classes.join() === 'attr_group_supporting,attr_group_opposing,attr_group_neutral',
+		`each kind resolves its own theme style (${shapes.classes.join(' ')})`);
+	ok(shapes.labels[2] === 'Neutral connector (group)',
+		`the neutral bracket has its own accessible name (${shapes.labels[2]})`);
+	// the neutral connector takes the family's weight and arrowhead in the
+	// high-impact themes, but never an auto label — it asserts no relation, so
+	// there is no word that would fit every use of it
+	for (const [item, name] of [['Theme: High-impact downward', 'downward'],
+		['Theme: High-impact upward', 'upward']]) {
+		await clickMenu('View', item);
+		await sleep(800);
+		const hi = await page.evaluate(() => ({
+			shape: (function () {
+				const d = document.querySelector('#connector_2_31 path.mapjs-connector').getAttribute('d');
+				return d.slice(d.lastIndexOf('m'));
+			}()),
+			width: document.querySelector('#connector_2_31 path.mapjs-connector').getAttribute('stroke-width'),
+			arrow: !!document.querySelector('#connector_2_31 path.mapjs-arrow'),
+			label: !!document.querySelector('#connector_2_31 .mapjs-connector-text text')
+		}));
+		ok(/^m-?[\d.]+,0 h-?[\d.]+$/.test(hi.shape),
+			`High-impact ${name}: the neutral bar stays flat when the head trims the curve (${hi.shape})`);
+		ok(hi.width === '4', `High-impact ${name}: the neutral connector thickens with the rest (${hi.width})`);
+		ok(hi.arrow, `High-impact ${name}: the neutral connector gets an arrowhead`);
+		ok(!hi.label, `High-impact ${name}: the neutral connector carries no default label`);
+	}
+	await clickMenu('View', 'Theme: Simple');
+	await sleep(800);
+
 	// ---- claim number badges: default numbering and per-claim overrides ----
 	const badgeText = id => page.evaluate(nid => {
 			const el = document.querySelector('#node_' + nid + ' .mapjs-label');
@@ -897,6 +1025,32 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 		'Help > Keyboard shortcuts reopens it after an Escape (no stale state)');
 	await page.keyboard.press('Escape');
 	await sleep(200);
+
+	// The Alt+Q row stays in SHORTCUT_GROUPS whatever the preference says —
+	// the drift check above reads that table, and the binding is in
+	// shortcuts.js either way — but it must not be RENDERED while the feature
+	// is off. A key the reference lists and the app ignores just reads as broken.
+	const neutralRowShown = async function () {
+		await clickMenu('Help', 'Keyboard shortcuts');
+		await sleep(250);
+		const found = await page.evaluate(() =>
+			Array.from(document.querySelectorAll('.shortcut-group tr'))
+				.some(r => /neutral connector/i.test(r.textContent)));
+		await page.keyboard.press('Escape');
+		await sleep(200);
+		return found;
+	};
+	ok(!(await neutralRowShown()),
+		'the reference leaves Alt+Q out while neutral connectors are off');
+	ok(await page.evaluate(() => window.__because.shortcutHelp.documentedCommands().indexOf('addNeutral') >= 0),
+		'…while still documenting addNeutral for the drift check');
+	await page.evaluate(() => window.__because.neutralPref.set(true));
+	await sleep(300);
+	ok(await neutralRowShown(),
+		'switching the preference on puts Alt+Q into the reference');
+	await page.evaluate(() => window.__because.neutralPref.set(false));
+	await sleep(300);
+	ok(!(await neutralRowShown()), 'and switching it off takes the row away again');
 
 	// the reference claims Shift+Enter breaks a line while editing — check it
 	await page.evaluate(() => window.__because.engine.mapModel.selectNode(22));

@@ -1,13 +1,16 @@
 /*
  * The app icon set. One 20px grid, single 1.5px stroke, round caps and
  * joins. Colour appears only where it carries meaning: .ic-sup (green,
- * support) and .ic-opp (red, opposition) are styled in app.css for both
- * chrome themes — the same code the map itself uses. The reason and
- * objection glyphs borrow the canvas's own distinction: a rounded
- * bracket supports, a square bracket opposes.
+ * support), .ic-opp (red, opposition) and .ic-neu (blue, neither) are
+ * styled in app.css for both chrome themes — the same code the map itself
+ * uses. The three connector glyphs borrow the canvas's own distinction: a
+ * rounded bracket supports, a square bracket opposes, a bare bar asserts
+ * nothing.
  *
  * Glyph geometry is a design decision (mockup sign-off 2026-07-25):
- * do not edit path data without a new visual review.
+ * do not edit path data without a new visual review. `neutral` (added
+ * 2026-07-29) is the `objection` glyph with its two arms removed, so all
+ * three share one bar position and read as a set.
  */
 
 export const ICONS = {
@@ -18,6 +21,7 @@ export const ICONS = {
 	redo: '<path d="M13.1 4.6l3.5 3.5-3.5 3.5"/><path d="M16.6 8.1H7.7a4.3 4.3 0 00-4.3 4.3v.9"/>',
 	reason: '<rect x="6.4" y="2.6" width="7.2" height="4.2" rx="1.2"/><path class="ic-sup" d="M10 6.8v2.4"/><path class="ic-sup" d="M4.4 14.6v-.7q0-2.7 2.7-2.7h5.8q2.7 0 2.7 2.7v.7"/>',
 	objection: '<rect x="6.4" y="2.6" width="7.2" height="4.2" rx="1.2"/><path class="ic-opp" d="M10 6.8v2.4"/><path class="ic-opp" d="M4.4 14.6v-3.4h11.2v3.4"/>',
+	neutral: '<rect x="6.4" y="2.6" width="7.2" height="4.2" rx="1.2"/><path class="ic-neu" d="M10 6.8v2.4"/><path class="ic-neu" d="M4.4 11.2h11.2"/>',
 	copremise: '<rect x="2.75" y="7.9" width="6" height="4.4" rx="1.2"/><rect x="11.25" y="7.9" width="6" height="4.4" rx="1.2"/><path d="M8.75 10.1h2.5" stroke-dasharray="1.8 1.6"/>',
 	sticky: '<path d="M3.9 3.9h12.2v8.3l-4 4H3.9z"/><path d="M12.1 16.2v-4h4"/>',
 	edit: '<path d="M3.8 16.2l.85-3.35 8.05-8.05a1.75 1.75 0 012.5 2.5L7.15 15.35z"/><path d="M11.4 6.1l2.5 2.5"/>',

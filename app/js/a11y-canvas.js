@@ -24,7 +24,8 @@ export function initCanvasA11y(engine, container) {
 		domId = id => ('node_' + id).replace(/[^A-Za-z0-9_-]/g, '_'),
 		GROUP_LABELS = {
 			supporting: 'Supporting reasons (group)',
-			opposing: 'Objections (group)'
+			opposing: 'Objections (group)',
+			neutral: 'Neutral connector (group)'
 		},
 		ideaById = function (id) {
 			const root = mapModel.getIdea();

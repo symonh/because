@@ -292,6 +292,88 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 	ok(await page.evaluate(() => !document.querySelector('#connector_10_20 .mapjs-connector-text text')),
 		'⌘Z removes the inference-objection label in WebKit');
 
+	// ---- Alt+Q (the neutral connector) in real WebKit ----
+	// On a Mac, Option+Q types "œ", so the binding keys off e.code, not the
+	// character — the same way Alt+O has to. Alt is exactly where a Safari
+	// keyboard difference would show up, and both bindings live in the
+	// capture-phase handler, so verify the new one here rather than assuming
+	// it follows Alt+O. Alt+N must still reach the sticky note.
+	//
+	// The binding only exists while View > Allow neutral connectors is on, so
+	// check both states in real WebKit: off, the key must not be intercepted at
+	// all (Safari is exactly where a swallowed Alt combination would bite).
+	await page.evaluate(() => {
+		window.__because.neutralPref.set(false);
+		window.__because.engine.mapModel.selectNode(1);
+		document.getElementById('map-container').focus();
+	});
+	await page.waitForTimeout(250);
+	await page.keyboard.press('Alt+q');
+	await page.waitForTimeout(400);
+	ok(await page.evaluate(() =>
+		document.querySelectorAll('.mapjs-node.attr_group_neutral').length) === 0,
+		'Alt+Q adds nothing in WebKit while neutral connectors are off');
+	await page.evaluate(() => {
+		window.__because.neutralPref.set(true);
+		window.__because.engine.mapModel.selectNode(1);
+		document.getElementById('map-container').focus();
+	});
+	await page.waitForTimeout(300);
+	await page.keyboard.press('Alt+q');
+	await page.waitForTimeout(500);
+	await page.keyboard.type('An open question');
+	await page.keyboard.press('Enter');
+	await page.waitForTimeout(500);
+	const wkNeutral = await page.evaluate(() => {
+		let group = null, parent = null;
+		(function walk(n) {
+			Object.values(n.ideas || {}).forEach(function (k) {
+				if (k.attr && k.attr.group === 'neutral') { group = k; parent = n; }
+				walk(k);
+			});
+		}(window.__because.engine.mapModel.getIdea()));
+		const path = group && document.querySelector('#connector_' + parent.id + '_' + group.id +
+			' path.mapjs-connector');
+		return {
+			count: document.querySelectorAll('.mapjs-node.attr_group_neutral').length,
+			stroke: path && getComputedStyle(path).stroke,
+			tail: (function () {
+				const d = path && path.getAttribute('d');
+				return d ? d.slice(d.lastIndexOf('m')) : null;
+			}()),
+			claim: group && Object.values(group.ideas || {}).map(k => k.title).join()
+		};
+	});
+	ok(wkNeutral.count === 1, `Alt+Q adds one neutral group in WebKit (${wkNeutral.count})`);
+	ok(wkNeutral.claim === 'An open question',
+		`the new claim takes the typed text in WebKit (${wkNeutral.claim})`);
+	ok(wkNeutral.stroke === 'rgb(0, 112, 192)',
+		`the neutral bracket is #0070C0 in WebKit (${wkNeutral.stroke})`);
+	ok(/^m-?[\d.]+,0 h-?[\d.]+$/.test(wkNeutral.tail || ''),
+		`the neutral bracket is a bare bar in WebKit (${wkNeutral.tail})`);
+	await page.keyboard.press('Meta+z');
+	await page.keyboard.press('Meta+z');
+	await page.waitForTimeout(500);
+	ok(await page.evaluate(() =>
+		document.querySelectorAll('.mapjs-node.attr_group_neutral').length) === 0,
+		'⌘Z removes the neutral connector in WebKit');
+	// put the preference back as it was found — it rebuilds the toolbars, and
+	// the layout tests further down count the rail's buttons. Alt+N below is
+	// then also checked in the default state, where it has to keep working.
+	await page.evaluate(() => {
+		window.__because.neutralPref.set(false);
+		window.__because.engine.mapModel.selectNode(1);
+		document.getElementById('map-container').focus();
+	});
+	await page.waitForTimeout(250);
+	await page.keyboard.press('Alt+n');
+	await page.waitForTimeout(450);
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(250);
+	ok(await page.evaluate(() =>
+		document.querySelectorAll('.mapjs-node.sticky_note').length) >= 1,
+		'Alt+N still reaches the sticky note in WebKit');
+
 	// ---- ? opens the keyboard reference in real WebKit ----
 	// Shift+/ is where a layout-dependent key could go wrong in Safari, and
 	// the panel's platform switch has to redraw the table there too.

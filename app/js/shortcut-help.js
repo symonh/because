@@ -19,6 +19,13 @@
  * Rows without a `cmd` are handled by the engine (mapjs's own bindings) or by
  * the mouse; their behaviour was verified against the running app rather than
  * transcribed from the vendor's binding table.
+ *
+ * A row with `needs: 'neutral'` documents a key that only exists while View >
+ * Allow neutral connectors is on, and is left out of the rendered table while
+ * it is off — an unswitchable key in the reference would just read as broken.
+ * It stays in SHORTCUT_GROUPS regardless, because that table is also what the
+ * drift check compares against shortcuts.js: the binding is in the source
+ * either way, so it has to be documented either way.
  */
 
 import { track } from './analytics.js';
@@ -41,6 +48,7 @@ export const SHORTCUT_GROUPS = [
 			{ keys: 'Enter', desc: 'Add a reason under the selected claim', cmd: 'addReason' },
 			{ keys: 'Tab', desc: 'Add a co-premise — a second claim inside the same bracket, jointly making one reason', cmd: 'addCoPremise' },
 			{ keys: 'Alt+O', desc: 'Add an objection to the selected claim', cmd: 'addObjection' },
+			{ keys: 'Alt+Q', desc: 'Add a neutral connector — a blue flat bracket that asserts no relation, for tying a question to the claims that answer it, or a claim to a question it raises', cmd: 'addNeutral', needs: 'neutral' },
 			{ keys: 'Alt+N', desc: 'Add a sticky note', cmd: 'addSticky' },
 			{ keys: 'T', altKeys: 'Alt+T', desc: 'On a bracket, flip reason ⇄ objection; on a claim, flip implicit ⇄ explicit', cmd: 'toggleImplicit toggleReasonObjection' },
 			{ keys: 'D', desc: 'Detach the selection from the tree — a claim with everything under it, or a whole reason or objection', cmd: 'detachNode' },
@@ -127,17 +135,18 @@ function rowKeysHtml(row, mac) {
 	return html;
 }
 
-export function renderShortcutsHtml(mac) {
+export function renderShortcutsHtml(mac, allowNeutral) {
+	const shown = rows => rows.filter(r => r.needs !== 'neutral' || allowNeutral);
 	return SHORTCUT_GROUPS.map(function (group) {
 		return '<section class="shortcut-group"><h3>' + esc(group.title) + '</h3>' +
 			'<table class="kbd' + (group.mouse ? ' kbd-mouse' : '') + '"><tbody>' +
-			group.rows.map(r => '<tr><td class="kbd-keys">' + rowKeysHtml(r, mac) +
+			shown(group.rows).map(r => '<tr><td class="kbd-keys">' + rowKeysHtml(r, mac) +
 				'</td><td>' + esc(r.desc) + '</td></tr>').join('') +
 			'</tbody></table></section>';
 	}).join('');
 }
 
-export function makeShortcutHelp() {
+export function makeShortcutHelp(neutralPref) {
 	let overlay = null,
 		modal = null,
 		mac = isMacPlatform();
@@ -150,7 +159,8 @@ export function makeShortcutHelp() {
 	} catch (e) { /* private mode */ }
 
 	const paint = function () {
-			overlay.querySelector('.shortcut-groups').innerHTML = renderShortcutsHtml(mac);
+			overlay.querySelector('.shortcut-groups').innerHTML =
+				renderShortcutsHtml(mac, !!(neutralPref && neutralPref.isOn()));
 			Array.from(overlay.querySelectorAll('.plat-btn')).forEach(function (b) {
 				const on = (b.dataset.plat === 'mac') === mac;
 				b.setAttribute('aria-pressed', on ? 'true' : 'false');
