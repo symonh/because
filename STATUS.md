@@ -1,5 +1,30 @@
 # Because (formerly ArgumentBase) — status (2026-08-03)
 
+## 2026-08-03 — The Picker opens on My Drive, not on the shared drives
+
+- **Open from Google Drive opened on the shared-drive list**, with the
+  user's own files nowhere in the dialog: for an instructor in a domain
+  with shared drives, the only tab was "Shared drives" and their own
+  `.mup` files were unreachable without searching for them. The cause is
+  what `setEnableDrives` means. It reads like "also allow shared drives",
+  and it is the opposite — Google's reference says "if true, only shared
+  drives are included in the view" — so setting it on the one `DocsView`
+  the app built turned that view, and therefore the picker's only tab,
+  into the shared-drive browser.
+- `pickFile` now builds one view per tab: **My Drive first**, pinned with
+  `setParent('root')` so it starts where Drive starts, and the
+  drives-restricted view second, keeping shared drives one click away.
+  Views become tabs in the order they are added and the picker opens on
+  the first. Both carry the same folder and mime-type filters, and
+  `SUPPORT_DRIVES` stays on the builder so a file chosen from a shared
+  drive still opens.
+- `drive-e2e` asserts the tab order now — its Picker stub records what
+  was configured on each view, so a view that is drives-only, or first,
+  fails the run. What the stub cannot see is Google's own labelling of
+  the tabs; the Picker needs a real sign-in, so that is a by-hand check
+  on the live app (or on localhost:8871, which is in the API key's
+  referrer list).
+
 ## 2026-08-03 — Safari's sheet belongs to Safari, and the dialog says so
 
 - Shipping the print work turned up the one case the headless gates

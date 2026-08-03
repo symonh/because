@@ -54,16 +54,26 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 		// --- Picker stub: "picks" a fixed Drive doc as soon as it is shown
 		const chain = obj => new Proxy(obj || {}, { get: (t, k) => (k in t ? t[k] : () => chain(t)) });
 		window.gapi = { load: (name, cb) => cb() };
+		// a view records what was configured on it, so the test can assert
+		// which tab the picker opens on (the shared-drive list was the only
+		// tab it had for a while)
 		window.google.picker = {
 			ViewId: { DOCS: 'docs' },
 			Response: { ACTION: 'action', DOCUMENTS: 'docs' },
 			Action: { PICKED: 'picked', CANCEL: 'cancel' },
 			Feature: { SUPPORT_DRIVES: 'supportDrives' },
-			DocsView: function () { return chain({}); },
+			DocsView: function () {
+				const cfg = {},
+					view = new Proxy({ cfg: cfg }, { get: (t, k) => (k in t ? t[k] :
+						function (arg) { cfg[k] = arguments.length ? arg : true; return view; }) });
+				return view;
+			},
 			PickerBuilder: function () {
-				const self = {}, builder = chain(self);
+				const self = { views: [] }, builder = chain(self);
 				self.setCallback = function (cb) { self.cb = cb; return builder; };
+				self.addView = function (view) { self.views.push(view.cfg); return builder; };
 				self.build = function () {
+					window.__pickerViews = self.views;
 					return { setVisible() { self.cb({ action: 'picked', docs: [{ id: 'drive-file-1', name: 'Drive map.mup' }] }); } };
 				};
 				return builder;
@@ -153,6 +163,17 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 	ok(opened.hasMap && opened.title === 'Drive map.mup', 'Open from Drive loads the picked file');
 	ok(opened.mediaGet, 'file content fetched with files.get?alt=media');
 	ok(opened.status === 'All changes saved', 'Drive-opened map reads as saved');
+
+	// which tab the picker opens on: My Drive first, shared drives beside it
+	const views = await page.evaluate(() => window.__pickerViews);
+	ok(views.length >= 2, 'the picker offers more than one view');
+	ok(!views[0].setEnableDrives && views[0].setParent === 'root',
+		'the first tab is My Drive, rooted at the Drive root');
+	ok(views.slice(1).some(v => v.setEnableDrives === true),
+		'shared drives get a tab of their own, not the only one');
+	ok(views.every(v => v.setIncludeFolders === true &&
+		String(v.setMimeTypes).indexOf('vnd.mindmup') >= 0),
+	'every tab shows folders and filters to openable map types');
 
 	// plain Save on a Drive map updates the SAME Drive file (save override)
 	await page.evaluate(() => {

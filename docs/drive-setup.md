@@ -166,6 +166,23 @@ gcloud services api-keys update \
 Key edits take roughly a minute to propagate; re-test before concluding
 a change did nothing.
 
+## The Picker's tabs (2026-08-03)
+
+Each `addView` call is one tab, in the order added, and the Picker opens
+on the first. `DocsView.setEnableDrives(true)` does not widen a view to
+include shared drives: per Google's reference, "if true, **only** shared
+drives are included in the view", and it overrides `setParent` /
+`setFileIds` on the same view (with `setOwnedByMe(true)` it returns
+nothing at all). Setting it on a lone view is why Open from Drive used
+to open on a grid of shared drives.
+
+`pickFile` therefore builds two views — My Drive (`setParent('root')`)
+first, shared drives second — both filtered to `OPENABLE_MIMES` with
+folders shown, and leaves `Feature.SUPPORT_DRIVES` on the builder so a
+file picked from a shared drive opens. `drive-e2e` asserts that order.
+The tab *labels* come from Google and no test can see them, so check
+them by hand after touching the views.
+
 ## What instructors get once the ID is in
 
 - **File → Open from Google Drive…** — Google sign-in (first time only),

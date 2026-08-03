@@ -149,16 +149,28 @@ export function makeDrive(engine, io, status) {
 			const token = await ensureToken();
 			return new Promise(function (resolve) {
 				const google = window.google,
-					view = new google.picker.DocsView(google.picker.ViewId.DOCS)
-						.setIncludeFolders(true)
-						.setMimeTypes(OPENABLE_MIMES);
-				if (view.setEnableDrives) { view.setEnableDrives(true); } // shared drives
+					mapsView = function () {
+						return new google.picker.DocsView(google.picker.ViewId.DOCS)
+							.setIncludeFolders(true)
+							.setMimeTypes(OPENABLE_MIMES);
+					},
+					// Each view is a tab, in the order added, and the picker
+					// opens on the first one. setEnableDrives does not ADD
+					// shared drives to a view — it restricts the view to them
+					// ("if true, only shared drives are included"), so setting
+					// it on the single view meant the picker opened on the
+					// shared-drive list and the user's own files were nowhere
+					// in it. My Drive is now that first tab, pinned to the
+					// root folder so it starts where Drive itself starts, and
+					// shared drives keep a tab beside it.
+					views = [mapsView().setParent('root')],
+					sharedDrives = mapsView();
+				if (sharedDrives.setEnableDrives) { views.push(sharedDrives.setEnableDrives(true)); }
 				let builder = new google.picker.PickerBuilder()
 					.setDeveloperKey(driveConfig.apiKey)
 					.setAppId(driveConfig.appId)
 					.setOAuthToken(token)
 					.setTitle('Open an argument map (.mup)')
-					.addView(view)
 					.setCallback(function (data) {
 						if (data[google.picker.Response.ACTION] === google.picker.Action.PICKED) {
 							resolve(data[google.picker.Response.DOCUMENTS][0]);
@@ -166,6 +178,7 @@ export function makeDrive(engine, io, status) {
 							resolve(null);
 						}
 					});
+				views.forEach(function (view) { builder = builder.addView(view); });
 				if (google.picker.Feature && google.picker.Feature.SUPPORT_DRIVES) {
 					builder = builder.enableFeature(google.picker.Feature.SUPPORT_DRIVES);
 				}
