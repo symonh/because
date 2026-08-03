@@ -1,5 +1,47 @@
 # Because (formerly ArgumentBase) — status (2026-08-03)
 
+## 2026-08-03 — One stalled request could hang the editor silently; now it can't
+
+- Simon reported the editor hanging for minutes on opening, intermittently
+  and with nothing in the console — and it happened in private windows,
+  so it was not his data. Measurement cleared the obvious suspects:
+  Firebase answers `/app/` in 126ms and the 771KB bundle in 331ms with no
+  redirects, eight cold WebKit loads of the live app ran 614–1468ms, a
+  935-claim autosave restores in 1.7s, and blackholing googletagmanager —
+  a request that never answers and never fails — costs the editor
+  nothing (1959ms to a drawn map), so the lazy gtag load really is
+  non-blocking.
+- What did reproduce it exactly: stalling **one** app asset. The editor
+  makes 36 same-origin requests, 32 of them JS and CSS, and every one was
+  served `no-cache` — only the two fonts were cached. Nothing in
+  `app/index.html` paints on its own either, since the chrome and the map
+  are both built by JavaScript. So a single request that hangs leaves the
+  browser with nothing to draw: no chrome, no error, and in Safari the
+  *previous* page still on screen, which reads as a freeze rather than a
+  wait. In the test a blackholed module produced exactly that, with no
+  end to it.
+- Two changes, neither of which needs the root cause named (the stall
+  itself is a network event — DNS, Wi-Fi, an edge that drops a
+  connection). First, `firebase.json` serves `**/*.@(js|css)` as
+  `public, max-age=300, stale-while-revalidate=86400`: a browser that has
+  opened the editor before boots it from cache without touching the
+  network at all, and the revalidation that follows happens in the
+  background. HTML stays `no-cache`, so a deploy is picked up on the next
+  load and the worst case is five-minute-old JS, refreshed behind the
+  reader's back.
+- Second, `index.html` carries an opening state — the mark, "Opening the
+  editor…", and after eight seconds a line saying a file has not arrived
+  and the page can be reloaded. Its styles are inline so it never waits
+  on a stylesheet of its own, it reads the dark-mode preference straight
+  from `localStorage` so a dark session does not open on white, and
+  `main.js` removes it as soon as the chrome exists — not when a map
+  finishes drawing, because a map fetched over the network (`?src=`) may
+  never finish and the editor is usable either way.
+- `webkit-e2e` holds the whole story: with `js/engine.js` stalled the
+  opening state stays up with its notice hidden, no map ever arrives, the
+  notice appears after eight seconds, and on a healthy load the block is
+  gone by the time the chrome is up.
+
 ## 2026-08-03 — The Picker opens on My Drive, not on the shared drives
 
 - **Open from Google Drive opened on the shared-drive list**, with the

@@ -804,6 +804,33 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 	await page.keyboard.press('Escape');
 	await page.waitForTimeout(150);
 
+	// ---- the opening state (index.html #boot) ----
+	// The chrome and the map are both built by JavaScript, so a single
+	// stalled request used to leave the previous page on screen with no
+	// sign that anything was happening. This is the one thing in the app
+	// that has to paint without any of its own JS or CSS having arrived.
+	const stalled = await browser.newContext();
+	const stalledPage = await stalled.newPage();
+	await stalledPage.route('**/js/engine.js', () => { /* never answers */ });
+	await stalledPage.goto(BASE + '/app/index.html', { waitUntil: 'commit' });
+	await stalledPage.waitForSelector('#boot', { timeout: 5000 });
+	ok(await stalledPage.evaluate(() => {
+		const b = document.getElementById('boot');
+		return !!b && /Opening the editor/.test(b.textContent) &&
+			b.getBoundingClientRect().height > 100 &&
+			document.getElementById('boot-slow').hidden;
+	}), 'a stalled module leaves the opening state on screen, without the slow notice yet');
+	ok(await stalledPage.evaluate(() => !document.querySelector('.mapjs-node')),
+		'and the editor itself never arrives, which is the case being covered');
+	await stalledPage.waitForTimeout(8200);
+	ok(await stalledPage.evaluate(() => !document.getElementById('boot-slow').hidden),
+		'after eight seconds it says a file has not arrived rather than staying mute');
+	await stalled.close();
+
+	// and on a healthy load it is gone by the time the chrome is up
+	ok(await page.evaluate(() => !document.getElementById('boot')),
+		'a normal load removes the opening state once the chrome exists');
+
 	await page.screenshot({ path: '/tmp/webkit_open.png' });
 	if (errors.length) { console.log('PAGE ERRORS:', errors.join(' | ')); failures += 1; }
 	await browser.close();

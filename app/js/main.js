@@ -88,6 +88,13 @@ document.addEventListener('DOMContentLoaded', function () {
 	layout = initLayout(instrument('toolbar'), io, menus, neutralPref);
 	bindShortcuts(engine, instrument('shortcut'), neutralPref);
 
+	// the chrome exists, so the opening state in index.html has done its job.
+	// It goes now rather than when a map finishes drawing: a map arriving
+	// over the network (?src=) may never finish, and the editor is usable
+	// either way. A large map draws behind loading.js's own overlay.
+	const bootScreen = document.getElementById('boot');
+	if (bootScreen) { bootScreen.remove(); }
+
 	// one map_open per load, whatever the path (picker, drop, Drive, ?src=,
 	// autosave, New) — the loader noted its source just before loading
 	const countNodes = function (json) {

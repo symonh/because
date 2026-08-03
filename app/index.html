@@ -13,6 +13,38 @@
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
+<!-- Opening state. The chrome and the map are both built by JavaScript, so
+     until bundle.js and js/main.js have arrived and run there is nothing in
+     this document to paint — and a browser with nothing to paint keeps the
+     PREVIOUS page on screen, which reads as a freeze rather than a wait.
+     One stalled request among the thirty-odd this page makes is enough to
+     cause it. Styles are inline so this block never waits on a stylesheet
+     of its own; main.js removes it once the chrome exists. -->
+<div id="boot" role="status" style="position:fixed;inset:0;z-index:2000;background:#fff;color:#5a6068;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+	<svg aria-hidden="true" viewBox="0 0 24 24" width="42" height="42"><rect x="7" y="2" width="10" height="6" rx="1.5" fill="#fff" stroke="#707070"/><path d="M12 8v3" stroke="#339966" stroke-width="2"/><path d="M3 12h18M3 12q0 2.5 2.5 2.5M21 12q0 2.5-2.5 2.5" stroke="#339966" stroke-width="2" fill="none"/><rect x="2" y="16" width="8" height="6" rx="1.5" fill="#fff" stroke="#707070"/><rect x="14" y="16" width="8" height="6" rx="1.5" fill="#fff" stroke="#707070" stroke-dasharray="2.5,1.6"/></svg>
+	<p style="margin:0">Opening the editor…</p>
+	<p id="boot-slow" hidden style="margin:0;max-width:30em;text-align:center">This is taking longer than it should: a file has not arrived from the network yet. The editor will open as soon as it does — or reload the page to start the request again.</p>
+</div>
+<script>
+	// after eight seconds a load has stopped being slow and started being
+	// stuck; say which it is rather than leaving the reader guessing
+	(function () {
+		'use strict';
+		var boot = document.getElementById('boot');
+		try {
+			// dark mode is a stored preference (js/dark-mode.js owns the key);
+			// matching it here keeps a dark session from opening on white
+			if (window.localStorage.getItem('because.darkmode') === '1') {
+				boot.style.background = '#1b1d20';
+				boot.style.color = '#a7adb3';
+			}
+		} catch (e) { /* private mode */ }
+		window.setTimeout(function () {
+			var slow = document.getElementById('boot-slow');
+			if (slow) { slow.hidden = false; }
+		}, 8000);
+	}());
+</script>
 <a href="#map-container" id="skip-link" tabindex="0">Skip to map</a>
 <header id="topbar">
 	<div class="brand" title="Because">
