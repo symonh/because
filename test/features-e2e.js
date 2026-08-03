@@ -1577,6 +1577,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 	// the hint reads the map that is actually loaded
 	ok(await page.evaluate(() => /page/.test(document.querySelector('.print-hint').textContent)),
 		'the dialog says what the sheet will be');
+	// Chrome honours the orientation this dialog sets, so it must not carry
+	// the Safari note about setting it in the browser's own dialog instead
+	ok(await page.evaluate(() => !/Safari/.test(document.querySelector('.print-note').textContent)),
+		'and does not send Chrome readers looking for Safari’s orientation control');
 	await page.keyboard.press('Escape');
 	await sleep(200);
 	ok(await page.evaluate(() => !document.querySelector('.print-panel')) && printCalls === 0,

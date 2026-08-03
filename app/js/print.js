@@ -49,6 +49,13 @@ const KEY = 'because.print',
 	// the fit scale needs the digits: rounding 0.17488 to 0.17 is a 3%
 	// error on a map printed at a sixth of its size
 	round5 = v => Math.round(v * 100000) / 100000,
+	// Safari takes the sheet from its own print dialog and from nowhere
+	// else: probed 2026-08-03 against Safari 18 with `size: landscape`,
+	// `size: A4 landscape` and explicit `size: 279.4mm 215.9mm` — all three
+	// parse (they round-trip through CSSOM) and all three leave the sheet
+	// portrait. Chrome honours the same declaration. Nothing about a page
+	// can tell the two apart, so the dialog says which one the reader is in.
+	APPLE_WEBKIT = /apple/i.test((window.navigator && window.navigator.vendor) || ''),
 	normalize = o => ({
 		fit: o && o.fit === 'map' ? 'map' : 'page',
 		orientation: o && /^(landscape|portrait)$/.test(o.orientation) ? o.orientation : 'auto'
@@ -138,10 +145,15 @@ export function makePrint(container) {
 				// a stage point p prints at translate + scale·p; this centres
 				// the map's own box inside the page box
 				tx = (boxW - b.w * scale) / 2 - b.x * scale,
-				ty = (boxH - b.h * scale) / 2 - b.y * scale;
+				ty = (boxH - b.h * scale) / 2 - b.y * scale,
+				// half the vertical slack on the shortest sheet the box was
+				// cut to fit: A4 landscape (210-20=190mm) or Letter portrait
+				// (279-20=259mm), against a box of 180 or 255
+				shortestSheetMM = orientation === 'landscape' ? SAFE_SHORT_MM + 10 : SAFE_LONG_MM + 4,
+				marginTopMM = fitToMap ? 0 : (shortestSheetMM - boxH / PX_PER_MM) / 2;
 			return {
 				boxW: boxW, boxH: boxH, scale: scale, tx: tx, ty: ty,
-				page: page, orientation: orientation, map: b
+				marginTopMM: marginTopMM, page: page, orientation: orientation, map: b
 			};
 		},
 
@@ -160,8 +172,16 @@ export function makePrint(container) {
 			' box-sizing: border-box !important;\n' +
 			' width: ' + round2(g.boxW) + 'px !important;\n' +
 			' height: ' + round2(g.boxH) + 'px !important;\n' +
-			// centred on whatever paper the browser is actually using
-			' margin: 0 auto !important;\n' +
+			// centred across whatever paper the browser is actually using,
+			// and pushed down by half the slack the SMALLEST sheet it could
+			// be would leave over. Centring vertically for real would take
+			// the page box's height, and no page can read that: viewport
+			// units are the page box in Chrome but print media queries
+			// report the paper-before-CSS there and the browser window in
+			// WebKit, so a layout that leant on either would paginate on
+			// somebody's screen. A fixed offset cannot: the true sheet is
+			// never smaller than the one this was measured against.
+			' margin: ' + round2(g.marginTopMM) + 'mm auto !important;\n' +
 			// clip, and — where it is supported — clip WITHOUT being a
 			// scroll container, so that no scroll offset (nor one of
 			// mapjs's animated ones, still in flight from a rebuild) can
@@ -356,7 +376,14 @@ export function makePrint(container) {
 			hint.className = 'print-hint';
 			hint.setAttribute('role', 'status');
 			note.className = 'print-note';
-			note.textContent = 'Pick a printer — or Save as PDF — in the browser’s own print dialog next.';
+			note.textContent = APPLE_WEBKIT ?
+				// stated where it is true and nowhere else: in Chrome the
+				// orientation above sets the sheet, and saying otherwise
+				// would send the reader looking for a control that agrees
+				'Safari takes the paper orientation from its own print dialog rather ' +
+					'than from the page, so a wide map needs Landscape chosen there as ' +
+					'well. Pick a printer — or Save as PDF — in the same dialog.' :
+				'Pick a printer — or Save as PDF — in the browser’s own print dialog next.';
 			actions.className = 'panel-actions';
 			cancel.type = 'button';
 			cancel.textContent = 'Cancel';

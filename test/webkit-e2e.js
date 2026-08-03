@@ -792,6 +792,18 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 		wkBack.top === Math.min(wkPanned.top, wkBack.maxTop) && wkBack.outlines > 0,
 		`afterprint restores the pan and the selection outline (${wkBack.left},${wkBack.top})`);
 
+	// Safari takes the sheet from its own print dialog and ignores @page
+	// size in every form, so the dialog has to say where the orientation
+	// really lives. Chrome, which honours it, must not be told the same.
+	await page.evaluate(() => window.__because.print.open());
+	await page.waitForTimeout(250);
+	ok(await page.evaluate(() => {
+		const note = document.querySelector('.print-note');
+		return !!note && /Safari/.test(note.textContent) && /Landscape/.test(note.textContent);
+	}), 'the print dialog points WebKit readers at Safari’s own orientation control');
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(150);
+
 	await page.screenshot({ path: '/tmp/webkit_open.png' });
 	if (errors.length) { console.log('PAGE ERRORS:', errors.join(' | ')); failures += 1; }
 	await browser.close();

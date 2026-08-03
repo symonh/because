@@ -1,5 +1,44 @@
 # Because (formerly ArgumentBase) — status (2026-08-03)
 
+## 2026-08-03 — Safari's sheet belongs to Safari, and the dialog says so
+
+- Shipping the print work turned up the one case the headless gates
+  cannot reach: **in Safari a wide map still printed portrait**, small
+  and pushed to the top of the sheet, because Safari never took the
+  orientation `@page` asked for. Three probes, printed from Safari 18 by
+  hand, established that this is not a syntax problem: `size: landscape`,
+  `size: A4 landscape` and an explicit `size: 279.4mm 215.9mm` all leave
+  the sheet US Letter portrait, with the dialog's own Orientation control
+  still on Portrait. All three parse — they round-trip through CSSOM —
+  and Chrome honours the same declaration. WebKit takes the page from
+  NSPrintInfo and the stylesheet does not get a vote.
+- A layout that adapted to the sheet it was actually given was the
+  obvious fallback, and it is not available either. **Print media queries
+  cannot see the page box in either engine.** Chrome answers them from
+  the paper as chosen before CSS is applied — with `size: landscape`
+  honoured and the PDF landscape, `print and (min-width:)` still reports
+  Letter portrait. WebKit answers them from the *browser window*: probe C
+  printed "orientation: LANDSCAPE, width >= 320mm, height >= 260mm" onto
+  a portrait Letter sheet, which is the size of the Safari window it was
+  printed from. So there is no measurement a page can take of the paper
+  it is being printed on.
+- What the sheet does instead: the box is centred horizontally with
+  `margin: … auto`, which needs no measurement, and pushed down by half
+  the vertical slack of the *smallest* sheet it was cut to fit (5mm
+  landscape, 2mm portrait). An earlier version centred with
+  `height: 100vh` and flexbox — correct in Chrome, where viewport units
+  do resolve against the page box, but it would have run onto a second
+  page in any engine resolving them against a tall window, which is
+  exactly what WebKit does with media queries. A fixed offset cannot
+  paginate: the real sheet is never smaller than the one it assumes.
+- And the part no code can fix is now said in words: on WebKit the print
+  dialog reads "Safari takes the paper orientation from its own print
+  dialog rather than from the page, so a wide map needs Landscape chosen
+  there as well." Chrome, which does honour the orientation, never sees
+  that sentence — `webkit-e2e` asserts the note is there and
+  `features-e2e` asserts it is not. Simon confirmed the printed result
+  with Landscape chosen in Safari's dialog: the map fills the sheet.
+
 ## 2026-08-03 — Printing lays the page out itself instead of hoping
 
 - **Printing sent the paper whatever happened to fall under its
