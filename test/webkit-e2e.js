@@ -560,8 +560,26 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 	await page.reload();
 	await page.waitForSelector('.mapjs-node', { timeout: 8000 });
 
+	// Safari alone blocks the Picker frame's cookies, so Safari alone is told
+	// about it — once, before the frame is on screen (drive.js cookieNote)
+	await clickMenu('File', 'Open from Google Drive');
+	await page.waitForSelector('.drive-cookie-note', { timeout: 8000 });
+	ok(await page.evaluate(() => document.querySelector('.drive-cookie-note p')
+		.textContent.indexOf('Can’t access your Google Account') >= 0),
+	'WebKit is warned about the cookie block, in Google’s own words');
+	ok(await page.evaluate(() => document.getElementById('map-title').textContent !== 'Drive map.mup'),
+		'the note comes BEFORE the picker — nothing has opened yet');
+	await page.click('.drive-cookie-note button[data-act="continue"]');
+	await page.waitForFunction(() => document.getElementById('map-title').textContent === 'Drive map.mup', { timeout: 8000 });
+	ok(true, 'Continue goes on to the picker and the picked file opens');
+
+	// said once per browser: a second open goes straight to the picker
+	await clickMenu('File', 'New');
+	await page.waitForFunction(() => document.getElementById('map-title').textContent === 'untitled.mup', { timeout: 8000 });
 	await clickMenu('File', 'Open from Google Drive');
 	await page.waitForFunction(() => document.getElementById('map-title').textContent === 'Drive map.mup', { timeout: 8000 });
+	ok(await page.evaluate(() => !document.querySelector('.drive-cookie-note')),
+		'the note is not repeated once it has been read');
 
 	// direct share: a real user click must survive WebKit's popup policing
 	await page.click('.menu-title:text-is("File")');

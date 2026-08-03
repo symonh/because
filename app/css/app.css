@@ -389,7 +389,8 @@ body.layout-left .tb-sep { width: 18px; height: 1px; margin: 4px 0; }
 	cursor: pointer;
 	font-size: 13px;
 }
-.panel-actions button[data-act='save'] {
+.panel-actions button[data-act='save'],
+.panel-actions button[data-act='continue'] {
 	background: #16749f;
 	border-color: #16749f;
 	color: #fff;
@@ -764,7 +765,8 @@ body.dark .panel-actions button {
 	border-color: #4a5057;
 	color: #d3d7db;
 }
-body.dark .panel-actions button[data-act='save'] {
+body.dark .panel-actions button[data-act='save'],
+body.dark .panel-actions button[data-act='continue'] {
 	background: #16749f;
 	border-color: #16749f;
 	color: #fff;

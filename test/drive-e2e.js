@@ -151,7 +151,10 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 		mod.driveConfig.clientId = 'test-client.apps.googleusercontent.com';
 	});
 
-	// open from Drive: stubbed picker picks, stubbed REST serves death.mup
+	// open from Drive: stubbed picker picks, stubbed REST serves death.mup.
+	// Chrome allows the Picker frame its cookies, so the Safari note that
+	// explains the block must never appear here — it would be a lie and an
+	// extra click for everyone else
 	await clickMenu('File', 'Open from Google Drive');
 	await page.waitForFunction(() => document.getElementById('map-title').textContent === 'Drive map.mup', { timeout: 5000 });
 	const opened = await page.evaluate(() => ({
@@ -160,6 +163,7 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 		status: document.getElementById('save-status').textContent,
 		mediaGet: window.__driveCalls.some(c => c.method === 'GET' && c.url.indexOf('drive-file-1') >= 0 && c.url.indexOf('alt=media') >= 0)
 	}));
+	ok(!(await page.$('.drive-cookie-note')), 'no Safari cookie note in Chrome — the picker opens directly');
 	ok(opened.hasMap && opened.title === 'Drive map.mup', 'Open from Drive loads the picked file');
 	ok(opened.mediaGet, 'file content fetched with files.get?alt=media');
 	ok(opened.status === 'All changes saved', 'Drive-opened map reads as saved');

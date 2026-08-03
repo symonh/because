@@ -15,9 +15,18 @@
  */
 import { driveConfig } from './config.js';
 import { track, noteMapSource } from './analytics.js';
+import { initModal } from './a11y.js';
 
 const GSI_SRC = 'https://accounts.google.com/gsi/client',
 	GAPI_SRC = 'https://apis.google.com/js/api.js',
+	// Safari blocks cookies for any site other than the one in the address
+	// bar, and the Picker is a docs.google.com frame that needs them: with
+	// no storage-access grant it draws Google's own "Can't access your
+	// Google Account" page, which names neither the cause nor the fix. Said
+	// once per browser, before that frame is on screen. Chrome still allows
+	// the cookie, so it never sees this.
+	APPLE_WEBKIT = /apple/i.test((window.navigator && window.navigator.vendor) || ''),
+	COOKIE_NOTE_KEY = 'because.drive.cookienote',
 	// which Google account granted Drive access — persisted so return
 	// visits skip the account chooser (multi-account browsers show it on
 	// EVERY token request otherwise)
@@ -144,7 +153,56 @@ export function makeDrive(engine, io, status) {
 				window.alert(String((e && e.message) || e));
 			}
 		},
+		// resolves true to go on to the Picker, false if the reader backed out
+		cookieNote = function () {
+			if (!APPLE_WEBKIT || window.localStorage.getItem(COOKIE_NOTE_KEY)) {
+				return Promise.resolve(true);
+			}
+			return new Promise(function (resolve) {
+				let modal = null;
+				const overlay = document.createElement('div'),
+					panel = document.createElement('div'),
+					heading = document.createElement('h2'),
+					message = document.createElement('p'),
+					actions = document.createElement('div'),
+					cancel = document.createElement('button'),
+					go = document.createElement('button'),
+					close = function (proceed) {
+						if (modal) { modal.close(); modal = null; }
+						resolve(proceed);
+					};
+				overlay.className = 'panel-overlay';
+				panel.className = 'panel drive-cookie-note';
+				heading.textContent = 'Safari and the Google file window';
+				message.textContent = 'The window that lists your Drive files comes from ' +
+					'google.com, and Safari blocks cookies from sites other than the one ' +
+					'in the address bar. If it says “Can’t access your Google Account” ' +
+					'instead of showing your files, allow cookie access when Safari asks ' +
+					'and the list appears. Safari remembers the choice.';
+				actions.className = 'panel-actions';
+				cancel.type = 'button';
+				cancel.textContent = 'Cancel';
+				cancel.dataset.act = 'cancel';
+				cancel.addEventListener('click', () => close(false));
+				go.type = 'button';
+				go.textContent = 'Continue';
+				go.dataset.act = 'continue';
+				go.addEventListener('click', function () {
+					// only a reader who got this far is spared it next time;
+					// cancelling leaves the note to be said again
+					try { window.localStorage.setItem(COOKIE_NOTE_KEY, '1'); } catch (e) { /* non-fatal */ }
+					close(true);
+				});
+				actions.append(cancel, go);
+				panel.append(heading, message, actions);
+				overlay.appendChild(panel);
+				overlay.addEventListener('click', e => { if (e.target === overlay) { close(false); } });
+				document.body.appendChild(overlay);
+				modal = initModal(overlay, { initialFocus: go, onRequestClose: () => close(false) });
+			});
+		},
 		pickFile = async function () {
+			if (!await cookieNote()) { return null; }
 			await ensurePicker();
 			const token = await ensureToken();
 			return new Promise(function (resolve) {

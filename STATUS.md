@@ -1,5 +1,27 @@
 # Because (formerly ArgumentBase) — status (2026-08-03)
 
+## 2026-08-03 — Safari blocks the Picker's cookies, and the app says so first
+
+- With My Drive as the opening tab, **Safari showed Google's "Can't access
+  your Google Account" page where the file list should be**, while Chrome
+  showed the files. This is not our code: Safari has blocked cookies for
+  any site other than the one in the address bar since 2020, the Picker is
+  a `docs.google.com` frame inside our page, and without a storage-access
+  grant Google refuses to draw it. Allowing cookie access when Safari asks
+  fixes it immediately and Safari remembers the grant; Chrome still allows
+  the cookie and never shows that page at all.
+- **The root pin is load-bearing in WebKit.** Bisected by hand in a live
+  Safari with the grant already given for that origin: the My Drive view
+  *without* `setParent('root')` still failed where the pinned one worked.
+  One trial, so not a law — but the pin costs nothing and `drive-e2e` now
+  asserts it, so the unpinned view cannot come back by accident.
+- Google's page names neither the cause nor the fix, so `drive.js` says it
+  first: a one-time note before the Picker opens, WebKit only, remembered
+  in `localStorage` as `because.drive.cookienote`. Same shape as the print
+  dialog's Safari note — `webkit-e2e` asserts it appears, that it precedes
+  the Picker, and that it is not repeated; `drive-e2e` asserts Chrome never
+  sees it, where it would be both a lie and an extra click.
+
 ## 2026-08-03 — One stalled request could hang the editor silently; now it can't
 
 - Simon reported the editor hanging for minutes on opening, intermittently

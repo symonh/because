@@ -183,6 +183,34 @@ file picked from a shared drive opens. `drive-e2e` asserts that order.
 The tab *labels* come from Google and no test can see them, so check
 them by hand after touching the views.
 
+Keep the `setParent('root')` pin. Tested by hand in Safari with the
+cookie grant already given (see below), a My Drive view without it draws
+the "Can't access your Google Account" page where the pinned one draws
+the files.
+
+## Safari blocks the Picker's cookies (2026-08-03)
+
+The Picker renders in a `docs.google.com` frame, and Safari has blocked
+cookies for any site other than the one in the address bar since 2020.
+Without a storage-access grant Google fills the frame with **"Can't
+access your Google Account — try signing into your Google account or
+allowing cookie access to proceed"**. The OAuth token is not the
+problem: GIS signs in through a first-party popup, which is why the app
+gets far enough to open a dialog at all.
+
+Allowing cookie access when Safari asks fixes it for that site and
+Safari remembers the grant. Chrome allows the cookie and never shows the
+page. Nothing in this repo can request the grant on Google's behalf:
+`requestStorageAccess` belongs to the embedded frame, and Safari has no
+public top-level `requestStorageAccessFor`. So the app explains it
+instead — `drive.js` shows a one-time WebKit-only note before opening
+the Picker (`because.drive.cookienote` in `localStorage`).
+
+Like the developer-key failure above, this is invisible to the stubbed
+suite: the note itself is gated by `webkit-e2e` / `drive-e2e`, but
+whether Google's frame draws can only be seen by opening the live app in
+a real Safari.
+
 ## What instructors get once the ID is in
 
 - **File → Open from Google Drive…** — Google sign-in (first time only),
