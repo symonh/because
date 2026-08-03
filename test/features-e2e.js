@@ -1454,6 +1454,152 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 		document.getElementById('mobilebar').hidden),
 		'widening the viewport hands control back to the stored desktop layout');
 
+	// ---- print / save as PDF (print.js) ----
+	// The map lives in a scrolling viewport at whatever pan the user left
+	// it at, so printing used to send the paper whatever happened to fall
+	// under its top-left corner — usually nothing. Everything below is
+	// measured through beforeprint, which is the path ⌘P takes too.
+	await page.evaluate(async () => {
+		const json = await (await window.fetch('/samples/vegetarian.mup')).json();
+		window.__because.engine.loadMap(json);
+	});
+	await sleep(1200);
+	// pan hard, and select a claim: the printed sheet must carry neither the
+	// pan nor the selection outline, and the editor must get both back
+	const panned = await page.evaluate(() => {
+		const c = document.getElementById('map-container'),
+			m = window.__because.engine.mapModel,
+			// a claim other than the one the loader selected, so the
+			// selection really changes and paints its outline
+			ids = Array.from(document.querySelectorAll('[data-mapjs-role=node]'))
+				.map(n => Number(n.id.replace('node_', '')))
+				.filter(id => id && id !== m.getSelectedNodeId());
+		m.selectNode(ids[ids.length - 1]);
+		c.scrollLeft = 140;
+		c.scrollTop = 90;
+		window.__because.print.setOptions({ fit: 'page', orientation: 'auto' });
+		return { left: c.scrollLeft, top: c.scrollTop };
+	});
+	await sleep(300);
+	ok(await page.evaluate(() => document.querySelectorAll('.activated, .selected').length) > 0,
+		'a claim is selected before printing');
+
+	// page.pdf drives the browser's own print, beforeprint and afterprint
+	// included — the same path ⌘P takes. The bytes are the deliverable.
+	const raw = pdf => Buffer.from(pdf).toString('latin1'),
+		pageCount = pdf => (raw(pdf).match(/\/Type\s*\/Page[^s]/g) || []).length,
+		mediaBox = pdf => (raw(pdf).match(/\/MediaBox\s*\[([^\]]*)\]/) || [])[1];
+	const fitPagePdf = await page.pdf({ printBackground: true, preferCSSPageSize: true });
+	ok(pageCount(fitPagePdf) === 1, `fit to page produces exactly one page (${pageCount(fitPagePdf)})`);
+	ok(/^0 0 792 612\s*$/.test(mediaBox(fitPagePdf) || ''),
+		`and it is a landscape sheet (MediaBox ${mediaBox(fitPagePdf)})`);
+	await sleep(300);
+	const restored = await page.evaluate(() => {
+		const c = document.getElementById('map-container');
+		return {
+			left: c.scrollLeft,
+			top: c.scrollTop,
+			// only compare against what the viewport can still scroll to
+			maxLeft: Math.max(0, c.scrollWidth - c.clientWidth),
+			maxTop: Math.max(0, c.scrollHeight - c.clientHeight),
+			outlines: document.querySelectorAll('.activated, .selected').length,
+			width: c.getBoundingClientRect().width
+		};
+	});
+	ok(restored.left === Math.min(panned.left, restored.maxLeft) &&
+		restored.top === Math.min(panned.top, restored.maxTop),
+		`printing hands the editor its scroll position back (${panned.left},${panned.top} -> ` +
+		`${restored.left},${restored.top})`);
+	ok(restored.outlines > 0, 'and the selection outline comes back');
+
+	// full size: the page is cut to the map instead of the map to the page
+	await page.evaluate(() => window.__because.print.setOptions({ fit: 'map' }));
+	const fullPdf = await page.pdf({ printBackground: true, preferCSSPageSize: true });
+	const fullPlan = await page.evaluate(() => window.__because.print.plan()),
+		fullBox = (mediaBox(fullPdf) || '').split(/\s+/).map(Number);
+	ok(pageCount(fullPdf) === 1, 'full size is still a single page');
+	ok(Math.abs(fullBox[2] - fullPlan.boxW * 0.75) < 2 && Math.abs(fullBox[3] - fullPlan.boxH * 0.75) < 2,
+		`the full-size page is cut to the map (${fullBox[2]}×${fullBox[3]}pt for a ` +
+		`${Math.round(fullPlan.map.w)}×${Math.round(fullPlan.map.h)} map)`);
+
+	// and the geometry itself, in the print layout
+	await page.evaluate(() => window.__because.print.setOptions({ fit: 'page', orientation: 'auto' }));
+	const screenWidth = await page.evaluate(() =>
+		document.getElementById('map-container').getBoundingClientRect().width);
+	await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
+	ok(await page.evaluate(() =>
+		document.getElementById('map-container').getBoundingClientRect().width) === screenWidth,
+		'the print stylesheet leaves the screen layout alone');
+
+	await page.emulateMediaType('print');
+	await sleep(200);
+	const printed = await page.evaluate(() => {
+		const c = document.getElementById('map-container'),
+			box = c.getBoundingClientRect(),
+			parts = Array.from(document.querySelectorAll('[data-mapjs-role=node],' +
+				'[data-mapjs-role=svg-container] path'))
+				.map(el => el.getBoundingClientRect())
+				.filter(r => r.width || r.height);
+		return {
+			parts: parts.length,
+			outside: parts.filter(r => r.left < box.left - 1 || r.right > box.right + 1 ||
+				r.top < box.top - 1 || r.bottom > box.bottom + 1).length,
+			box: { w: Math.round(box.width), h: Math.round(box.height) },
+			chromeHidden: getComputedStyle(document.getElementById('topbar')).display === 'none',
+			selectionOutlines: document.querySelectorAll('.activated, .selected').length
+		};
+	});
+	ok(printed.parts > 5 && printed.outside === 0,
+		`the whole panned map prints inside the page box (${printed.parts} parts, ${printed.outside} outside)`);
+	// 255×180mm at 96dpi: the box A4 and US Letter both contain in landscape
+	ok(printed.box.w === 964 && printed.box.h === 680,
+		`the page box is the A4/Letter-safe landscape box (${printed.box.w}×${printed.box.h})`);
+	ok(printed.chromeHidden, 'the chrome is off the printed sheet');
+	ok(printed.selectionOutlines === 0, 'the selection outline is off the printed sheet');
+	await page.emulateMediaType(null);
+	await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+	await sleep(200);
+
+	// the File menu opens the options dialog, and Escape leaves without printing
+	let printCalls = 0;
+	page.on('dialog', () => { printCalls += 1; });
+	await page.evaluate(() => {
+		Array.from(document.querySelectorAll('.menu-title')).find(t => t.textContent === 'File').click();
+		Array.from(document.querySelectorAll('.menu-item'))
+			.find(i => i.textContent.indexOf('Print') === 0).click();
+	});
+	await sleep(250);
+	ok(await page.evaluate(() => {
+		const p = document.querySelector('.print-panel');
+		return !!p && p.querySelectorAll('input[type=radio]').length === 5 &&
+			document.activeElement.dataset.act === 'save';
+	}), 'File > Print opens the options dialog with Print focused');
+	// the hint reads the map that is actually loaded
+	ok(await page.evaluate(() => /page/.test(document.querySelector('.print-hint').textContent)),
+		'the dialog says what the sheet will be');
+	await page.keyboard.press('Escape');
+	await sleep(200);
+	ok(await page.evaluate(() => !document.querySelector('.print-panel')) && printCalls === 0,
+		'Escape closes the dialog without printing');
+
+	// and the Print button itself: the sheet is laid out and focus goes back
+	// to the map, inside the click that started it (Safari spends the gesture
+	// the moment the handler returns)
+	await page.evaluate(() => {
+		document.getElementById('print-css').remove();
+		window.__because.print.open();
+	});
+	await sleep(200);
+	await page.click('.print-panel button[data-act=save]');
+	await sleep(300);
+	ok(await page.evaluate(() => {
+		const map = document.getElementById('map-container'),
+			a = document.activeElement;
+		return !document.querySelector('.print-panel') &&
+			!!document.getElementById('print-css') &&
+			!!a && (a === map || map.contains(a));
+	}), 'Print lays out the sheet, closes the dialog and returns focus to the map');
+
 	if (errors.length) { console.log('PAGE ERRORS:', errors.join(' | ')); failures += 1; }
 	await browser.close();
 	console.log(failures === 0 ? 'ALL PASS' : failures + ' FAILURES');

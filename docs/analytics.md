@@ -46,6 +46,8 @@ GA4 is the replacement and its web streams use `G-…` measurement ids.
    | Layout | `layout` | Event |
    | Help panel | `panel` | Event |
    | Intro trigger | `trigger` | Event |
+   | Print fit | `fit` | Event |
+   | Print orientation | `orientation` | Event |
    | Dark mode | `dark_mode` | User |
    | Neutral connectors | `neutral_connectors` | User |
 
@@ -61,7 +63,7 @@ GA4 is the replacement and its web streams use `G-…` measurement ids.
 | `map_save` | `destination` (`file`, `download`, `drive`, `onedrive`), `mode` (`save`, `save_as`, `save_copy`, `guard`, `auto`) | a save completes (`guard` = via the unsaved-changes dialog, `auto` = auto-save wrote the map's own file) |
 | `auto_save_toggle` | `enabled` (`on`/`off`) | File > Auto-save toggled |
 | `auto_save_error` | `description` (truncated) | an auto-save attempt failed; auto-save pauses until the next successful save |
-| `map_print` | — | print / save-as-PDF starts |
+| `map_print` | `fit` (`page`, `map`), `orientation` (`auto`, `landscape`, `portrait`) | print / save-as-PDF starts, by any route (File > Print, ⌘P, the browser's own menu); the parameters are the page choices in `print.js`, persisted in `localStorage` as `because.print` |
 | `command` | `command_name` (the `commands.js` name, e.g. `addReason`), `method` (`menu`, `toolbar`, `shortcut`, `style_popover`) | any command runs, tagged by UI surface |
 | `edit_batch` | `changes` | batched count of model changes, flushed when the tab hides and every 2 minutes — measures editing intensity without per-keystroke events |
 | `connector_action` | `action` (`stronger`, `weaker`, `label_edit`, `label_set`, `label_cleared`), `has_label` | connector popover and label editing |

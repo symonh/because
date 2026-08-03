@@ -394,6 +394,36 @@ body.layout-left .tb-sep { width: 18px; height: 1px; margin: 4px 0; }
 	border-color: #16749f;
 	color: #fff;
 }
+/* Print / Save as PDF dialog (print.js). The two choices are radio groups
+ * in fieldsets so the legend names them for a screen reader; the
+ * orientation set is disabled outright when the page is cut to the map,
+ * which has no orientation to pick. */
+.print-panel { width: 400px; }
+.print-panel fieldset {
+	border: 1px solid #e0e0e0;
+	border-radius: 6px;
+	margin: 0 0 12px;
+	padding: 6px 12px 10px;
+}
+.print-panel legend {
+	padding: 0 4px;
+	color: #555;
+	font-size: 12px;
+}
+.print-panel label {
+	display: block;
+	padding: 3px 0;
+	cursor: pointer;
+}
+.print-panel fieldset:disabled { opacity: 0.55; }
+.print-panel fieldset:disabled label { cursor: default; }
+.print-hint { margin: 0; }
+.print-hint.print-warn { color: #a33b12; }
+.print-note {
+	margin: 8px 0 0;
+	color: #666;
+	font-size: 12px;
+}
 .od-panel { width: 420px; }
 .od-crumb { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .od-crumb .od-path { color: #666; font-size: 13px; }
@@ -739,6 +769,10 @@ body.dark .panel-actions button[data-act='save'] {
 	border-color: #16749f;
 	color: #fff;
 }
+body.dark .print-panel fieldset { border-color: #4a5057; }
+body.dark .print-panel legend { color: #a7adb3; }
+body.dark .print-hint.print-warn { color: #f0a172; }
+body.dark .print-note { color: #a7adb3; }
 body.dark .od-up {
 	background: #34393f;
 	border-color: #4a5057;
@@ -857,8 +891,15 @@ body.dark #map-container:focus-visible {
 	#skip-link { transition: none; }
 }
 
+/* ---- printing --------------------------------------------------------
+ * The rules that make a printed sheet are written at print time by
+ * print.js (#print-css), because they depend on the map's measured
+ * extent: the page box, the fit scale and the stage transform are all
+ * computed then. What stays here is the fallback for the case where that
+ * never runs — an empty map, or a script error — plus the chrome hiding,
+ * which is worth having in the stylesheet so it applies even then. */
 @media print {
-	#topbar, #toolbar, #mobilebar, #float-chrome { display: none; }
+	#topbar, #toolbar, #mobilebar, #float-chrome, #skip-link { display: none; }
 	/* collapse the grid to the map alone: the left rail's 46px column would
 	 * otherwise stay as an empty gutter on the page */
 	body.layout-left, body.layout-floating, body.layout-classic {

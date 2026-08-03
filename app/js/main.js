@@ -12,6 +12,7 @@ import { makeNumberEdit } from './number-edit.js';
 import { makeNodeStyle } from './node-style.js';
 import { makeLoading } from './loading.js';
 import { makeIntro } from './intro.js';
+import { makePrint } from './print.js';
 import { makeShortcutHelp } from './shortcut-help.js';
 import { makeMenus } from './menus.js';
 import { initLayout } from './layout.js';
@@ -71,7 +72,10 @@ document.addEventListener('DOMContentLoaded', function () {
 		numberEdit = makeNumberEdit(engine),
 		nodeStyle = makeNodeStyle(engine, instrument('style_popover')),
 		loading = makeLoading(),
-		intro = makeIntro();
+		intro = makeIntro(),
+		// after dark mode: its own beforeprint listener flips the map to
+		// light first, and this one measures what will actually be printed
+		print = makePrint(document.getElementById('map-container'));
 
 	// menus and layout each need the other — the View menu switches layout,
 	// and the floating and mobile layouts render the menu spec as a flyout —
@@ -79,7 +83,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	let layout = null;
 	const menus = makeMenus(instrument('menu'), io, engine, drive, onedrive, darkMode,
 		labelEdit, nodeStyle, intro, numberEdit,
-		{ get: () => layout.getLayout(), set: m => layout.setLayout(m) }, neutralPref);
+		{ get: () => layout.getLayout(), set: m => layout.setLayout(m) }, neutralPref, print);
 	menus.renderMenubar(document.getElementById('menubar'));
 	layout = initLayout(instrument('toolbar'), io, menus, neutralPref);
 	bindShortcuts(engine, instrument('shortcut'), neutralPref);
@@ -100,7 +104,7 @@ document.addEventListener('DOMContentLoaded', function () {
 				(json && json.theme ? 'embedded' : 'default')
 		});
 	});
-	window.addEventListener('beforeprint', () => track('map_print', {}));
+	// map_print rides in print.js, which knows the page choices it fires with
 
 	// top-right light/dark switcher; the View menu toggles the same state
 	const themeToggle = document.getElementById('theme-toggle'),
@@ -134,7 +138,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	engine.on('loadFinished', () => loading.hide());
 
 	// dev/test handle
-	window.__because = { engine, commands, io, drive, onedrive, darkMode, neutralPref, layout, labelEdit, numberEdit, nodeStyle, intro, shortcutHelp, analytics: analyticsApi };
+	window.__because = { engine, commands, io, drive, onedrive, darkMode, neutralPref, layout, labelEdit, numberEdit, nodeStyle, intro, shortcutHelp, print, analytics: analyticsApi };
 
 	// every model change marks the map unsaved (relative to its file) and
 	// refreshes the crash-recovery autosave; only File > Save clears it

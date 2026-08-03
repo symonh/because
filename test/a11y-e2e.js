@@ -346,6 +346,48 @@ const AXE_OPTS = {
 	ok(await page.evaluate(() => !document.querySelector('.panel-overlay') && window.__because.io.isDirty()),
 		'Escape cancels the guard, map stays dirty');
 
+	// ---- print options dialog ----
+	await page.evaluate(() => window.__because.print.open());
+	await page.waitForTimeout(250);
+	ok(await page.evaluate(() => {
+		const p = document.querySelector('.print-panel'),
+			a = document.activeElement;
+		return p && p.getAttribute('role') === 'dialog' && p.getAttribute('aria-modal') === 'true' &&
+			a && a.dataset && a.dataset.act === 'save';
+	}), 'print dialog is a modal dialog focusing Print');
+	// each choice is a named radio group, so a screen reader announces what
+	// is being chosen and arrow keys move within it
+	ok(await page.evaluate(() => {
+		const sets = Array.from(document.querySelectorAll('.print-panel fieldset'));
+		return sets.length === 2 && sets.every(s => !!s.querySelector('legend') &&
+			s.querySelectorAll('input[type=radio]').length >= 2 &&
+			s.querySelectorAll('label input').length === s.querySelectorAll('input').length);
+	}), 'both choices are legend-labelled radio groups with labelled options');
+	// with the warning colour showing: a map too big to print legibly at
+	// page size is the only extra colour this dialog introduces
+	await page.evaluate(() => document.querySelector('.print-hint').classList.add('print-warn'));
+	await axeScan('print dialog');
+	await page.evaluate(() => document.body.classList.add('dark'));
+	await page.waitForTimeout(150);
+	await axeScan('print dialog, dark');
+	await page.evaluate(() => document.body.classList.remove('dark'));
+	// picking the map-sized page disables the orientation group rather than
+	// leaving a control that does nothing
+	await page.evaluate(() => {
+		const map = document.querySelector('.print-panel input[value=map]');
+		map.checked = true;
+		map.dispatchEvent(new Event('change', { bubbles: true }));
+	});
+	await page.waitForTimeout(150);
+	ok(await page.evaluate(() =>
+		document.querySelectorAll('.print-panel fieldset')[1].disabled),
+		'a page cut to the map disables the orientation group');
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(150);
+	ok(await page.evaluate(() => !document.querySelector('.print-panel')),
+		'Escape closes the print dialog');
+	await page.evaluate(() => window.__because.print.setOptions({ fit: 'page', orientation: 'auto' }));
+
 	// ---- dark mode ----
 	await page.evaluate(() => window.__because.darkMode.toggle());
 	await page.waitForTimeout(400);

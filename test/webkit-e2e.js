@@ -720,6 +720,78 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 		document.getElementById('toolbar').querySelectorAll('.tb-btn').length === 16),
 		'the flyout switches back to the rail and the menubar returns');
 
+	// ---- print / save as PDF, in the engine Simon prints from ----
+	// The page geometry is written by print.js at beforeprint; WebKit lays
+	// it out from the same stylesheet Chrome does, so what is checked here
+	// is that the map really lands inside the page box after a pan, and
+	// that the editor gets its view back afterwards.
+	await page.evaluate(async () => {
+		const json = await (await fetch('/samples/vegetarian.mup')).json();
+		window.__because.engine.loadMap(json);
+	});
+	await page.waitForTimeout(1200);
+	const wkPanned = await page.evaluate(() => {
+		const c = document.getElementById('map-container'),
+			m = window.__because.engine.mapModel,
+			ids = Array.from(document.querySelectorAll('[data-mapjs-role=node]'))
+				.map(n => Number(n.id.replace('node_', '')))
+				.filter(id => id && id !== m.getSelectedNodeId());
+		m.selectNode(ids[ids.length - 1]);
+		c.scrollLeft = 140;
+		c.scrollTop = 90;
+		window.__because.print.setOptions({ fit: 'page', orientation: 'auto' });
+		window.dispatchEvent(new Event('beforeprint'));
+		return {
+			left: c.scrollLeft,
+			top: c.scrollTop,
+			// the two properties the sheet leans on beyond plain box model
+			clip: window.CSS.supports('overflow', 'clip'),
+			contain: window.CSS.supports('contain', 'strict')
+		};
+	});
+	ok(wkPanned.clip && wkPanned.contain,
+		`WebKit supports the containment the print sheet uses (clip=${wkPanned.clip}, contain=${wkPanned.contain})`);
+	await page.emulateMedia({ media: 'print' });
+	await page.waitForTimeout(250);
+	const wkPrint = await page.evaluate(() => {
+		const c = document.getElementById('map-container'),
+			box = c.getBoundingClientRect(),
+			parts = Array.from(document.querySelectorAll('[data-mapjs-role=node],' +
+				'[data-mapjs-role=svg-container] path'))
+				.map(el => el.getBoundingClientRect())
+				.filter(r => r.width || r.height);
+		return {
+			parts: parts.length,
+			outside: parts.filter(r => r.left < box.left - 1 || r.right > box.right + 1 ||
+				r.top < box.top - 1 || r.bottom > box.bottom + 1).length,
+			box: { w: Math.round(box.width), h: Math.round(box.height) },
+			chromeHidden: getComputedStyle(document.getElementById('topbar')).display === 'none',
+			outlines: document.querySelectorAll('.activated, .selected').length
+		};
+	});
+	ok(wkPrint.parts > 5 && wkPrint.outside === 0,
+		`WebKit prints the whole panned map inside the page box (${wkPrint.parts} parts, ${wkPrint.outside} outside)`);
+	ok(wkPrint.box.w === 964 && wkPrint.box.h === 680,
+		`the page box is the A4/Letter-safe landscape box (${wkPrint.box.w}×${wkPrint.box.h})`);
+	ok(wkPrint.chromeHidden && wkPrint.outlines === 0,
+		'the chrome and the selection outline stay off the sheet');
+	await page.emulateMedia({ media: 'screen' });
+	await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+	await page.waitForTimeout(300);
+	const wkBack = await page.evaluate(() => {
+		const c = document.getElementById('map-container');
+		return {
+			left: c.scrollLeft,
+			top: c.scrollTop,
+			maxLeft: Math.max(0, c.scrollWidth - c.clientWidth),
+			maxTop: Math.max(0, c.scrollHeight - c.clientHeight),
+			outlines: document.querySelectorAll('.activated, .selected').length
+		};
+	});
+	ok(wkBack.left === Math.min(wkPanned.left, wkBack.maxLeft) &&
+		wkBack.top === Math.min(wkPanned.top, wkBack.maxTop) && wkBack.outlines > 0,
+		`afterprint restores the pan and the selection outline (${wkBack.left},${wkBack.top})`);
+
 	await page.screenshot({ path: '/tmp/webkit_open.png' });
 	if (errors.length) { console.log('PAGE ERRORS:', errors.join(' | ')); failures += 1; }
 	await browser.close();

@@ -18,7 +18,7 @@
 import { track } from './analytics.js';
 import { initModal } from './a11y.js';
 
-export function makeMenus(commands, io, engine, drive, onedrive, darkMode, labelEdit, nodeStyle, intro, numberEdit, layout, neutralPref) {
+export function makeMenus(commands, io, engine, drive, onedrive, darkMode, labelEdit, nodeStyle, intro, numberEdit, layout, neutralPref, print) {
 	const chooseLayout = mode => () => {
 			track('layout_select', { layout: mode });
 			layout.set(mode);
@@ -56,7 +56,7 @@ export function makeMenus(commands, io, engine, drive, onedrive, darkMode, label
 			['Switch Microsoft account…' + (onedrive && onedrive.account && onedrive.account() ?
 				' (' + onedrive.account() + ')' : ''), oneDriveItem(() => onedrive.switchAccount())],
 			['—'],
-			['Print / Save as PDF', () => window.print()]
+			['Print / Save as PDF…', () => print.open()]
 		]],
 		['Insert', () => [
 			['Reason (Enter)', commands.addReason],

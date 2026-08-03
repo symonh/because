@@ -1,5 +1,78 @@
 # Because (formerly ArgumentBase) — status (2026-08-03)
 
+## 2026-08-03 — Printing lays the page out itself instead of hoping
+
+- **Printing sent the paper whatever happened to fall under its
+  top-left corner.** File > Print was `window.print()` plus a print
+  stylesheet that hid the chrome; the browser then printed the document
+  as it is laid out, and `#map-container` is a scrolling viewport with a
+  mostly empty stage inside it and the map parked at whatever pan the
+  user left. A map sitting right of centre printed a blank sheet; a map
+  near the stage origin printed and was cut off at the page edge.
+  Dragging the map left is not a fix, since a map wider than the paper
+  runs off it wherever it starts. mapjs never had a print path — MindMup
+  rendered its PDFs server-side in the closed app layer — so `print.js`
+  is that path, written the way the rest of `app/js/` fills those gaps.
+- **What it does**: at `beforeprint` it measures the map's real extent
+  from the rendered DOM (every node rect and every connector shape,
+  divided back through the stage's own zoom), then writes `#print-css`:
+  a `@media print` block that cuts `#map-container` to a page-sized box,
+  centres it with `margin: 0 auto`, and transforms the stage so the map
+  lands inside it, scaled to fit and centred. Measuring the DOM rather
+  than the model means brackets, arrowheads, connector labels and
+  sticky notes are inside the extent without this knowing about them.
+- Hanging it on `beforeprint` rather than on the menu item is what makes
+  ⌘P, the browser's own print menu and File > Print produce the same
+  sheet. The menu item now opens an options dialog — *Fit the whole map
+  on one page* (default) or *Full size, on a page as large as the map*,
+  MindMup's own "fit to map", plus orientation — and the choice persists
+  in `localStorage` as `because.print`.
+- **The paper is the browser's business and it never tells us which is
+  loaded**, so fit-to-page targets 255×180mm: the box A4 (210×297) and
+  US Letter (216×279) both contain, in either orientation, with ≥10mm of
+  margin left over. `@page` declares an orientation and a margin and
+  never a paper size, which would fight the user's own choice in the
+  print dialog. Full size declares `size: <w>mm <h>mm` instead and
+  prints at 1:1; if the map is bigger than a page can be (Chrome stops
+  at 200in) it shrinks rather than clips.
+- Nothing outside `@media print` changes, so a stale rule cannot affect
+  the screen. The only live-DOM changes are the container's scroll
+  offset and the selection outline — both view state, never map data —
+  restored on `afterprint`, again on the next animation frame (the
+  screen layout is not always back when the event fires, and a
+  page-sized container clamps the offset to zero), and by a 60-second
+  fallback timer for a print cancelled without an `afterprint`.
+- **Three things only measuring real PDFs would have found.** First,
+  mapjs pans by *animating* `scrollTop`/`scrollLeft` (`viewPort.animate`
+  in `dom-map-controller.js`), and dark mode's flip to light for
+  printing triggers a rebuild that starts one — it was still writing
+  offsets while the sheet was being laid out, sliding a 53-node map
+  clean off the page. The container is `overflow: clip` in print (not a
+  scroll container at all), the animation is stopped and the offset
+  zeroed. Second, **Chrome shrinks a document wider than the paper to
+  fit it**, and it counts the stage's off-page extent towards that width
+  even though the box clips it: a wide map came out at two thirds of the
+  size it had been fitted to. `contain: strict` on the container is what
+  stops the contents counting — safe precisely because the box's width
+  and height are explicit. Third, a fallback built on print media
+  queries was abandoned: with `@page { size: landscape }` honoured and
+  the PDF landscape, `print and (min-width: …)` still reported Letter
+  *portrait*, so the queries cannot see the page they are printing.
+- Where it degrades: an engine that ignores `@page size` prints on
+  whatever sheet the user chose, and if that is portrait the 255mm-wide
+  box is wider than the paper — the browser's own shrink-to-fit then
+  makes it smaller but still whole. WebKit parses both `size` forms
+  through CSSOM and supports `overflow: clip` and `contain: strict`
+  (webkit-e2e asserts the last two), so Safari should take the declared
+  orientation; that is the one part of this that cannot be tested
+  headlessly, since Playwright's WebKit cannot print.
+- Gates: `features-e2e` prints real PDFs through `page.pdf` (which fires
+  `beforeprint`/`afterprint`, so it exercises the ⌘P path) and asserts
+  one page, a landscape MediaBox, a full-size page cut to the map, and
+  that the pan and the selection come back; both it and `webkit-e2e`
+  assert that every node and connector of a panned map lands inside the
+  page box; `a11y-e2e` scans the dialog in light and dark.
+
 ## 2026-08-03 — Drive's Picker broke on Google's side; the key needed docs.google.com
 
 - **"There was an error! The API developer key is invalid."** filled the
