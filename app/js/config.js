@@ -1,9 +1,20 @@
 /*
  * Google Drive integration config.
  *
- * apiKey is a browser key restricted to the Drive + Picker APIs and to
- * the app.philmaps.com / argumentbase.web.app / localhost referrers, so
- * it is safe in public code. clientId is the "Because web" OAuth 2.0 Web
+ * apiKey is a browser key restricted to the Drive + Picker APIs. Its
+ * referrer list must include `https://docs.google.com/*` alongside our
+ * own origins: the Picker checks the developer key from inside its own
+ * docs.google.com frame, not from the embedding page, so a key allowed
+ * only on app.philmaps.com is rejected with "The API developer key is
+ * invalid" (2026-08-03 — see STATUS.md). That means the referrer list no
+ * longer pins the key to this site, and the key is used for nothing but
+ * `setDeveloperKey` on the Picker. What keeps it safe in public code is
+ * that an API key grants no access to anyone's files: every Drive read
+ * and write in drive.js goes out under the user's own OAuth drive.file
+ * token, and the API restriction caps a stolen key at Drive + Picker
+ * quota.
+ *
+ * clientId is the "Because web" OAuth 2.0 Web
  * client (Google Auth Platform, project driveshare-446802) — a public
  * identifier by design; the client secret is NOT used anywhere (the GIS
  * token flow is purely client-side).

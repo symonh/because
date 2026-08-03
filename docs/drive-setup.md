@@ -4,8 +4,10 @@ Everything scriptable is already done (project `driveshare-446802`):
 
 - Drive API and Picker API are enabled.
 - A browser API key exists, restricted to those two APIs and to the
-  `app.philmaps.com` / `argumentbase.web.app` / localhost referrers. It is
-  in `app/js/config.js` and is safe in public code.
+  `app.philmaps.com` / `argumentbase.web.app` / localhost referrers **plus
+  `https://docs.google.com/*`** — see "The referrer list must include
+  docs.google.com" below, which is not optional. It is in
+  `app/js/config.js` and is safe in public code.
 - The app is hosted at https://app.philmaps.com (Firebase Hosting; the
   underlying site keeps the legacy id `argumentbase`, so
   argumentbase.web.app serves the same content) — a real origin, which
@@ -112,6 +114,57 @@ time with the same two findings while the field is verbatim
 manual review — at that point the page satisfies every published
 requirement and the loop matches the known checker false-negative
 threads.
+
+## The referrer list must include docs.google.com (2026-08-03)
+
+The Picker started failing with a full-dialog **"There was an error! The
+API developer key is invalid."** without anything in this repo changing.
+The cause is where Google checks the key: the Picker validates
+`setDeveloperKey` from inside its own `https://docs.google.com/picker`
+frame, so the referrer it presents is docs.google.com — not the
+embedding page. A key allowed only on our own origins is therefore
+rejected, and the app's `origin=` / `hostId=` parameters have no bearing
+on it.
+
+Bisected against the live app by swapping throwaway keys (all other
+inputs held constant — same OAuth token, same `appId`, bare `DocsView`):
+
+| Allowed referrers | Picker |
+| --- | --- |
+| `app.philmaps.com/*` + Drive/Picker API restrictions (what shipped) | rejected |
+| `app.philmaps.com/*` alone | rejected |
+| `app.philmaps.com` (bare origin, no `/*`) | rejected |
+| `app.philmaps.com/*` **+ `docs.google.com/*`** | works |
+| `docs.google.com/*` alone | works |
+| no referrer restriction, API restrictions only | works |
+| no restrictions at all | works |
+
+So `https://docs.google.com/*` is both necessary and sufficient; our own
+origins are kept in the list because they cost nothing and will start
+mattering again if Google reverts to checking the embedding page.
+
+Two things follow. First, the referrer restriction no longer pins this
+key to this site — any page under docs.google.com satisfies it. The
+protections that actually carry weight are the API restriction (Drive +
+Picker only) and the fact that an API key opens no files: `drive.js`
+uses it for nothing but `setDeveloperKey`, and every read and write goes
+out under the user's own OAuth `drive.file` token. Second, the failure is
+invisible to the test suite, because `drive-e2e.js` stubs the token and
+never reaches Google's servers — the Picker is not automatable without a
+real Google sign-in, so this specific breakage can only be caught by
+opening the live app. Check it by hand after any change to the key.
+
+To inspect or repair the key:
+
+```
+gcloud services api-keys list --project=driveshare-446802 --format=json
+gcloud services api-keys update \
+  projects/839787428721/locations/global/keys/68f94232-78cb-4117-bf16-0ee15ff23b6e \
+  --allowed-referrers="https://app.philmaps.com/*,https://argumentbase.web.app/*,http://localhost:8871/*,http://127.0.0.1:8871/*,https://docs.google.com/*"
+```
+
+Key edits take roughly a minute to propagate; re-test before concluding
+a change did nothing.
 
 ## What instructors get once the ID is in
 

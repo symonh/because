@@ -1,4 +1,31 @@
-# Because (formerly ArgumentBase) — status (2026-07-29)
+# Because (formerly ArgumentBase) — status (2026-08-03)
+
+## 2026-08-03 — Drive's Picker broke on Google's side; the key needed docs.google.com
+
+- **"There was an error! The API developer key is invalid."** filled the
+  Picker dialog for every Drive open, with nothing in this repo touched:
+  `config.js` and `drive.js` are unchanged since the OneDrive commit, and
+  the deployed `config.js` is byte-identical to the local one. The
+  project was healthy too — ACTIVE, billing on, Drive **and** Picker APIs
+  enabled, the key alive with exactly the restrictions the docs claimed.
+- The check that mattered is not the one the config comment described.
+  The Picker validates `setDeveloperKey` from inside its own
+  `docs.google.com/picker` frame, so the referrer it presents is
+  docs.google.com, not app.philmaps.com. Bisected with throwaway keys
+  against the live app: `app.philmaps.com/*` alone → rejected; bare
+  origin without `/*` → rejected; `docs.google.com/*` alone → works; no
+  referrer restriction → works. Adding `https://docs.google.com/*` to the
+  existing key fixed it, no deploy required. Full truth table and the
+  gcloud repair command: docs/drive-setup.md.
+- Consequence worth stating plainly: the referrer list no longer pins the
+  key to this site. What keeps it publishable is that an API key opens no
+  files — `drive.js` uses it only for `setDeveloperKey`, and every read
+  and write travels under the user's OAuth `drive.file` token — plus the
+  API restriction capping a stolen key at Drive + Picker quota.
+- The test suite could not have caught this and still can't: `drive-e2e`
+  stubs the token and never reaches Google, and the Picker needs a real
+  sign-in to exercise. It was found by driving the live app in a browser,
+  which is the only way to find it again.
 
 ## 2026-07-29 — The landing page's map is a real map now
 
