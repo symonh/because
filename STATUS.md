@@ -1,5 +1,27 @@
 # Because (formerly ArgumentBase) — status (2026-08-03)
 
+## 2026-08-03 — A claim can be inserted attached to nothing
+
+- **Insert > Detached claim.** Until now a claim standing free on the
+  canvas could only be had by making a reason and dragging it out of the
+  tree, which is a two-step workaround for something the argument grammar
+  allows outright: a claim nobody has attached yet.
+- `addDetachedClaim` writes exactly what that drag writes — a child of the
+  content root carrying `attr.position` — so nothing else had to learn
+  anything. The layout draws it as a root, the numbering gives it a
+  top-level number (1.2 beside the conclusion's 1.1), and the `.mup`
+  records what MindMup's own format already recorded for a detached node.
+- It lands past the right edge of everything drawn, level with the top of
+  the map, so it never covers what is there and a second one lands clear
+  of the first. Off screen is fine: selecting it scrolls it into view,
+  which mapjs does on every selection change. It opens for typing at once,
+  and Escape instead of typing leaves nothing behind — the add and the
+  position are one batch, so mapjs's own undo-on-cancel takes back both.
+- Gated in both engines: `app-e2e` for the data, the placement, the
+  numbering, that no connector touches it, and the undo/Escape paths;
+  `webkit-e2e` because a menu click that hands focus to a contenteditable
+  is the exact shape of every Safari bug this project has had.
+
 ## 2026-08-03 — Safari blocks the Picker's cookies, and the app says so first
 
 - With My Drive as the opening tab, **Safari showed Google's "Can't access

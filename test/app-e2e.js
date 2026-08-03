@@ -881,6 +881,82 @@ function ok(cond, name) {
 	ok((await mapShape()).topLevel.join() === '2',
 		'D types a letter while editing a claim instead of detaching it');
 
+	// ---- Insert > Detached claim: the claim that attaches to nothing ----
+	// the same data a drag-out writes (root child + attr.position), which is
+	// why it needs no new handling anywhere else — layout, numbering, .mup
+	await page.evaluate(() => {
+		window.__because.engine.loadMap({ formatVersion: 3, id: 'root', attr: { theme: 'argMappingSimple' }, ideas: {
+			1: { id: 2, title: 'my conclusion', ideas: {
+				1: { id: 11, title: 'group', attr: { group: 'supporting', contentLocked: true }, ideas: {
+					1: { id: 12, title: 'Claim' },
+					2: { id: 13, title: 'Co-premise' }
+				} }
+			} }
+		} });
+	});
+	await page.waitForFunction(() => document.querySelector('#node_13'), { timeout: 5000 });
+	await new Promise(r => setTimeout(r, 400));
+	const extentBefore = await page.evaluate(() => {
+			const nodes = window.__because.engine.mapModel.getCurrentLayout().nodes,
+				ids = Object.keys(nodes);
+			return {
+				right: Math.max(...ids.map(k => nodes[k].x + nodes[k].width)),
+				top: Math.min(...ids.map(k => nodes[k].y))
+			};
+		}),
+		rootChildren = () => page.evaluate(() => {
+			const json = JSON.parse(window.__because.engine.serialize());
+			return Object.keys(json.ideas).map(k => ({
+				id: json.ideas[k].id,
+				title: json.ideas[k].title,
+				position: (json.ideas[k].attr || {}).position
+			}));
+		});
+	await clickMenu('Insert', 'Detached claim');
+	await new Promise(r => setTimeout(r, 500));
+	const inserted = (await rootChildren()).find(n => n.id !== 2);
+	ok(!!inserted && Array.isArray(inserted.position),
+		'Insert > Detached claim adds a root-level claim with a manual position');
+	ok(inserted && inserted.position[0] >= extentBefore.right &&
+		Math.abs(inserted.position[1] - extentBefore.top) <= 1,
+	`it lands clear of the map, level with its top (${inserted && inserted.position})`);
+	ok(await page.evaluate(() => !!document.querySelector('[data-mapjs-role=title][contenteditable="true"]')),
+		'it opens for typing straight away — no second click to name it');
+	await page.keyboard.type('Standing alone');
+	await page.keyboard.press('Enter');
+	await new Promise(r => setTimeout(r, 400));
+	const named = (await rootChildren()).find(n => n.id !== 2),
+		numbers = await page.evaluate(id => ({
+			conclusion: (document.querySelector('#node_2 .mapjs-label') || {}).textContent,
+			detached: (document.querySelector('#node_' + id + ' .mapjs-label') || {}).textContent,
+			// the map's own three (conclusion-bracket, bracket-premise ×2)
+			// and not one more: nothing joins to a detached claim
+			joined: Array.from(document.querySelectorAll('[data-mapjs-role=connector]'))
+				.map(c => c.id).filter(cid => cid.split('_').indexOf(String(id)) >= 0)
+		}), inserted && inserted.id);
+	ok(named && named.title === 'Standing alone', 'what is typed lands in the new claim');
+	ok(numbers.detached && numbers.detached !== numbers.conclusion,
+		`it is numbered as the top-level claim it is (${numbers.conclusion} / ${numbers.detached})`);
+	ok(numbers.joined.length === 0,
+		`it is joined to nothing — no connector touches it (${numbers.joined.join() || 'none'})`);
+	// undo: the title is its own step, then the claim and its position go
+	// together, exactly as for a new reason
+	await page.evaluate(() => document.getElementById('map-container').focus());
+	for (let i = 0; i < 2; i += 1) {
+		await page.keyboard.down('Meta');
+		await page.keyboard.press('z');
+		await page.keyboard.up('Meta');
+		await new Promise(r => setTimeout(r, 400));
+	}
+	ok((await rootChildren()).length === 1, 'two undos (title, then claim) leave the map as it was');
+	// Escape instead of typing takes the whole thing back
+	await clickMenu('Insert', 'Detached claim');
+	await new Promise(r => setTimeout(r, 400));
+	await page.keyboard.press('Escape');
+	await new Promise(r => setTimeout(r, 500));
+	ok((await rootChildren()).length === 1,
+		'Escape instead of typing leaves no empty claim behind');
+
 	// keyboard-layout independence (kept last so it can't shift the timing of
 	// the checks above): ⌘C/⌘V/⌘Z must follow the CHARACTER, not the physical
 	// QWERTY key. On Colemak-DH / Dvorak the c/v/z characters are typed from

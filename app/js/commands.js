@@ -13,6 +13,10 @@ const SOURCE = 'ui',
 	FONT_STEP = 1.2,
 	FONT_MIN = 0.4,
 	FONT_MAX = 4,
+	// clear air to the right of the map for a new detached claim: four times
+	// the theme's own 20px gap between siblings, so it reads as standing
+	// apart rather than as one more premise in a row
+	DETACHED_GAP = 80,
 	// a pasted subtree always lays out under its new parent; drop any manual
 	// positions (a copied root claim carries one) so nothing lands off in
 	// absolute space — the detached case is reached by dragging, not pasting
@@ -60,6 +64,24 @@ export function makeCommands(engine, darkMode, shortcutHelp, neutralPref) {
 				at = names.indexOf(name);
 			if (at >= 0) { names.splice(at, 1); } else { names.push(name); }
 			setStyleNames(id, names);
+		},
+		// Where a new detached claim goes: past the right edge of everything
+		// drawn, level with the top of the map. Nothing is ever covered, and
+		// a second one lands clear of the first. It can be off screen, which
+		// is fine — selecting it scrolls it into view (mapjs does that on
+		// every selection change).
+		blankSpotRight = function () {
+			const layout = mapModel.getCurrentLayout(),
+				nodes = (layout && layout.nodes) || {},
+				ids = Object.keys(nodes);
+			if (!ids.length) { return { x: 0, y: 0 }; }
+			let right = -Infinity, top = Infinity;
+			ids.forEach(function (id) {
+				const n = nodes[id];
+				right = Math.max(right, n.x + (n.width || 0));
+				top = Math.min(top, n.y);
+			});
+			return { x: Math.round(right + DETACHED_GAP), y: Math.round(top) };
 		};
 
 	const commands = {
@@ -94,6 +116,28 @@ export function makeCommands(engine, darkMode, shortcutHelp, neutralPref) {
 			}
 		},
 		insertParentReason() { mapModel.insertIntermediateGroup(SOURCE, { group: 'supporting' }); },
+		// A claim attached to nothing: a root of its own on the canvas, which
+		// until now could only be had by making a reason and dragging it out.
+		// The data it writes is exactly what that drag writes — a child of the
+		// content root carrying attr.position — so the layout, the numbering
+		// and the .mup see something they already know. Adding and positioning
+		// batch together, so the claim and where it sits are one undo step
+		// (the typed title is its own, as for every other new node), and so
+		// mapjs's undo-on-cancel takes the whole thing back when the reader
+		// presses Escape instead of typing.
+		addDetachedClaim() {
+			const content = idea();
+			if (!content) { return; }
+			const spot = blankSpotRight();
+			let newId = null;
+			content.batch(function () {
+				newId = content.addSubIdea(content.id);
+				if (newId) { content.updateAttr(newId, 'position', [spot.x, spot.y, 1]); }
+			});
+			if (!newId) { return; }
+			mapModel.selectNode(newId);
+			mapModel.editNode(SOURCE, true, true);
+		},
 		// Copy the selected claim and everything beneath it (a deep snapshot,
 		// so it survives the source being edited or deleted). Groups (bare
 		// brackets) and sticky notes are structure/annotation, not portable

@@ -67,7 +67,9 @@ export function makeMenus(commands, io, engine, drive, onedrive, darkMode, label
 			['Co-premise (Tab)', commands.addCoPremise],
 			['Sticky note (Alt+N)', commands.addSticky],
 			['—'],
-			['Parent reason above selection', commands.insertParentReason]
+			['Parent reason above selection', commands.insertParentReason],
+			// the one insert that ignores the selection: it attaches to nothing
+			['Detached claim', commands.addDetachedClaim]
 		]],
 		['Edit', () => [
 			['Undo (⌘Z)', commands.undo],

@@ -374,6 +374,34 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 		document.querySelectorAll('.mapjs-node.sticky_note').length) >= 1,
 		'Alt+N still reaches the sticky note in WebKit');
 
+	// ---- Insert > Detached claim opens its editor in WebKit ----
+	// a menu click that ends in an inline editor and then real typing: the
+	// shape of every Safari bug this project has had (focus handed to a
+	// contenteditable from inside a click handler)
+	const rootsInWebKit = () => page.evaluate(() =>
+		Object.values(JSON.parse(window.__because.engine.serialize()).ideas || {})
+			.map(n => ({ title: n.title, position: (n.attr || {}).position })));
+	const rootsBeforeDetached = await rootsInWebKit();
+	await page.click('.menu-title:text-is("Insert")');
+	await page.click('.menu-item:has-text("Detached claim")');
+	await page.waitForTimeout(450);
+	ok(await page.evaluate(() => !!document.querySelector('[data-mapjs-role=title][contenteditable="true"]')),
+		'Insert > Detached claim opens the editor in WebKit');
+	await page.keyboard.type('Typed in Safari');
+	await page.keyboard.press('Enter');
+	await page.waitForTimeout(450);
+	const rootsAfterDetached = await rootsInWebKit(),
+		newRoot = rootsAfterDetached.find(r => r.title === 'Typed in Safari');
+	ok(rootsAfterDetached.length === rootsBeforeDetached.length + 1 && !!newRoot,
+		'the typed text lands in a new root-level claim in WebKit');
+	ok(newRoot && Array.isArray(newRoot.position),
+		`it carries the manual position that keeps it detached (${newRoot && JSON.stringify(newRoot.position)})`);
+	await page.keyboard.press('Meta+z');
+	await page.keyboard.press('Meta+z');
+	await page.waitForTimeout(500);
+	ok((await rootsInWebKit()).length === rootsBeforeDetached.length,
+		'⌘Z takes it back off the map in WebKit');
+
 	// ---- ? opens the keyboard reference in real WebKit ----
 	// Shift+/ is where a layout-dependent key could go wrong in Safari, and
 	// the panel's platform switch has to redraw the table there too.
