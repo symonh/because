@@ -10,6 +10,13 @@
  *   intercepted at all, so it reaches the browser exactly as it used to.
  *   T (or Alt+T)  toggle reason/objection (bracket) or implicit/explicit (claim)
  *   d      detach the selection (a claim, or a whole reason/objection)
+ *   l      label the connector above the selection ("l" for label; the only
+ *   other way to it was a thin curve to click or the Edit menu)
+ *   Escape leave the map — focus moves to the app chrome. Tab is the
+ *   co-premise key inside the map and so cannot also be the way out, which
+ *   left the browser's own F6 as the only exit; WCAG 2.1.2 allows a
+ *   non-standard exit only where the user is told of it, so this one is in
+ *   the keyboard reference and in the canvas's own ARIA description
  *   Alt+N  add sticky note
  *   z / Shift+z  zoom in / out
  *   Shift+t  dark mode on / off (a view preference; map data is untouched)
@@ -28,6 +35,15 @@
  * engine's own binding cannot also fire if the command throws.
  * Arrows / F2 / delete / undo-redo stay with the engine's own handlers.
  */
+
+// Everything Escape already belongs to. A menu dropped from a title clicked
+// with the mouse leaves focus in the map, so without this the exit would
+// swallow the key that closes it and the menu would stay up; popovers and
+// modals move focus themselves, but are listed so the rule reads as one
+// thing rather than two. Leaving the map is what Escape means only when
+// there is nothing else left to close.
+const CLOSEABLE = '.menu-dropdown, .menu-flyout, .panel-overlay, ' +
+	'.connector-popover, .node-style-popover, .loading-overlay';
 
 export function bindShortcuts(engine, commands, neutralPref) {
 	const mapModel = engine.mapModel;
@@ -100,6 +116,14 @@ export function bindShortcuts(engine, commands, neutralPref) {
 				commands.toggleReasonObjection : commands.toggleImplicit;
 		} else if (bare && e.key === 'd') {
 			command = commands.detachNode;
+		} else if (bare && e.key === 'l') {
+			command = commands.editConnectorLabel;
+		} else if (bare && e.key === 'Escape' && !onBody &&
+				!document.querySelector(CLOSEABLE)) {
+			// only from inside the map, and only with nothing open that
+			// Escape already means something to (see CLOSEABLE): with
+			// nothing focused there is no canvas to leave either
+			command = commands.leaveMap;
 		} else if (alt && e.code === 'KeyN') {
 			command = commands.addSticky;
 		} else if (bare && e.key === 'z') {

@@ -49,12 +49,14 @@ below are written Mac-first; on Windows and Linux read ⌘ as Ctrl and ⌥ as Al
 | T (or Alt+T) | toggle reason/objection (on a bracket) or implicit/explicit (on a claim) |
 | Alt+N | add sticky note |
 | D | detach the selection — a claim, or a whole reason / objection — from the tree |
+| L | label the connector above the selection |
 | arrows | navigate; Shift+arrows select several claims at once |
 | ⌘←/→ | reorder a claim among its co-premises |
 | F2 / Space | edit; F collapses the branch; Delete removes the selection |
 | ⌘Z / ⌘⇧Z | undo / redo (Ctrl+Y also redoes on Windows) |
 | Z / Shift+Z | zoom |
 | Shift+T | dark / light mode |
+| Escape | leave the map — focus moves to the menus, since Tab inside the map adds a co-premise |
 | ? | the keyboard reference |
 
 `app/js/shortcut-help.js` holds the table the reference renders, and the

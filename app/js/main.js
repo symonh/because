@@ -38,16 +38,18 @@ document.addEventListener('DOMContentLoaded', function () {
 	// (the welcome modal tracks its own auto-show)
 	initAnalytics({ page: 'app' });
 
-	// dark mode and the keyboard reference are built before the commands:
-	// Shift+T and ? run through commands.toggleDarkMode / showShortcuts, so
-	// the command set needs both in hand
+	// dark mode, the keyboard reference and the connector-label editor are
+	// built before the commands: Shift+T, ? and L run through
+	// commands.toggleDarkMode / showShortcuts / editConnectorLabel, so the
+	// command set needs all three in hand
 	const engine = initEngine(document.getElementById('map-container')),
 		darkMode = makeDarkMode(engine),
 		// off by default; gates the neutral connector's toolbar icon, Insert
 		// item, Alt+Q and help row — never its rendering (neutral-pref.js)
 		neutralPref = makeNeutralPref(),
 		shortcutHelp = makeShortcutHelp(neutralPref),
-		commands = makeCommands(engine, darkMode, shortcutHelp, neutralPref);
+		labelEdit = makeLabelEdit(engine),
+		commands = makeCommands(engine, darkMode, shortcutHelp, neutralPref, labelEdit);
 	initCanvasA11y(engine, document.getElementById('map-container'));
 	document.getElementById('skip-link').addEventListener('click', function (e) {
 		e.preventDefault();
@@ -68,7 +70,6 @@ document.addEventListener('DOMContentLoaded', function () {
 		io = makeFileIO(engine, status),
 		drive = makeDrive(engine, io, status),
 		onedrive = makeOneDrive(engine, io, status),
-		labelEdit = makeLabelEdit(engine),
 		numberEdit = makeNumberEdit(engine),
 		nodeStyle = makeNodeStyle(engine, instrument('style_popover')),
 		loading = makeLoading(),

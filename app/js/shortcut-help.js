@@ -52,6 +52,7 @@ export const SHORTCUT_GROUPS = [
 			{ keys: 'Alt+N', desc: 'Add a sticky note', cmd: 'addSticky' },
 			{ keys: 'T', altKeys: 'Alt+T', desc: 'On a bracket, flip reason ⇄ objection; on a claim, flip implicit ⇄ explicit', cmd: 'toggleImplicit toggleReasonObjection' },
 			{ keys: 'D', desc: 'Detach the selection from the tree — a claim with everything under it, or a whole reason or objection', cmd: 'detachNode' },
+			{ keys: 'L', desc: 'Label the connector above the selection — the line joining a reason or objection to the claim it answers', cmd: 'editConnectorLabel' },
 			{ keys: 'Erase', winNote: 'or Backspace', desc: 'Delete the selection' }
 		]
 	},
@@ -62,7 +63,8 @@ export const SHORTCUT_GROUPS = [
 			{ keys: 'Shift+Arrows', desc: 'Add the claim you move to, so several are selected at once' },
 			{ keys: 'Mod+←', altKeys: 'Mod+→', desc: 'Reorder the selected claim among its co-premises' },
 			{ keys: 'F', altKeys: '/', desc: 'Collapse or expand everything under the selection' },
-			{ keys: 'Z', altKeys: 'Shift+Z', desc: 'Zoom in / zoom out', cmd: 'zoomIn zoomOut' }
+			{ keys: 'Z', altKeys: 'Shift+Z', desc: 'Zoom in / zoom out', cmd: 'zoomIn zoomOut' },
+			{ keys: 'Escape', desc: 'Leave the map: focus moves to the menus, and Tab then walks the rest of the app. Tab cannot do this from inside the map, where it adds a co-premise', cmd: 'leaveMap' }
 		]
 	},
 	{
@@ -192,7 +194,7 @@ export function makeShortcutHelp(neutralPref) {
 				'<button type="button" class="plat-btn" data-plat="win" aria-pressed="false">Windows</button>' +
 				'</div></div>' +
 				'<p class="shortcuts-note">Keys act on the map: click a claim first, or press ' +
-				'Tab from the toolbar to bring the map into focus.</p>' +
+				'Tab from the toolbar to bring the map into focus. Escape leaves it again.</p>' +
 				'<div class="shortcut-groups"></div>' +
 				'<div class="panel-close"><button type="button">Close</button></div>' +
 				'</div>';

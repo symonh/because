@@ -14,6 +14,40 @@
 
 let labelCounter = 0;
 
+/*
+ * The way out of the map canvas, for Escape (commands.leaveMap).
+ *
+ * Inside the map Tab is the co-premise key, so it cannot also be the key
+ * that leaves — which left the browser's own F6 as the only exit, and F6
+ * is not something a reader can be expected to guess (reported by an NVDA
+ * user, 2026-08-03). WCAG 2.1.2 permits an exit that is not Tab as long as
+ * the user is told what it is; Escape is that exit, and the keyboard
+ * reference and the canvas's own description both name it.
+ *
+ * Focus lands on the app menu, which is where every command is reachable
+ * from — whichever form the current layout gives it. The fallbacks below
+ * are ordered so that a layout with no menubar (floating, mobile) still
+ * hands focus to something in the chrome rather than dropping it on the
+ * body, where nothing is announced and Tab starts over at the top.
+ */
+export function focusChrome() {
+	const pick = function (selector) {
+			const el = document.querySelector(selector);
+			// a hidden layout keeps its DOM; only what is drawn can take focus
+			return (el && el.getClientRects().length) ? el : null;
+		},
+		target = pick('#menubar [role=menuitem][tabindex="0"]') ||
+			pick('#menubar [role=menuitem]') ||
+			pick('#float-menu') ||
+			pick('#mobilebar button[tabindex="0"]') ||
+			pick('#mobilebar button') ||
+			pick('#toolbar button[tabindex="0"]') ||
+			pick('#skip-link');
+	if (!target) { return false; }
+	target.focus();
+	return true;
+}
+
 export function initModal(overlay, { label, initialFocus, onRequestClose } = {}) {
 	const panel = overlay.querySelector('.panel') || overlay,
 		heading = panel.querySelector('h2'),

@@ -66,6 +66,38 @@ alternative for each figure; see docs/figures.md.
   because the relationships it draws are already in the tree. None of
   this touches map data — attributes go on DOM the engine already
   rendered, so a `.mup` still serializes byte-identical.
+- **Connector labels are announced.** The words an author writes on a
+  connecting line are drawn in that aria-hidden SVG layer, so until
+  2026-08-03 a reader walking the map with the arrow keys never heard
+  them — an NVDA user reported hearing a label while typing it and never
+  again. The label belongs to the connector *arriving* at a node (the
+  `.mup` keeps it on the child, as `attr.parentConnector.label`), so it is
+  announced there, in whichever ARIA property does not displace an
+  existing name: a bracket's accessible name is written by this app, so
+  the label joins it ("Supporting reasons (group), labelled Because"),
+  while a claim's name is the claim's own text, so a claim's label rides
+  in `aria-describedby` pointing at a clipped `.sr-only` span outside the
+  container (`role="tree"` admits only `treeitem` children, and a span
+  inside a node would also be measured by the layout). Clearing a label
+  removes both. The theme's *own* default label — "Because" / "But" /
+  "Therefore" in the high-impact themes — is deliberately left out: it
+  restates what the bracket's name already says, and only an author's own
+  words are content the tree does not otherwise carry.
+- **Leaving the canvas (WCAG 2.1.2).** Inside the map Tab is the
+  co-premise key, so Tab cannot also be the way out; that left the
+  browser's own F6 as the only exit, which is not something a reader can
+  be expected to find (reported alongside the connector-label gap).
+  **Escape** now leaves the map: focus moves to the app menu — the
+  menubar's roving title, or the single menu button the floating and
+  mobile layouts hang the same spec behind (`focusChrome` in
+  `app/js/a11y.js`) — and Tab walks on through the chrome from there. The
+  success criterion permits an exit that is not Tab as long as the user is
+  told of it, so it is stated in two places: the keyboard reference, and
+  the canvas's own `aria-describedby` ("Arrow keys move through the
+  argument. Press Escape to leave the map."). Escape only means this when
+  nothing else is open that it already belongs to — a dropped menu, a
+  popover, a modal (the `CLOSEABLE` list in `app/js/shortcuts.js`) —
+  otherwise the exit would swallow the key that closes them.
 - **Live save status.** `#save-status` is a `role="status"` live region,
   so screen readers announce save-state changes.
 - **Focus visibility.** `:focus-visible` outlines (`#16749f`, 5.21:1) are
@@ -146,9 +178,11 @@ for the same reasons.
    dashed, 1px vs 3px) and ARIA state, not color alone.
 2. **Connector curves are thin click targets.** The connecting lines are
    narrow and can be hard to click precisely. Every connector action has a
-   keyboard-reachable equivalent in the Argument Visualization menu — Edit
-   connector label, Stronger connector, Weaker connector — so the mouse
-   target is never the only way to reach a command.
+   keyboard-reachable equivalent in the Argument menu — Edit connector
+   label, Stronger connector, Weaker connector — so the mouse target is
+   never the only way to reach a command, and labelling also has a key of
+   its own, **L**, which opens the editor on the connector above the
+   selection.
 3. **Toolbar hints use native tooltips.** Toolbar buttons expose their
    hint through the native `title` attribute. This relies on the browser's
    own tooltip behavior rather than a custom AA-styled tooltip.
@@ -164,5 +198,8 @@ and the computed tree is what Windows screen readers such as NVDA
 consume. That section exists because every DOM-level check passed while
 an NVDA user heard "unknown invisible": it asserts the map is exactly
 one tree named "Argument map", every node is a named treeitem under a
-`group` child of the tree, and focusing the map lands real focus on a
-named treeitem.
+`group` child of the tree, focusing the map lands real focus on a
+named treeitem, and — since a label reaching a computed *name* is no
+guarantee that another reaches a computed *description* — that both
+kinds of connector label and the canvas's Escape hint survive into the
+computed tree as well.

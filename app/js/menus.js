@@ -132,7 +132,7 @@ export function makeMenus(commands, io, engine, drive, onedrive, darkMode, label
 		['Argument', () => [
 			['Toggle implicit claim (T)', commands.toggleImplicit],
 			['Toggle reason ⇄ objection (T on a bracket)', commands.toggleReasonObjection],
-			['Edit connector label…', () => labelEdit.editSelectedConnectorLabel()],
+			['Edit connector label… (L)', commands.editConnectorLabel],
 			['Stronger connector', () => labelEdit.strongerSelectedConnector()],
 			['Weaker connector', () => labelEdit.weakerSelectedConnector()],
 			['Mark claim false / true / clear', commands.cycleEvaluation]

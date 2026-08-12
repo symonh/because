@@ -8,6 +8,7 @@
 
 import { GROUP_ATTR } from './drop-policy.js';
 import { isStickyNode } from './numbering.js';
+import { focusChrome } from './a11y.js';
 
 const SOURCE = 'ui',
 	FONT_STEP = 1.2,
@@ -26,7 +27,7 @@ const SOURCE = 'ui',
 		if (node.ideas) { Object.keys(node.ideas).forEach(k => stripPositions(node.ideas[k])); }
 	};
 
-export function makeCommands(engine, darkMode, shortcutHelp, neutralPref) {
+export function makeCommands(engine, darkMode, shortcutHelp, neutralPref, labelEdit) {
 	// in-memory clipboard: the JSON subtree copied by the last Copy. Kept in
 	// the app layer because mapjs exposes clone/paste on content but no
 	// clipboard of its own (MindMup's cut/copy/paste lived in its closed app).
@@ -255,7 +256,21 @@ export function makeCommands(engine, darkMode, shortcutHelp, neutralPref) {
 		toggleDarkMode() { if (darkMode) { darkMode.toggle(); } },
 		// the ? key and Help > Keyboard shortcuts are the same command, so both
 		// routes are counted and neither can drift from the other's list
-		showShortcuts() { if (shortcutHelp) { shortcutHelp.show(); } }
+		showShortcuts() { if (shortcutHelp) { shortcutHelp.show(); } },
+		// Label the connector above the selection — the line joining a reason
+		// or objection to the claim it answers. Until now that had a thin
+		// curve to click and a menu item, and no key at all, so a reader
+		// working from the keyboard could not reach it as directly as every
+		// other part of the argument. label-edit.js resolves a selected
+		// premise to its own bracket, so the key labels the same connector
+		// the menu item does.
+		editConnectorLabel() { if (labelEdit) { labelEdit.editSelectedConnectorLabel(); } },
+		// Leave the canvas: focus goes to the app chrome, where Tab and the
+		// arrow keys behave as they do anywhere else. Tab cannot do this —
+		// inside the map it is the co-premise key — so without an explicit
+		// exit the canvas is a keyboard trap for anyone who has not found the
+		// browser's own F6 (a11y.js's focusChrome carries the reasoning).
+		leaveMap() { focusChrome(); }
 	};
 	return commands;
 }

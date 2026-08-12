@@ -69,6 +69,22 @@ body.layout-left #toolbar { grid-area: rail; }
 #topbar[hidden], #toolbar[hidden], #menubar[hidden], #theme-toggle[hidden],
 #float-chrome[hidden], #mobilebar[hidden] { display: none; }
 
+/* Text written for screen readers only — the map's keyboard hint and the
+   connector-label descriptions a11y-canvas.js writes. Clipped rather than
+   display:none, which would take it out of the accessibility tree too. */
+.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	clip-path: inset(50%);
+	white-space: nowrap;
+	border: 0;
+}
+
 /* keyboard bypass link (WCAG 2.4.1): visually hidden until focused */
 #skip-link {
 	position: absolute;
@@ -901,7 +917,8 @@ body.dark #map-container:focus-visible {
  * never runs — an empty map, or a script error — plus the chrome hiding,
  * which is worth having in the stylesheet so it applies even then. */
 @media print {
-	#topbar, #toolbar, #mobilebar, #float-chrome, #skip-link { display: none; }
+	#topbar, #toolbar, #mobilebar, #float-chrome, #skip-link,
+	.sr-only { display: none; }
 	/* collapse the grid to the map alone: the left rail's 46px column would
 	 * otherwise stay as an empty gutter on the page */
 	body.layout-left, body.layout-floating, body.layout-classic {
