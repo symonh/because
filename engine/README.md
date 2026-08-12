@@ -53,6 +53,23 @@ recorded in `vendor/mapjs/LOCAL-PATCHES.diff`:
   stock `ratio` position measures along the whole path, and a group
   connector's path carries the bracket, so half its length lands on the
   bracket.)
+- `queue-fade-out.js` / `node-with-id.js` / `dom-map-controller.js` /
+  `update-node-content.js` / `hammer-draggable.js` — a removed node's
+  element could stay on the stage for good, which is where "extra claim
+  numbers that survive claim numbering being switched off" came from.
+  Upstream put queueFadeOut's safety-net timeout after its `return`, so
+  removal rested on `transitionend` alone — an event that never arrives
+  when no opacity transition starts and that a stylesheet swap replaces
+  with `transitioncancel`. Idea ids are recycled, so a later node
+  inherits a leftover's DOM id, and `nodeWithId` used a bare `#id`
+  selector, which jQuery resolves through `getElementById`: only one of
+  the two elements was ever rendered to again and the other froze
+  holding its badge. So: the timeout runs and `transitioncancel` also
+  removes; `nodeWithId` matches every element carrying the id;
+  `nodeCreated` clears a leftover before creating; the group branch of
+  `updateNodeContent` clears the badge instead of skipping it (a bracket
+  is structure and carries no number); and the drag shadow is cloned
+  without the node's id.
 - `update-node-content.js` — a node whose theme resolves to a transparent
   background no longer gets that written as an inline style, which
   shadowed the stylesheet. Compound theme styles reach a node only through

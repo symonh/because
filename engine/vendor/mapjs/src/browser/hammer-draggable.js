@@ -80,7 +80,15 @@ $.fn.simpleDraggableContainer = function () {
 	}).on('mm:start-dragging-shadow', function (event) {
 		const target = $(event.relatedTarget),
 			clone = function () {
-				const result = target.clone().addClass('drag-shadow').appendTo(container).offset(target.offset()).data(target.data()).attr('mapjs-drag-role', 'shadow'),
+				/* LOCAL PATCH: removeAttr('id') — the clone copied the node's DOM
+			   id, so for as long as a drag ran the document held two elements
+			   answering to it, and a shadow left behind by an interrupted
+			   gesture made that permanent. Nothing reads the shadow's id (the
+			   drop path works off the node id closed over in
+			   dom-map-controller, and the shadow re-triggers its events on the
+			   original), while app code that looks a node up by id — the
+			   claim-number badge editor — has to find the node, not a copy. */
+			const result = target.clone().removeAttr('id').addClass('drag-shadow').appendTo(container).offset(target.offset()).data(target.data()).attr('mapjs-drag-role', 'shadow'),
 					scale = target.parent().data('scale') || 1;
 				if (scale !== 0) {
 					result.css({

@@ -16288,7 +16288,7 @@
           }
         }).on("mm:start-dragging-shadow", function(event) {
           const target = $(event.relatedTarget), clone = function() {
-            const result = target.clone().addClass("drag-shadow").appendTo(container).offset(target.offset()).data(target.data()).attr("mapjs-drag-role", "shadow"), scale = target.parent().data("scale") || 1;
+            const result = target.clone().removeAttr("id").addClass("drag-shadow").appendTo(container).offset(target.offset()).data(target.data()).attr("mapjs-drag-role", "shadow"), scale = target.parent().data("scale") || 1;
             if (scale !== 0) {
               result.css({
                 "transform": "scale(" + scale + ")",
@@ -17294,7 +17294,7 @@
       var nodeKey = require_node_key();
       jQuery2.fn.nodeWithId = function(id) {
         "use strict";
-        return this.find("#" + nodeKey(id));
+        return this.find('[id="' + nodeKey(id) + '"]');
       };
     }
   });
@@ -17874,6 +17874,7 @@
         if (isGroup) {
           this.css({ margin: "", width: nodeContent.width, height: nodeContent.height, opacity: 1 });
           updateText("");
+          applyLabel(void 0);
         } else {
           updateText(nodeContent.title);
           if (optional && optional.decorations && !optional.decorations.includes(decorationEdge)) {
@@ -17959,8 +17960,8 @@
         if (!theme || theme.noAnimations()) {
           return removeElement();
         }
-        return element.on("transitionend", removeElement).css("opacity", 0);
         setTimeout(removeElement, 500);
+        return element.on("transitionend transitioncancel", removeElement).css("opacity", 0);
       };
     }
   });
@@ -18469,6 +18470,7 @@
         });
         mapModel.addEventListener("nodeCreated", function(node) {
           let currentReorderBoundary;
+          stageElement.nodeWithId(node.id).remove();
           const element = stageElement.createNode(node).updateNodeContent(node, themeSource(), { resourceTranslator }).nodeResizeWidget(node.id, mapModel, stagePositionForPointEvent).on("tap", function(evt) {
             const realEvent = evt.gesture && evt.gesture.srcEvent || evt;
             if (realEvent.button && realEvent.button !== -1) {

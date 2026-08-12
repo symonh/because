@@ -201,19 +201,28 @@ const AXE_OPTS = {
 	});
 	await page.mouse.click(claim.x, claim.y);
 	await page.waitForTimeout(250);
-	const n0 = await page.evaluate(() => document.querySelectorAll('.mapjs-node').length);
+	// Count what the map holds, not what the stage still shows, and count it
+	// while the new node is still there: Escape cancels a node that was only
+	// just created, so it is gone by the time the editor closes. Counting DOM
+	// elements after Escape used to work only because the cancelled node's
+	// element lingered on the stage (see the stale-badge section of
+	// features-e2e — it could linger for good).
+	const mapNodes = () => page.evaluate(() =>
+		Object.keys(window.__because.engine.mapModel.getCurrentLayout().nodes).length);
+	const n0 = await mapNodes();
 	await page.keyboard.press('Tab'); // co-premise (opens its inline editor)
 	await page.waitForTimeout(350);
-	await page.keyboard.press('Escape'); // leave the editor
+	const n1 = await mapNodes();
+	ok(n1 === n0 + 1, `Tab on a claim in the map still adds a co-premise (${n0} -> ${n1})`);
+	await page.keyboard.press('Escape'); // cancelling an untyped new node takes it back
 	await page.waitForTimeout(250);
-	const n1 = await page.evaluate(() => document.querySelectorAll('.mapjs-node').length);
-	ok(n1 === n0 + 1, 'Tab on a claim in the map still adds a co-premise');
-	await page.keyboard.press('Enter'); // reason under the selection
+	ok(await mapNodes() === n0, 'and Escape takes the untyped co-premise back off the map');
+	await page.keyboard.press('Enter'); // reason under the selection: a bracket and a claim
 	await page.waitForTimeout(350);
+	const n2 = await mapNodes();
+	ok(n2 === n0 + 2, `Enter in the map still adds a reason (${n0} -> ${n2})`);
 	await page.keyboard.press('Escape');
 	await page.waitForTimeout(250);
-	ok(await page.evaluate(() => document.querySelectorAll('.mapjs-node').length) > n1,
-		'Enter in the map still adds a reason');
 	// arrows move the selection AND real DOM focus rides along on the
 	// selected node (roving focus — the activedescendant indirection is
 	// what NVDA+Chrome failed to follow); the visible indicator sits on
@@ -260,6 +269,107 @@ const AXE_OPTS = {
 		const el = document.getElementById(('node_' + id).replace(/[^A-Za-z0-9_-]/g, '_'));
 		return el && el.getAttribute('aria-selected') === 'true';
 	}), 'selected node exposes aria-selected');
+
+	// ---- connector labels are announced as the map is walked ----
+	// The label is drawn in the SVG layer, which is aria-hidden here, so a
+	// reader moving through the map with the arrow keys heard nothing of it
+	// (NVDA report, 2026-08-03: audible while being typed, silent afterwards).
+	// A bracket's name is ours to write, so the label joins it; a claim's name
+	// is the claim's own text, so a claim's label rides in a description.
+	const connIds = await page.evaluate(() => {
+		const m = window.__because.engine.mapModel,
+			firstGroup = function (idea) {
+				for (const k of Object.keys(idea.ideas || {})) {
+					const c = idea.ideas[k];
+					if (c.attr && c.attr.group) { return c; }
+					const found = firstGroup(c);
+					if (found) { return found; }
+				}
+				return null;
+			},
+			group = firstGroup(m.getIdea());
+		return { group: group.id, claim: Object.values(group.ideas)[0].id };
+	});
+	const nodeA11y = id => page.evaluate(function (i) {
+		const el = document.getElementById(('node_' + i).replace(/[^A-Za-z0-9_-]/g, '_')),
+			d = el && el.getAttribute('aria-describedby'),
+			span = d && document.getElementById(d);
+		return { label: el && el.getAttribute('aria-label'), desc: span && span.textContent,
+			clipped: !!span && getComputedStyle(span.parentNode).position === 'absolute' };
+	}, id);
+	ok((await nodeA11y(connIds.group)).label === 'Supporting reasons (group)',
+		'an unlabelled bracket keeps its plain name');
+	await page.evaluate(function (ids) {
+		const content = window.__because.engine.mapModel.getIdea();
+		content.mergeAttrProperty(ids.group, 'parentConnector', 'label', 'Because');
+		content.mergeAttrProperty(ids.claim, 'parentConnector', 'label', 'and');
+	}, connIds);
+	await page.waitForTimeout(400);
+	const labelled = await nodeA11y(connIds.group),
+		described = await nodeA11y(connIds.claim);
+	ok(labelled.label === 'Supporting reasons (group), labelled Because',
+		`a bracket's connector label joins its accessible name (${labelled.label})`);
+	ok(described.desc === 'Connector labelled and' && described.clipped,
+		`a claim's connector label rides in a visually-hidden description (${described.desc})`);
+	await axeScan('map with connector labels');
+	// clearing the label takes both back, rather than leaving a stale name
+	await page.evaluate(function (ids) {
+		const content = window.__because.engine.mapModel.getIdea();
+		content.mergeAttrProperty(ids.group, 'parentConnector', 'label', false);
+		content.mergeAttrProperty(ids.claim, 'parentConnector', 'label', false);
+	}, connIds);
+	await page.waitForTimeout(400);
+	ok((await nodeA11y(connIds.group)).label === 'Supporting reasons (group)' &&
+		(await nodeA11y(connIds.claim)).desc === null,
+	'clearing a label takes the announcement with it');
+
+	// ---- Escape leaves the map (WCAG 2.1.2) ----
+	// Tab inside the map is the co-premise key and so cannot also be the way
+	// out, which left the browser's own F6 as the only exit — not something a
+	// reader can be expected to find. Escape is the exit, and both the
+	// keyboard reference and the canvas's own description say so.
+	ok(await page.evaluate(() => {
+		const c = document.getElementById('map-container'),
+			d = c.getAttribute('aria-describedby'),
+			hint = d && document.getElementById(d);
+		return !!hint && /Escape/.test(hint.textContent);
+	}), 'the map canvas describes its own way out');
+	await page.evaluate(() => {
+		window.__because.engine.mapModel.selectNode(window.__because.engine.mapModel.getSelectedNodeId());
+		document.getElementById('map-container').focus();
+	});
+	await page.waitForTimeout(200);
+	ok(await page.evaluate(() => {
+		const c = document.getElementById('map-container');
+		return c.contains(document.activeElement);
+	}), 'focus starts inside the map');
+	const serializedBeforeEscape = await page.evaluate(() => window.__because.engine.serialize());
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(200);
+	const afterEscape = await page.evaluate(() => {
+		const c = document.getElementById('map-container'), a = document.activeElement;
+		return { inMap: c === a || c.contains(a), onBody: a === document.body,
+			name: (a.getAttribute('aria-label') || a.textContent || '').slice(0, 20),
+			cls: a.className.toString() };
+	});
+	ok(!afterEscape.inMap && !afterEscape.onBody,
+		`Escape moves focus out of the map and onto a real control (${afterEscape.cls} "${afterEscape.name}")`);
+	ok(afterEscape.cls.indexOf('menu-title') >= 0,
+		'…the app menu, where every command is reachable');
+	ok(await page.evaluate(() => window.__because.engine.serialize()) === serializedBeforeEscape,
+		'leaving the map changes no map data');
+	// and Tab carries on through the chrome from there, rather than starting over
+	await page.keyboard.press('Tab');
+	await page.waitForTimeout(150);
+	ok(await page.evaluate(() => document.getElementById('toolbar').contains(document.activeElement)),
+		'Tab from there walks on into the toolbar');
+	// with focus in the chrome Escape is free again — it belongs to whatever
+	// is open there (a menu, a dialog), not to the map
+	await page.evaluate(() => document.querySelector('.menu-title').focus());
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(150);
+	ok(await page.evaluate(() => document.activeElement.classList.contains('menu-title')),
+		'Escape in the chrome does not bounce focus around');
 
 	// ---- node style popover: focus managed, states exposed ----
 	await page.evaluate(() => window.__because.nodeStyle.openForSelection());
@@ -524,6 +634,14 @@ const AXE_OPTS = {
 		document.activeElement === document.getElementById('float-menu') &&
 		document.getElementById('float-menu').getAttribute('aria-expanded') === 'false'),
 		'a second Escape closes the flyout and returns focus to the trigger');
+	// this layout has no menubar at all, so the exit from the map has to fall
+	// through to the one button the same menu spec hangs behind
+	await page.evaluate(() => document.getElementById('map-container').focus());
+	await page.waitForTimeout(200);
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(200);
+	ok(await page.evaluate(() => document.activeElement === document.getElementById('float-menu')),
+		'in the floating layout Escape leaves the map for the menu button');
 	await page.evaluate(() => window.__because.layout.setLayout('left'));
 	await page.waitForTimeout(300);
 
@@ -548,6 +666,15 @@ const AXE_OPTS = {
 	// label (WCAG 2.5.3 satisfied by construction); this checks the longer
 	// tooltip stays consistent with the word actually shown
 	ok(reflow.named, 'each bottom-bar label is a word of the tooltip it abbreviates');
+	// the last rung of the exit's fallback chain: no menubar and no floating
+	// menu button here either, so it has to land in the bottom bar
+	await page.evaluate(() => document.getElementById('map-container').focus());
+	await page.waitForTimeout(200);
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(200);
+	ok(await page.evaluate(() =>
+		document.getElementById('mobilebar').contains(document.activeElement)),
+	'at 640px Escape leaves the map for the bottom bar');
 	await axeScan('mobile layout');
 
 	ok(errors.length === 0, 'no page errors (' + errors.join('; ').slice(0, 200) + ')');
@@ -567,8 +694,29 @@ const AXE_OPTS = {
 	await cpage.goto(BASE + '/app/index.html?src=../samples/death.mup');
 	await cpage.waitForSelector('.mapjs-node', { timeout: 8000 });
 	await cpage.waitForTimeout(900);
+	// label one connector of each kind first: the DOM attributes above are
+	// what we author, and whether a label survives into the computed name or
+	// description is exactly the sort of thing that diverges
+	const cIds = await cpage.evaluate(() => {
+		const m = window.__because.engine.mapModel,
+			firstGroup = function (idea) {
+				for (const k of Object.keys(idea.ideas || {})) {
+					const c = idea.ideas[k];
+					if (c.attr && c.attr.group) { return c; }
+					const found = firstGroup(c);
+					if (found) { return found; }
+				}
+				return null;
+			},
+			group = firstGroup(m.getIdea()),
+			claim = Object.values(group.ideas)[0];
+		m.getIdea().mergeAttrProperty(group.id, 'parentConnector', 'label', 'Because');
+		m.getIdea().mergeAttrProperty(claim.id, 'parentConnector', 'label', 'and');
+		m.selectNode(claim.id);
+		return { group: group.id, claim: claim.id };
+	});
 	await cpage.evaluate(() => document.getElementById('map-container').focus());
-	await cpage.waitForTimeout(200);
+	await cpage.waitForTimeout(400);
 	const cdp = await cpage.context().newCDPSession(cpage);
 	await cdp.send('Accessibility.enable');
 	const axNodes = (await cdp.send('Accessibility.getFullAXTree')).nodes,
@@ -592,6 +740,16 @@ const AXE_OPTS = {
 		axFocused[0].name && !!axFocused[0].name.value,
 		'focusing the map lands real focus on a named treeitem (' +
 			(axFocused.length ? axFocused.map(n => n.role.value).join(',') : 'none') + ')');
+	// the connector labels, in the tree a Windows screen reader actually reads
+	ok(axItems.some(i => i.name.value.indexOf('labelled Because') >= 0),
+		'the bracket\'s connector label is in its COMPUTED name (' + cIds.group + ')');
+	ok(axFocused.length === 1 && axFocused[0].description &&
+		axFocused[0].description.value === 'Connector labelled and',
+		'the claim\'s connector label is in its COMPUTED description (' +
+			(axFocused[0] && axFocused[0].description && axFocused[0].description.value) + ')');
+	ok(axTrees.length === 1 && axTrees[0].description &&
+		/Escape/.test(axTrees[0].description.value),
+		'the map\'s way out is in the tree\'s COMPUTED description');
 	await cr.close();
 
 	console.log(failures ? 'FAILURES: ' + failures : 'ALL PASS');

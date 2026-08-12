@@ -310,10 +310,25 @@ function ok(cond, name) {
 	await page.keyboard.press('n');
 	await page.keyboard.up('Alt');
 	await new Promise(r => setTimeout(r, 400));
+	// The check has to come BEFORE Escape. A sticky opens its editor as a new
+	// node, and cancelling a new node takes the whole thing back — so after
+	// Escape there is no sticky in the map, and the element still on screen is
+	// only the one fading out. This assertion used to run after Escape and
+	// read that fading element (indefinitely, while a leftover element could
+	// outlive its node — see the stale-badge section of features-e2e).
+	ok(await page.evaluate(() => {
+		const stickies = [];
+		(function walk(n) {
+			if (n.attr && (n.attr.styleNames || []).indexOf('sticky_note') >= 0) { stickies.push(n.id); }
+			Object.values(n.ideas || {}).forEach(walk);
+		}(JSON.parse(window.__because.engine.serialize())));
+		return stickies.length === 1 &&
+			document.querySelectorAll('.mapjs-node.sticky_note').length === 1;
+	}), 'Alt+N still adds a sticky note');
 	await page.keyboard.press('Escape');
 	await new Promise(r => setTimeout(r, 250));
-	ok(await page.evaluate(() => document.querySelectorAll('.mapjs-node.sticky_note').length) >= 1,
-		'Alt+N still adds a sticky note');
+	ok(await page.evaluate(() => window.__because.engine.serialize().indexOf('sticky_note') < 0),
+		'and Escape takes the untyped sticky back off the map');
 
 	// numbering badges present, then toggle off via View menu command
 	const badges = await page.$$eval('.mapjs-label', els => els.filter(e => e.offsetParent !== null).length);
@@ -518,6 +533,10 @@ function ok(cond, name) {
 	await page.waitForFunction(() =>
 		Array.from(document.querySelectorAll('[data-mapjs-role=connector] text'))
 			.some(t => t.textContent.indexOf('Original label') >= 0), { timeout: 5000 });
+	// loadMap defers centring, resetView and deselectAll by 250ms, and
+	// resetView reselects the root; the rest of this section drives the
+	// selection, so let that land first rather than racing it
+	await new Promise(r => setTimeout(r, 500));
 	const labelRect = await page.evaluate(() => {
 		const t = Array.from(document.querySelectorAll('[data-mapjs-role=connector] text'))
 			.find(el => el.textContent.indexOf('Original label') >= 0),
@@ -549,6 +568,41 @@ function ok(cond, name) {
 		'menu opens the label editor for the premise\'s bracket');
 	await page.keyboard.press('Escape');
 	ok(await page.$('.connector-label-editor') === null, 'Escape closes the editor without saving');
+
+	// L opens the same editor from the keyboard. Until now the only ways to
+	// a connector label were a thin curve to click and a menu item, so the
+	// one part of the argument a reader could not reach with a key was the
+	// words on its lines (Simon, 2026-08-03).
+	await page.evaluate(() => {
+		window.__because.engine.mapModel.selectNode(12);
+		document.getElementById('map-container').focus();
+	});
+	await new Promise(r => setTimeout(r, 250));
+	await page.keyboard.press('l');
+	await page.waitForSelector('.connector-label-editor', { timeout: 5000 });
+	ok(await page.$eval('.connector-label-editor', el =>
+		el.value === 'Rachels\' central argument' && document.activeElement === el),
+	'L opens the label editor on the selected premise\'s bracket, focused');
+	await page.evaluate(() => { document.querySelector('.connector-label-editor').value = ''; });
+	await page.keyboard.type('Because');
+	await page.keyboard.press('Enter');
+	await new Promise(r => setTimeout(r, 400));
+	ok(await page.evaluate(() => window.__because.engine.mapModel.getIdea()
+		.findSubIdeaById(11).attr.parentConnector.label) === 'Because',
+	'what is typed there lands in parentConnector.label');
+	// and it is just a letter while a claim is being edited
+	await page.evaluate(() => {
+		window.__because.engine.mapModel.selectNode(12);
+		document.getElementById('map-container').focus();
+	});
+	await page.keyboard.press('F2');
+	await new Promise(r => setTimeout(r, 300));
+	await page.keyboard.press('l');
+	await new Promise(r => setTimeout(r, 250));
+	ok(await page.$('.connector-label-editor') === null,
+		'L types a letter while editing a claim instead of opening the editor');
+	await page.keyboard.press('Escape');
+	await new Promise(r => setTimeout(r, 300));
 
 	// numbering off must leave NO badge remnants (the engine hides the
 	// label span but keeps the decorations container — it must paint nothing)

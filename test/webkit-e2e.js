@@ -292,6 +292,45 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 	ok(await page.evaluate(() => !document.querySelector('#connector_10_20 .mapjs-connector-text text')),
 		'⌘Z removes the inference-objection label in WebKit');
 
+	// ---- L (label the connector) and Escape (leave the map) in real WebKit ----
+	// A bare letter opening a floating input that then takes the keyboard is
+	// the exact shape of every Safari bug this project has had, and the exit
+	// from the map is a focus move out of a widget that owns its own keys.
+	await page.evaluate(() => {
+		window.__because.engine.mapModel.selectNode(7);
+		document.getElementById('map-container').focus();
+	});
+	await page.waitForTimeout(250);
+	await page.keyboard.press('l');
+	await page.waitForSelector('.connector-label-editor', { timeout: 5000 });
+	ok(await page.evaluate(() =>
+		document.activeElement === document.querySelector('.connector-label-editor')),
+	'L opens the connector label editor and it holds the keyboard in WebKit');
+	await page.keyboard.type('Because');
+	await page.keyboard.press('Enter');
+	await page.waitForTimeout(500);
+	ok(await page.evaluate(() => {
+		const t = document.querySelector('#connector_1_10 .mapjs-connector-text text');
+		return !!t && t.textContent === 'Because';
+	}), 'the typed label reaches the premise\'s own bracket in WebKit');
+	// and the announcement follows the data, in Safari's DOM as in Chrome's
+	ok(await page.evaluate(() => document.getElementById('node_10')
+		.getAttribute('aria-label')) === 'Supporting reasons (group), labelled Because',
+	'the bracket announces its connector label in WebKit');
+	await page.keyboard.press('Meta+z');
+	await page.waitForTimeout(400);
+	ok(await page.evaluate(() => document.getElementById('node_10')
+		.getAttribute('aria-label')) === 'Supporting reasons (group)',
+	'⌘Z takes the label out of the announcement again in WebKit');
+	await page.evaluate(() => document.getElementById('map-container').focus());
+	await page.waitForTimeout(250);
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(250);
+	ok(await page.evaluate(() => {
+		const c = document.getElementById('map-container'), a = document.activeElement;
+		return a !== document.body && a !== c && !c.contains(a);
+	}), 'Escape leaves the map for the chrome in WebKit');
+
 	// ---- Alt+Q (the neutral connector) in real WebKit ----
 	// On a Mac, Option+Q types "œ", so the binding keys off e.code, not the
 	// character — the same way Alt+O has to. Alt is exactly where a Safari
@@ -451,6 +490,82 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 		const json = JSON.parse(window.__because.engine.serialize());
 		return Object.keys(json.ideas).length === 1;
 	}), '⌘Z reattaches it in WebKit');
+
+	// ---- stale claim-number badges, in the engine the report came from ----
+	// Reported 2026-08-12: extra claim numbers that then survive claim
+	// numbering being switched off. They were node elements outliving their
+	// nodes — a fade-out that only removed the element on transitionend, plus
+	// a drag shadow cloned complete with the node's DOM id. Both hang on
+	// gestures and transitions, so they get checked in WebKit as well as
+	// Chrome (features-e2e carries the full account).
+	const strays = () => page.evaluate(() => {
+		const nodes = (window.__because.engine.mapModel.getCurrentLayout() || { nodes: {} }).nodes,
+			live = {};
+		Object.keys(nodes).forEach(id => {
+			live['node_' + String(id).replace(/[^A-Za-z0-9_-]/g, '_')] = true;
+		});
+		const els = Array.from(document.querySelectorAll('[data-mapjs-role=stage] .mapjs-node')),
+			ids = els.map(e => e.id),
+			painted = function (el) {
+				let n = el;
+				while (n && n !== document.body) {
+					const cs = getComputedStyle(n);
+					if (cs.display === 'none' || cs.visibility === 'hidden' ||
+							parseFloat(cs.opacity) < 0.05) { return false; }
+					n = n.parentElement;
+				}
+				return true;
+			};
+		return {
+			orphans: els.filter(e => !live[e.id]).map(e => e.id || '(no id)'),
+			duplicates: Array.from(new Set(ids.filter((id, i) => id && ids.indexOf(id) !== i))),
+			badges: els.filter(e => {
+				const b = e.querySelector('.mapjs-label');
+				return b && painted(b);
+			}).map(e => e.querySelector('.mapjs-label').textContent + '@' + e.id)
+		};
+	});
+	await page.evaluate(() => {
+		const mm = window.__because.engine.mapModel,
+			id = mm.getIdea().addSubIdea(13, 'gone before it is ever painted');
+		mm.selectNode(id);
+		mm.removeSubIdea('test');
+	});
+	await page.waitForTimeout(900);
+	let webkitGhosts = await strays();
+	ok(webkitGhosts.orphans.length === 0 && webkitGhosts.duplicates.length === 0,
+		`WebKit: a node created and removed inside one frame leaves no element behind (${webkitGhosts.orphans})`);
+
+	// a real WebKit drag: the shadow is a clone of the node, and must not
+	// carry the node's id with it
+	const box = await page.evaluate(() => {
+		const r = document.querySelector('#node_13').getBoundingClientRect();
+		return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+	});
+	await page.mouse.move(box.x, box.y);
+	await page.mouse.down();
+	await page.mouse.move(box.x + 25, box.y + 20, { steps: 10 });
+	await page.waitForTimeout(150);
+	const webkitDrag = await page.evaluate(() => ({
+		shadows: document.querySelectorAll('.drag-shadow').length,
+		answeringToId: document.querySelectorAll('[id="node_13"]').length
+	}));
+	await page.mouse.move(box.x, box.y, { steps: 10 });
+	await page.mouse.up();
+	await page.waitForTimeout(700);
+	ok(webkitDrag.shadows === 1 && webkitDrag.answeringToId === 1,
+		`WebKit: the drag shadow does not answer to the id it was cloned from (${webkitDrag.answeringToId})`);
+	ok(await page.evaluate(() => document.querySelectorAll('.drag-shadow').length) === 0,
+		'WebKit: the shadow goes when the drag ends');
+
+	await page.evaluate(() => window.__because.engine.setLabelsOn(false));
+	await page.waitForTimeout(700);
+	webkitGhosts = await strays();
+	ok(webkitGhosts.badges.length === 0,
+		`WebKit: turning claim numbering off clears every badge (${webkitGhosts.badges})`);
+	await page.evaluate(() => window.__because.engine.setLabelsOn(true));
+	await page.waitForTimeout(500);
+	ok((await strays()).badges.length > 0, 'WebKit: turning it back on brings them back');
 
 	// ---- auto-save in WebKit: no File System Access API, so a local map
 	// has no writable target — enabling must explain itself and edits must

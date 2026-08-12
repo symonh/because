@@ -849,3 +849,124 @@ diff --git a/src/core/theme/connector.js b/src/core/theme/connector.js
  				' h' + (2 * halfWidth) +
  				'v' + initialRadius;
  		} else if (calculatedConnector.nodeOverline) {
+
+# ---- 2026-08-12: node elements outliving their nodes (stale claim-number
+# badges) ----
+# A user reported extra claim numbers that then survived claim numbering
+# being switched off. The badges belonged to node elements the stage never
+# let go of. queueFadeOut put its safety-net timeout after the return, so
+# removal rested entirely on transitionend — an event that never arrives
+# when no opacity transition starts, and that a stylesheet swap replaces
+# with transitioncancel. Idea ids are recycled, so a later node inherits a
+# leftover's DOM id; jQuery resolves '#id' through getElementById, so only
+# one of the two was rendered to again and the other froze holding its
+# badge. A bracket kept any badge it was handed, because the group branch
+# of updateNodeContent skipped applyLabel rather than clearing it. And the
+# drag shadow was cloned complete with the node's id, which is the same
+# duplicate for as long as a drag runs.
+diff --git a/engine/vendor/mapjs/src/browser/dom-map-controller.js b/engine/vendor/mapjs/src/browser/dom-map-controller.js
+index 277d9db..a714e4d 100644
+--- a/engine/vendor/mapjs/src/browser/dom-map-controller.js
++++ b/engine/vendor/mapjs/src/browser/dom-map-controller.js
+@@ -291,6 +291,13 @@ module.exports = function DomMapController(mapModel, stageElement, touchEnabled,
+ 	});
+ 	mapModel.addEventListener('nodeCreated', function (node) {
+ 		let currentReorderBoundary;
++		/* LOCAL PATCH: idea ids are recycled (content.js hands out maxId + 1
++		   over the surviving tree), so a new node can arrive holding the id of
++		   one that is gone. If anything of the old node is still on the stage,
++		   createNode would append a second element with the same DOM id — an
++		   invalid document, and the pair then drifts apart as only one of them
++		   gets rendered to. Take the leftover out first. */
++		stageElement.nodeWithId(node.id).remove();
+ 		const element = stageElement.createNode(node)
+ 			.updateNodeContent(node, themeSource(), {resourceTranslator: resourceTranslator})
+ 			.nodeResizeWidget(node.id, mapModel, stagePositionForPointEvent)
+diff --git a/engine/vendor/mapjs/src/browser/hammer-draggable.js b/engine/vendor/mapjs/src/browser/hammer-draggable.js
+index 6aad804..c1cfe5e 100644
+--- a/engine/vendor/mapjs/src/browser/hammer-draggable.js
++++ b/engine/vendor/mapjs/src/browser/hammer-draggable.js
+@@ -80,7 +80,15 @@ $.fn.simpleDraggableContainer = function () {
+ 	}).on('mm:start-dragging-shadow', function (event) {
+ 		const target = $(event.relatedTarget),
+ 			clone = function () {
+-				const result = target.clone().addClass('drag-shadow').appendTo(container).offset(target.offset()).data(target.data()).attr('mapjs-drag-role', 'shadow'),
++				/* LOCAL PATCH: removeAttr('id') — the clone copied the node's DOM
++			   id, so for as long as a drag ran the document held two elements
++			   answering to it, and a shadow left behind by an interrupted
++			   gesture made that permanent. Nothing reads the shadow's id (the
++			   drop path works off the node id closed over in
++			   dom-map-controller, and the shadow re-triggers its events on the
++			   original), while app code that looks a node up by id — the
++			   claim-number badge editor — has to find the node, not a copy. */
++			const result = target.clone().removeAttr('id').addClass('drag-shadow').appendTo(container).offset(target.offset()).data(target.data()).attr('mapjs-drag-role', 'shadow'),
+ 					scale = target.parent().data('scale') || 1;
+ 				if (scale !== 0) {
+ 					result.css({
+diff --git a/engine/vendor/mapjs/src/browser/node-with-id.js b/engine/vendor/mapjs/src/browser/node-with-id.js
+index 651d522..7629261 100644
+--- a/engine/vendor/mapjs/src/browser/node-with-id.js
++++ b/engine/vendor/mapjs/src/browser/node-with-id.js
+@@ -4,6 +4,15 @@ const jQuery = require('jquery'),
+ 
+ jQuery.fn.nodeWithId = function (id) {
+ 	'use strict';
+-	return this.find('#' + nodeKey(id));
++	/* LOCAL PATCH: jQuery resolves a bare '#id' through getElementById, so it
++	   returns only the FIRST element carrying the id even when several do.
++	   Every render path for a node goes through here — nodeMoved,
++	   nodeAttrChanged, nodeLabelChanged, selection, queueFadeOut — so a second
++	   element with the same id was invisible to all of them and froze with the
++	   content it happened to hold. An attribute selector goes through
++	   querySelectorAll and matches them all, which both keeps duplicates in
++	   step and lets a removal reach every one of them. nodeKey strips the id
++	   to [A-Za-z0-9_-], so it needs no further quoting. */
++	return this.find('[id="' + nodeKey(id) + '"]');
+ };
+ 
+diff --git a/engine/vendor/mapjs/src/browser/queue-fade-out.js b/engine/vendor/mapjs/src/browser/queue-fade-out.js
+index 0bf6634..325edf2 100644
+--- a/engine/vendor/mapjs/src/browser/queue-fade-out.js
++++ b/engine/vendor/mapjs/src/browser/queue-fade-out.js
+@@ -12,9 +12,21 @@ jQuery.fn.queueFadeOut = function (theme) {
+ 	if (!theme || theme.noAnimations()) {
+ 		return removeElement();
+ 	}
++	/* LOCAL PATCH: upstream wrote the safety net AFTER the return, so it never
++	   ran and removal depended entirely on transitionend. That event does not
++	   arrive when no opacity transition actually starts (the element was
++	   created and removed without an intervening paint, or the tab is in the
++	   background), and an interrupted transition — the stylesheet swap behind
++	   a dark-mode toggle — fires transitioncancel instead. The element then
++	   stayed in the DOM for good, and once a later node reused its idea id two
++	   elements shared one DOM id: one of them stopped being rendered to and
++	   froze, keeping whatever claim-number badge it held through every
++	   renumber and through numbering being switched off. The timeout has to
++	   outlast the theme's 400ms fade, and removeElement is safe to run twice —
++	   the second call is a no-op on a detached element. */
++	setTimeout(removeElement, 500);
+ 	return element
+-	.on('transitionend', removeElement)
++	.on('transitionend transitioncancel', removeElement)
+ 	.css('opacity', 0);
+-	setTimeout(removeElement, 500);
+ };
+ 
+diff --git a/engine/vendor/mapjs/src/browser/update-node-content.js b/engine/vendor/mapjs/src/browser/update-node-content.js
+index 5c04d34..8bf403c 100644
+--- a/engine/vendor/mapjs/src/browser/update-node-content.js
++++ b/engine/vendor/mapjs/src/browser/update-node-content.js
+@@ -280,6 +280,13 @@ jQuery.fn.updateNodeContent = function (nodeContent, theme, optional) {
+ 	if (isGroup) {
+ 		this.css({margin: '', width: nodeContent.width, height: nodeContent.height, opacity: 1});
+ 		updateText('');
++		/* LOCAL PATCH: a bracket is structure, not a claim, so it carries no
++		   number — but upstream simply skipped applyLabel here rather than
++		   clearing, which made any badge already on the element permanent:
++		   nothing else touches it, so it survived every renumber and every
++		   toggle of claim numbering. Clear it, so the group branch owns the
++		   badge's absence rather than merely ignoring it. */
++		applyLabel(undefined);
+ 	} else {
+ 		updateText(nodeContent.title);
+ 		if (optional && optional.decorations && !optional.decorations.includes(decorationEdge)) {

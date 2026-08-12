@@ -280,6 +280,13 @@ jQuery.fn.updateNodeContent = function (nodeContent, theme, optional) {
 	if (isGroup) {
 		this.css({margin: '', width: nodeContent.width, height: nodeContent.height, opacity: 1});
 		updateText('');
+		/* LOCAL PATCH: a bracket is structure, not a claim, so it carries no
+		   number — but upstream simply skipped applyLabel here rather than
+		   clearing, which made any badge already on the element permanent:
+		   nothing else touches it, so it survived every renumber and every
+		   toggle of claim numbering. Clear it, so the group branch owns the
+		   badge's absence rather than merely ignoring it. */
+		applyLabel(undefined);
 	} else {
 		updateText(nodeContent.title);
 		if (optional && optional.decorations && !optional.decorations.includes(decorationEdge)) {

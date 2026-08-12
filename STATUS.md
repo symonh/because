@@ -1,4 +1,118 @@
-# Because (formerly ArgumentBase) — status (2026-08-03)
+# Because (formerly ArgumentBase) — status (2026-08-12)
+
+## 2026-08-12 — Claim numbers that outlived their claims
+
+- Reported as "Because sometimes adds extra claim numbers", with a second
+  screenshot showing those numbers still on the map after claim numbering
+  had been switched off, and no repro: the reporter could not say what
+  move produced them. Nothing was wrong with the numbering. The badges
+  belonged to node elements the stage had never let go of, and they sat
+  where the deleted claim's own element had come to rest — on a bracket,
+  which draws a bare line and hides an element lying under it.
+- Four faults had to line up, and all four were latent from the start.
+  **queueFadeOut wrote its safety-net `setTimeout` after the `return`**,
+  so it never ran and removal rested on `transitionend` alone. That event
+  does not arrive when no opacity transition actually starts — a node
+  created and removed without an intervening paint is set from 0 to 0 —
+  and an interrupted transition fires `transitioncancel` instead, which
+  is what a dark-mode toggle does by rewriting the theme stylesheet
+  under a fade in flight.
+- **Idea ids are recycled**: `nextId` is `maxId() + 1` over the surviving
+  tree, so once a leftover element is on the stage a later node can
+  arrive holding its id. **`nodeWithId` looked the element up as `#id`,
+  which jQuery resolves through `getElementById`** — measured, not
+  assumed: two elements, `querySelectorAll` finds both and jQuery finds
+  one. Every render path for a node goes through that lookup, so exactly
+  one of the pair kept being drawn and the other froze holding the number
+  it had. Switching numbering off travels the same path, which is why it
+  could not reach the frozen one.
+- **A bracket kept any badge it was handed.** The group branch of
+  `updateNodeContent` skipped `applyLabel` rather than clearing, so
+  nothing would ever touch that badge again. And **the drag shadow was
+  cloned complete with the node's DOM id**, which is the same duplicate
+  for as long as a drag runs and permanently if a gesture is interrupted
+  before the shadow is taken down.
+- All four are fixed in the vendored engine (LOCAL-PATCHES.diff,
+  engine/README.md): the timeout runs and `transitioncancel` also
+  removes; `nodeWithId` matches every element carrying the id, so a
+  duplicate can no longer drift; `nodeCreated` clears a leftover before
+  creating, so there is no duplicate to begin with; the group branch
+  clears the badge; the shadow is cloned without the id.
+- Gates: thirteen assertions in `features-e2e` — a node gone before it
+  was ever painted, a fade cancelled by the dark-mode stylesheet swap, a
+  planted twin element that has to be renumbered with its original, a
+  claim turned into a bracket, a real drag, and the invariant they add up
+  to (the stage holds exactly the nodes the map has, and numbering off
+  paints no badge anywhere). Seven of them fail against the engine as it
+  was. `webkit-e2e` repeats the fade and the drag in Safari's own engine,
+  transitions and gestures being where both live.
+- Two existing assertions were resting on the bug and had to be corrected
+  rather than kept: `app-e2e`'s Alt+N sticky note and `a11y-e2e`'s Tab
+  co-premise both pressed Escape — which takes an untyped new node back
+  off the map — and then counted DOM elements. What they were counting
+  was the cancelled node's element, still on the stage. Both now count
+  what the map holds, before the cancel, and then check that the cancel
+  removes it.
+
+## 2026-08-03 — Connector labels are read aloud, and Escape leaves the map
+
+- Two reports from an NVDA user, both real. **The labels on the
+  connecting lines were never announced** while the arrow keys walked the
+  map — audible while being typed (the editor is a named input) and
+  silent thereafter. The cause is one line of a11y-canvas.js that is
+  still correct: the SVG layer is `aria-hidden`, because the relations it
+  draws are already in the tree. The label is not a relation, though; it
+  is authored words, and they were in the hidden layer and nowhere else.
+- The label belongs to the connector ARRIVING at a node — the `.mup`
+  keeps it on the child as `attr.parentConnector.label` — so it is
+  announced there, in whichever property does not displace a name that
+  already exists. A bracket's name is ours to write, so the label joins
+  it: "Supporting reasons (group), labelled Because". A claim's name is
+  the claim's own text, so a claim's label rides in `aria-describedby`
+  instead, pointing at a clipped span held OUTSIDE the container —
+  `role=tree` admits only treeitem children, and a span inside a node
+  would also be measured by the layout. The trigger is
+  `connectorAttrChanged`, not `nodeAttrChanged`: the layout hands
+  `parentConnector` to the connector rather than to the node.
+- Left out on purpose: the theme's own default label. "Because" / "But" /
+  "Therefore" are what the high-impact themes draw with no author input,
+  and they restate what "Supporting reasons (group)" already says.
+- **Escape now leaves the map.** Tab inside the canvas is the co-premise
+  key, so it cannot also be the way out — which left the browser's own F6,
+  found by the reporter and by nobody who has not gone looking. That is a
+  WCAG 2.1.2 failure unless the user is told the way out, so there is now
+  a way out worth telling: focus moves to the app menu (the menubar's
+  roving title, or the one menu button the floating and mobile layouts
+  hang the same spec behind), and Tab walks on through the chrome from
+  there. It is stated twice — in the keyboard reference, and in the
+  canvas's own ARIA description, which is where a reader entering the map
+  will meet it.
+- Escape only means that when nothing else is open that it already
+  belongs to. Found by the suite rather than by reasoning: a menu dropped
+  from a title CLICKED WITH THE MOUSE leaves focus in the map, so the new
+  binding swallowed the Escape that closes it and the menu stayed up.
+  `CLOSEABLE` in shortcuts.js names the six things Escape defers to.
+- **L labels a connector**, which was the one part of an argument with no
+  key at all: a thin curve to click, or the Edit menu. It runs through
+  the same `editSelectedConnectorLabel` the menu item does, so a selected
+  premise resolves to its own bracket either way, and the menu item now
+  goes through the command too — both surfaces counted, neither able to
+  drift. `l` is free in mapjs's own binding table and in ours.
+- Gates: `a11y-e2e` for the announcement in WebKit and, because a label
+  reaching a computed NAME is no guarantee that another reaches a
+  computed DESCRIPTION, again in real Chrome's accessibility tree — the
+  NVDA proxy that exists precisely because every DOM check passed while
+  an NVDA user heard "unknown invisible". Plus the exit itself: out of
+  the map, onto a real control, no map data touched, Tab carrying on from
+  there, and the floating layout's fallback. `app-e2e` presses L for real
+  and checks it is merely a letter while a claim is being edited;
+  `webkit-e2e` drives the whole L → type → ⌘Z → Escape cycle in Safari's
+  own engine, a bare letter opening a floating input being the exact
+  shape of every Safari bug this project has had.
+- One pre-existing race surfaced on the way: `loadMap` defers centring,
+  `resetView` and `deselectAll` by 250ms, and `resetView` reselects the
+  root — app-e2e's connector-label section was driving the selection
+  inside that window and only now ran fast enough to lose.
 
 ## 2026-08-03 — A claim can be inserted attached to nothing
 

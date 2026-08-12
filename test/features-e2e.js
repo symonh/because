@@ -957,6 +957,209 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 	await page.keyboard.press('Escape');
 	await sleep(200);
 
+	// ---- stale badges: no node element may outlive its node ----
+	// Reported 2026-08-12: "Because sometimes adds extra claim numbers, and
+	// those numbers persist when I turn off claim numbering." Four faults had
+	// to line up. queueFadeOut removed an element only on transitionend, which
+	// never arrives if no opacity transition actually starts (a node created
+	// and removed without an intervening paint) and is replaced by
+	// transitioncancel when the theme stylesheet is rewritten mid-fade; idea
+	// ids are recycled, so a later node inherits a leftover's DOM id; jQuery
+	// resolves '#id' through getElementById, so only the first of the two was
+	// ever rendered to again and the other froze holding the badge it had; and
+	// a bracket kept any badge it was handed, because the group branch of
+	// updateNodeContent skipped applyLabel instead of clearing. Each is
+	// checked here, on the elements the stage owns — the offscreen measuring
+	// box and a live drag shadow are neither of them nodes on the map.
+	const census = () => page.evaluate(() => {
+		const nodes = (window.__because.engine.mapModel.getCurrentLayout() || { nodes: {} }).nodes,
+			live = {},
+			painted = function (el) {
+				let n = el;
+				while (n && n !== document.body) {
+					const cs = getComputedStyle(n);
+					if (cs.display === 'none' || cs.visibility === 'hidden' ||
+							parseFloat(cs.opacity) < 0.05) { return false; }
+					n = n.parentElement;
+				}
+				return true;
+			};
+		Object.keys(nodes).forEach(id => {
+			live['node_' + String(id).replace(/[^A-Za-z0-9_-]/g, '_')] = true;
+		});
+		const els = Array.from(document.querySelectorAll('[data-mapjs-role=stage] .mapjs-node')),
+			ids = els.map(e => e.id);
+		return {
+			orphans: els.filter(e => !live[e.id]).map(e => e.id || '(no id)'),
+			duplicates: Array.from(new Set(ids.filter((id, i) => id && ids.indexOf(id) !== i))),
+			badges: els.filter(e => {
+				const b = e.querySelector('.mapjs-label');
+				return b && painted(b);
+			}).map(e => e.querySelector('.mapjs-label').textContent + '@' + e.id)
+		};
+	});
+	const leftBehind = s => s.orphans.length + s.duplicates.length ?
+		` — orphans: [${s.orphans}] duplicates: [${s.duplicates}]` : '';
+
+	// (1) a node that is gone before it was ever painted: no transition runs,
+	// so nothing but the safety-net timeout can take its element away
+	await page.evaluate(() => {
+		const mm = window.__because.engine.mapModel,
+			id = mm.getIdea().addSubIdea(12, 'gone before it is ever painted');
+		mm.selectNode(id);
+		mm.removeSubIdea('test');
+	});
+	await sleep(900);
+	let ghosts = await census();
+	ok(ghosts.orphans.length === 0 && ghosts.duplicates.length === 0,
+		'a node created and removed inside one frame leaves no element behind' + leftBehind(ghosts));
+
+	// (2) a fade interrupted by the theme stylesheet being rewritten under it
+	await page.evaluate(() => {
+		const mm = window.__because.engine.mapModel;
+		mm.selectNode(mm.getIdea().addSubIdea(12, 'deleted mid-fade'));
+	});
+	await sleep(600);
+	await page.evaluate(() => window.__because.commands.deleteNode());
+	await sleep(60);
+	await page.click('#theme-toggle'); // rewrites #themeCSS while the fade runs
+	await sleep(1100);
+	ghosts = await census();
+	ok(ghosts.orphans.length === 0 && ghosts.duplicates.length === 0,
+		'a fade cancelled by the dark-mode stylesheet swap still removes the element' + leftBehind(ghosts));
+	await page.click('#theme-toggle');
+	await sleep(400);
+
+	// (3) two elements answering to one node id stay in step, rather than one
+	// of them freezing with the number it happened to hold
+	await page.evaluate(() => {
+		window.jQuery('[data-mapjs-role=stage]').find('[id="node_12"]').first()
+			.clone().attr('data-twin', 'yes').appendTo(window.jQuery('[data-mapjs-role=stage]'));
+	});
+	const twinBadge = () => page.evaluate(() => {
+		const b = document.querySelector('[data-twin] .mapjs-label');
+		return b && b.offsetParent ? b.textContent : null;
+	});
+	await page.evaluate(() => window.__because.engine.mapModel.getIdea()
+		.updateAttr(12, 'claimLabel', 'TWIN'));
+	await sleep(600);
+	ok(await twinBadge() === 'TWIN',
+		`a renumber reaches every element sharing the node id, not just the first (${await twinBadge()})`);
+	await page.evaluate(() => window.__because.commands.undo());
+	await sleep(600);
+	await page.evaluate(() => window.__because.engine.setLabelsOn(false));
+	await sleep(600);
+	ghosts = await census();
+	ok(ghosts.badges.length === 0,
+		'numbering off leaves no badge painted anywhere, twin elements included' +
+			(ghosts.badges.length ? ' — still showing: ' + ghosts.badges.join(', ') : ''));
+	await page.evaluate(() => window.__because.engine.setLabelsOn(true));
+	await sleep(600);
+	ok(await twinBadge() === '2.1', 'and turning it back on renumbers both of them');
+	await page.evaluate(() => {
+		const t = document.querySelector('[data-twin]');
+		if (t) { t.remove(); }
+	});
+
+	// (4) a claim that turns into a bracket drops its number. A bracket is
+	// structure, and nothing else would ever clear that badge again
+	// (a childless bracket is not laid out at all, so give it something to
+	// bracket in the same undo step)
+	await page.evaluate(() => {
+		const content = window.__because.engine.mapModel.getIdea();
+		content.batch(function () {
+			content.addSubIdea(12, 'a claim under it');
+			content.updateAttr(12, 'group', 'supporting');
+		});
+	});
+	await sleep(600);
+	const asBracket = await page.evaluate(() => {
+		const el = document.querySelector('#node_12'),
+			b = el.querySelector('.mapjs-label');
+		return { isBracket: /attr_group/.test(el.className), painted: !!(b && b.offsetParent) };
+	});
+	ok(asBracket.isBracket && !asBracket.painted,
+		'a claim that becomes a bracket drops its number instead of keeping it for good');
+	await page.evaluate(() => window.__because.commands.undo());
+	await sleep(600);
+	ok(await badgeText(12) === '2.1', 'and undoing that hands the number back');
+
+	// (5) a drag raises a shadow cloned from the node — it must not answer to
+	// the node's id, or a shadow left behind by an interrupted gesture becomes
+	// the same frozen duplicate (and getElementById would find the copy)
+	const dragFrom = await page.evaluate(() => {
+		const r = document.querySelector('#node_22').getBoundingClientRect();
+		return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+	});
+	await page.mouse.move(dragFrom.x, dragFrom.y);
+	await page.mouse.down();
+	await page.mouse.move(dragFrom.x + 25, dragFrom.y + 20, { steps: 10 });
+	await sleep(150);
+	const midDrag = await page.evaluate(() => ({
+		shadows: document.querySelectorAll('.drag-shadow').length,
+		answeringToId: document.querySelectorAll('[id="node_22"]').length,
+		shadowKeptId: !!(document.querySelector('.drag-shadow') || {}).id
+	}));
+	await page.mouse.move(dragFrom.x, dragFrom.y, { steps: 10 });
+	await page.mouse.up();
+	await sleep(700);
+	ok(midDrag.shadows === 1, 'dragging a claim raises exactly one drag shadow');
+	ok(midDrag.answeringToId === 1 && !midDrag.shadowKeptId,
+		`the drag shadow does not answer to the id it was cloned from (${midDrag.answeringToId} element(s) with that id)`);
+	ok(await page.evaluate(() => document.querySelectorAll('.drag-shadow').length) === 0,
+		'and the shadow goes when the drag ends');
+
+	// (6) the invariant the four add up to, after a battery of ordinary edits
+	await page.evaluate(() => {
+		const b = window.__because, mm = b.engine.mapModel;
+		mm.selectNode(12); b.commands.addReason();
+	});
+	await sleep(500);
+	await page.keyboard.press('Escape');
+	await sleep(400);
+	for (const act of ['undo', 'redo', 'undo']) {
+		await page.evaluate(a => window.__because.commands[a](), act);
+		await sleep(500);
+	}
+	await page.evaluate(() => {
+		const b = window.__because, mm = b.engine.mapModel;
+		mm.selectNode(22); b.commands.copy();
+		mm.selectNode(12); b.commands.paste();
+	});
+	await sleep(700);
+	await page.evaluate(() => window.__because.commands.undo());
+	await sleep(700);
+	ghosts = await census();
+	ok(ghosts.orphans.length === 0 && ghosts.duplicates.length === 0,
+		'after a run of edits the stage holds exactly the nodes the map has' + leftBehind(ghosts));
+	await page.evaluate(() => window.__because.engine.setLabelsOn(false));
+	await sleep(600);
+	ghosts = await census();
+	ok(ghosts.badges.length === 0,
+		'and turning claim numbering off clears every badge on the map' +
+			(ghosts.badges.length ? ' — still showing: ' + ghosts.badges.join(', ') : ''));
+	await page.evaluate(() => window.__because.engine.setLabelsOn(true));
+	await sleep(500);
+	ok((await census()).badges.length > 0, 'turning it back on brings them back');
+
+	// leave the map as this section found it for what follows
+	await page.evaluate(() => {
+		window.__because.engine.loadMap({ formatVersion: 3, id: 'root', ideas: {
+			1: { id: 2, title: 'Conclusion', ideas: {
+				1: { id: 11, title: 'group', attr: { group: 'supporting', contentLocked: true }, ideas: {
+					1: { id: 12, title: 'A reason' }
+				} },
+				2: { id: 21, title: 'group', attr: { group: 'opposing', contentLocked: true }, ideas: {
+					1: { id: 22, title: 'An objection' }
+				} },
+				3: { id: 31, title: 'group', attr: { group: 'neutral', contentLocked: true }, ideas: {
+					1: { id: 32, title: 'Neither — just related' }
+				} }
+			} }
+		} });
+	});
+	await sleep(900);
+
 	// ---- the keyboard reference (? / Help > Keyboard shortcuts) ----
 	// It is the app's own account of its keys, so the test that matters is the
 	// drift one: every command bound in shortcuts.js has to appear in the

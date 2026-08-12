@@ -291,6 +291,13 @@ module.exports = function DomMapController(mapModel, stageElement, touchEnabled,
 	});
 	mapModel.addEventListener('nodeCreated', function (node) {
 		let currentReorderBoundary;
+		/* LOCAL PATCH: idea ids are recycled (content.js hands out maxId + 1
+		   over the surviving tree), so a new node can arrive holding the id of
+		   one that is gone. If anything of the old node is still on the stage,
+		   createNode would append a second element with the same DOM id — an
+		   invalid document, and the pair then drifts apart as only one of them
+		   gets rendered to. Take the leftover out first. */
+		stageElement.nodeWithId(node.id).remove();
 		const element = stageElement.createNode(node)
 			.updateNodeContent(node, themeSource(), {resourceTranslator: resourceTranslator})
 			.nodeResizeWidget(node.id, mapModel, stagePositionForPointEvent)
