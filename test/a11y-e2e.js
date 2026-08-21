@@ -5,11 +5,15 @@
 // work with focus in the map. Expects `python3 -m http.server 8871`
 // at the repo root (same as the other suites).
 const { webkit, chromium } = require('playwright-core');
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const { resolveChrome } = require('./chrome-path');
 const fs = require('fs');
 const path = require('path');
 const axeSource = fs.readFileSync(path.join(__dirname, 'node_modules', 'axe-core', 'axe.min.js'), 'utf8');
 const BASE = process.env.BASE || 'http://127.0.0.1:8871';
+const MODE = process.env.BECAUSE_E2E_BROWSER || 'all';
+const RUN_WEBKIT = MODE !== 'chrome';
+const RUN_CHROME = MODE !== 'webkit';
+const CHROME = RUN_CHROME ? resolveChrome() : null;
 let failures = 0;
 const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if (!cond) { failures += 1; } };
 
@@ -18,6 +22,7 @@ const AXE_OPTS = {
 };
 
 (async () => {
+	if (RUN_WEBKIT) {
 	const browser = await webkit.launch();
 	const page = await browser.newPage({ viewport: { width: 1500, height: 950 } });
 	const errors = [];
@@ -679,6 +684,7 @@ const AXE_OPTS = {
 
 	ok(errors.length === 0, 'no page errors (' + errors.join('; ').slice(0, 200) + ')');
 	await browser.close();
+	}
 
 	// ---- NVDA proxy: Chromium's COMPUTED accessibility tree ----
 	// The attributes checked above are what we author; a Windows screen
@@ -687,6 +693,7 @@ const AXE_OPTS = {
 	// activedescendant indirection while every DOM check here passed).
 	// Real Chrome, real computed tree: focusing the map must land actual
 	// focus on a NAMED treeitem — no indirection for the AT to follow.
+	if (RUN_CHROME) {
 	const cr = await chromium.launch({ executablePath: CHROME });
 	const cpage = await cr.newPage({ viewport: { width: 1500, height: 950 } });
 	await cpage.goto(BASE + '/app/index.html');
@@ -751,6 +758,7 @@ const AXE_OPTS = {
 		/Escape/.test(axTrees[0].description.value),
 		'the map\'s way out is in the tree\'s COMPUTED description');
 	await cr.close();
+	}
 
 	console.log(failures ? 'FAILURES: ' + failures : 'ALL PASS');
 	process.exit(failures ? 1 : 0);

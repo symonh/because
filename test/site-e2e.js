@@ -7,8 +7,12 @@ const { webkit, chromium } = require('playwright-core');
 const { execFileSync } = require('node:child_process');
 const fs = require('fs');
 const path = require('path');
+const { resolveChrome } = require('./chrome-path');
 
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const MODE = process.env.BECAUSE_E2E_BROWSER || 'all';
+const RUN_WEBKIT = MODE !== 'chrome';
+const RUN_CHROME = MODE !== 'webkit';
+const CHROME = RUN_CHROME ? resolveChrome() : null;
 const BASE = process.env.BASE || 'http://127.0.0.1:8871';
 const SITE = BASE + '/site/index.html';
 const ROOT = path.join(__dirname, '..');
@@ -113,10 +117,10 @@ function checksGeometry(label, g) {
 		ok(false, 'figures/build.mjs --check: ' + String(err.stdout || '') + String(err.stderr || ''));
 	}
 
-	for (const [name, launcher, opts] of [
-		['chrome', chromium, { executablePath: CHROME }],
-		['webkit', webkit, {}]
-	]) {
+	const browsers = [];
+	if (RUN_CHROME) { browsers.push(['chrome', chromium, { executablePath: CHROME }]); }
+	if (RUN_WEBKIT) { browsers.push(['webkit', webkit, {}]); }
+	for (const [name, launcher, opts] of browsers) {
 		const browser = await launcher.launch(opts);
 
 		// ---- no JS: the figure is already right ----
@@ -340,7 +344,7 @@ function checksGeometry(label, g) {
 	// Scanned with reduced motion, so nothing is measured mid-fade: the page's
 	// scroll-reveal holds text at partial opacity, and axe reads that as a
 	// contrast failure on copy that is fine once it has arrived.
-	{
+	if (RUN_WEBKIT) {
 		const browser = await webkit.launch();
 		const ctx = await browser.newContext({ viewport: { width: 1440, height: 950 }, reducedMotion: 'reduce' });
 		const page = await ctx.newPage();
@@ -360,7 +364,7 @@ function checksGeometry(label, g) {
 	}
 
 	// ---- the .mup the caption offers really opens in Because ----
-	{
+	if (RUN_WEBKIT) {
 		const browser = await webkit.launch();
 		const page = await browser.newPage({ viewport: { width: 1200, height: 800 } });
 		const errors = [];

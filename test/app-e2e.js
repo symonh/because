@@ -1,8 +1,9 @@
 // End-to-end smoke test for the Because app shell.
 // Serves nothing itself — expects `python3 -m http.server 8871` at repo root.
 const puppeteer = require('puppeteer-core');
+const { resolveChrome } = require('./chrome-path');
 
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = resolveChrome();
 const BASE = process.env.BASE || 'http://127.0.0.1:8871';
 let failures = 0;
 
@@ -14,6 +15,18 @@ function ok(cond, name) {
 (async () => {
 	const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--no-sandbox'] });
 	const page = await browser.newPage();
+	const cdp = await page.createCDPSession();
+	const pressShiftT = async function () {
+		await cdp.send('Input.dispatchKeyEvent', {
+			type: 'keyDown', modifiers: 8, key: 'T', code: 'KeyT',
+			windowsVirtualKeyCode: 84, nativeVirtualKeyCode: 84,
+			text: 'T', unmodifiedText: 't'
+		});
+		await cdp.send('Input.dispatchKeyEvent', {
+			type: 'keyUp', modifiers: 8, key: 'T', code: 'KeyT',
+			windowsVirtualKeyCode: 84, nativeVirtualKeyCode: 84
+		});
+	};
 	await page.setViewport({ width: 1500, height: 950, deviceScaleFactor: 2 });
 	const errors = [];
 	page.on('pageerror', e => errors.push(e.message));
@@ -22,9 +35,9 @@ function ok(cond, name) {
 	// pin the OS preference to dark: first visit must STILL open light
 	await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }]);
 
-	await page.goto(BASE + '/app/index.html', { waitUntil: 'networkidle0' });
+	await page.goto(BASE + '/app/index.html', { waitUntil: 'domcontentloaded' });
 	await page.evaluate(() => localStorage.clear());
-	await page.goto(BASE + '/app/index.html', { waitUntil: 'networkidle0' });
+	await page.goto(BASE + '/app/index.html', { waitUntil: 'domcontentloaded' });
 	await page.waitForSelector('.mapjs-node', { timeout: 8000 });
 
 	ok(await page.evaluate(() => !document.body.classList.contains('dark')),
@@ -36,6 +49,9 @@ function ok(cond, name) {
 		document.getElementById('intro-dont-show').checked = true;
 		document.querySelector('.intro-start').click();
 	});
+	await page.waitForFunction(() => document.activeElement &&
+		document.activeElement.classList.contains('mapjs-node'), { timeout: 5000 });
+	await new Promise(r => setTimeout(r, 350)); // let initial centre/focus settle
 	ok(await page.$('.intro-panel') === null, 'welcome modal closes on Get started');
 	ok(await page.$('#toolbar .tb-btn') !== null, 'toolbar renders');
 	ok(await page.$$eval('.menu-title', els => els.length) === 6, 'six menus render');
@@ -658,7 +674,7 @@ function ok(cond, name) {
 	}));
 	ok(darkState.body && darkState.themeDark, 'dark mode flips chrome and map theme');
 	ok(!darkState.fileDark, 'dark palette never enters the serialized map');
-	await page.reload({ waitUntil: 'networkidle0' });
+	await page.reload({ waitUntil: 'domcontentloaded' });
 	await page.waitForSelector('.mapjs-node', { timeout: 8000 });
 	ok(await page.evaluate(() => document.body.classList.contains('dark')),
 		'dark mode persists across reload');
@@ -675,9 +691,7 @@ function ok(cond, name) {
 		implicit: !!document.querySelector('.mapjs-node.attr_implicit_claim'),
 		map: window.__because.engine.serialize()
 	}));
-	await page.keyboard.down('Shift');
-	await page.keyboard.press('T');
-	await page.keyboard.up('Shift');
+	await pressShiftT();
 	await new Promise(r => setTimeout(r, 300));
 	const afterShiftT = await page.evaluate(() => ({
 		dark: document.body.classList.contains('dark'),
@@ -692,18 +706,15 @@ function ok(cond, name) {
 	ok(afterShiftT.toggleHint === 'Switch to light mode (Shift+T)' &&
 		afterShiftT.toggleName === 'Switch to light mode',
 		`the topbar button advertises the key in its tooltip only (${afterShiftT.toggleHint})`);
-	await page.keyboard.down('Shift');
-	await page.keyboard.press('T');
-	await page.keyboard.up('Shift');
+	await pressShiftT();
 	await new Promise(r => setTimeout(r, 300));
 	ok(await page.evaluate(() => !document.body.classList.contains('dark')),
 		'Shift+T switches back to light');
 	// while a claim is being edited it is just a capital T
+	await page.click('.mapjs-node');
 	await page.keyboard.press('F2');
-	await new Promise(r => setTimeout(r, 300));
-	await page.keyboard.down('Shift');
-	await page.keyboard.press('T');
-	await page.keyboard.up('Shift');
+	await page.waitForSelector('[data-mapjs-role=title][contenteditable=true]', { timeout: 5000 });
+	await pressShiftT();
 	await new Promise(r => setTimeout(r, 250));
 	const whileEditing = await page.evaluate(() => ({
 		dark: document.body.classList.contains('dark'),

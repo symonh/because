@@ -114,14 +114,12 @@ pre-rendered from `figures/maps/*.json` and committed — including the `.mup` e
 figure offers for download and hands to the editor. Edit the JSON, rerun
 `node figures/build.mjs`: see [docs/figures.md](docs/figures.md).
 
-Tests: `cd test && npm ci`, serve the repo root (`python3 -m http.server
-8871`), then run all eight suites — `node app-e2e.js`, `node
-click-select-e2e.js`, `node drive-e2e.js`, `node onedrive-e2e.js`,
-`node features-e2e.js` (Chrome via puppeteer-core), `node webkit-e2e.js`
-(Playwright WebKit, the Safari-engine check), `node a11y-e2e.js`
-(WCAG 2.2 AA gate: axe-core scans plus the keyboard model, also WebKit —
-see docs/accessibility.md) and `node site-e2e.js` (the landing page's figures,
-both engines). All eight must pass before deploying.
+Tests require Node 22.12 or newer, a system installation of Google Chrome (or
+`CHROME_PATH` pointing at its executable), and Playwright WebKit. Run `cd test
+&& npm ci`, then `npm run install:webkit` once to provision WebKit. The
+canonical test command is `cd test && npm test`; it serves the repository root,
+checks the editor smoke page, and runs all nine suites in order. `npm run
+test:chrome` and `npm run test:webkit` run the corresponding browser subsets.
 
 ## License
 

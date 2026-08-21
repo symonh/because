@@ -613,6 +613,8 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 	await ctx.route('**://onedrive.live.com/**', r => r.fulfill(
 		{ status: 200, contentType: 'text/html', body: '<title>onedrive stub</title>' }));
 	await page.addInitScript(function (deathMup) {
+		window.__webkitDriveWrites = 0;
+		window.__webkitOneDriveWrites = 0;
 		// Microsoft auth popup: intercept ONLY the authorize URL (the Drive
 		// tests need real window.open) and post a code straight back
 		const realOpen = window.open.bind(window);
@@ -670,6 +672,10 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 						'@microsoft.graph.downloadUrl': 'https://download.test/odfile1'
 					}), { status: 200 }));
 				}
+				if (u.indexOf('/content') >= 0 && options && options.method === 'PUT') {
+					window.__webkitOneDriveWrites += 1;
+					return Promise.resolve(new Response('{}', { status: 200 }));
+				}
 			}
 			if (u.indexOf('download.test') >= 0) {
 				return Promise.resolve(new Response(deathMup, { status: 200 }));
@@ -685,6 +691,7 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 					return Promise.resolve(new Response(deathMup, { status: 200 }));
 				}
 				if (u.indexOf('uploadType=media') >= 0) {
+					window.__webkitDriveWrites += 1;
 					return Promise.resolve(new Response('{}', { status: 200 }));
 				}
 				if (u.indexOf('uploadType=multipart') >= 0) {
@@ -723,6 +730,23 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 	await page.waitForFunction(() => document.getElementById('map-title').textContent === 'Drive map.mup', { timeout: 8000 });
 	ok(await page.evaluate(() => !document.querySelector('.drive-cookie-note')),
 		'the note is not repeated once it has been read');
+
+	// WebKit has no writable local handle: Save As is a downloaded copy and
+	// must leave plain Save + auto-save bound to the Drive file.
+	const driveDownloadsBefore = downloads.length;
+	await page.evaluate(() => window.__because.io.save(true));
+	await page.waitForTimeout(300);
+	await page.evaluate(() => window.__because.io.save(false));
+	const driveWritesBeforeAuto = await page.evaluate(() => window.__webkitDriveWrites);
+	await page.evaluate(() => {
+		const content = window.__because.engine.mapModel.getIdea(),
+			anyId = Object.values(content.ideas)[0].id;
+		content.updateTitle(anyId, 'Drive autosave after download copy');
+	});
+	await page.waitForFunction(n => window.__webkitDriveWrites > n, driveWritesBeforeAuto, { timeout: 8000 });
+	ok(await page.evaluate(() => window.__because.drive.currentFile() !== null &&
+		window.__webkitDriveWrites >= 2) && downloads.length === driveDownloadsBefore + 1,
+		'WebKit download Save As keeps plain Save and autosave bound to Drive');
 
 	// direct share: a real user click must survive WebKit's popup policing
 	await page.click('.menu-title:text-is("File")');
@@ -767,6 +791,20 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 	});
 	await page.waitForFunction(() => document.getElementById('map-title').textContent === 'OD map.mup', { timeout: 8000 });
 	ok(true, 'picked OneDrive file loads in WebKit');
+	const oneDriveDownloadsBefore = downloads.length;
+	await page.evaluate(() => window.__because.io.save(true));
+	await page.waitForTimeout(300);
+	await page.evaluate(() => window.__because.io.save(false));
+	const oneDriveWritesBeforeAuto = await page.evaluate(() => window.__webkitOneDriveWrites);
+	await page.evaluate(() => {
+		const content = window.__because.engine.mapModel.getIdea(),
+			anyId = Object.values(content.ideas)[0].id;
+		content.updateTitle(anyId, 'OneDrive autosave after download copy');
+	});
+	await page.waitForFunction(n => window.__webkitOneDriveWrites > n, oneDriveWritesBeforeAuto, { timeout: 8000 });
+	ok(await page.evaluate(() => window.__because.onedrive.currentFile() !== null &&
+		window.__webkitOneDriveWrites >= 2) && downloads.length === oneDriveDownloadsBefore + 1,
+		'WebKit download Save As keeps plain Save and autosave bound to OneDrive');
 	await page.click('.menu-title:text-is("File")');
 	const [odPage] = await Promise.all([
 		page.waitForEvent('popup'),

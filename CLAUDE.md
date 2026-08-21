@@ -38,12 +38,11 @@ OAuth setup.
   drift. Change the hero and also rerun `cd test && node og-shot.js` to
   redraw `site/og.png` — the social card renders the same map. See
   docs/figures.md.
-- Tests: serve the repo root on port 8871, then run `node app-e2e.js`,
-  `node click-select-e2e.js`, `node drive-e2e.js`, `node onedrive-e2e.js`,
-  `node features-e2e.js`, `node webkit-e2e.js` (Playwright WebKit — the
-  Safari rule), `node a11y-e2e.js` (WCAG 2.2 AA gate;
-  docs/accessibility.md), and `node site-e2e.js` (the landing-page
-  figures, both engines) from `test/`. All must pass before deploying.
+- Tests: from `test/`, run `npm test`; it serves the repository root and runs
+  all nine suites in their required order. `npm run test:chrome` and `npm run
+  test:webkit` run the browser-specific subsets. Node >=22.12.0, system Chrome
+  (or `CHROME_PATH`), and Playwright WebKit (`npm run install:webkit`) are
+  prerequisites. All default coverage must pass before deploying.
 
 ## Engine background
 
