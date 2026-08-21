@@ -1,8 +1,8 @@
-/*global window, document, Blob, URL, FileReader, localStorage*/
+/*global window, document, Blob, URL, FileReader*/
 /*
  * Open/save .mup files, the unsaved-changes guard, and autosave. Uses the
  * File System Access API when available (real Save), otherwise falls back
- * to download. Autosaves the working map to localStorage so a browser
+ * to download. Autosaves the working map to browser storage so a browser
  * crash loses nothing — but autosave is crash recovery, not saving: the
  * dirty flag (and the status text) track the map relative to its file.
  */
@@ -10,6 +10,7 @@
 import { track, noteMapSource } from './analytics.js';
 import { initModal } from './a11y.js';
 import { CONCLUSION_PLACEHOLDER } from './engine.js';
+import { get as storageGet, set as storageSet } from './safe-storage.js';
 
 const AUTOSAVE_KEY = 'because.autosave',
 	NAME_KEY = 'because.autosave.name',
@@ -24,8 +25,8 @@ const AUTOSAVE_KEY = 'because.autosave',
 		'because.autosave.dirty': 'argumentbase.autosave.dirty'
 	},
 	getStored = function (key) {
-		const value = localStorage.getItem(key);
-		return value !== null ? value : localStorage.getItem(LEGACY_KEYS[key]);
+		const value = storageGet(key);
+		return value !== null ? value : storageGet(LEGACY_KEYS[key]);
 	};
 
 export function makeFileIO(engine, status) {
@@ -33,17 +34,24 @@ export function makeFileIO(engine, status) {
 		fileName = 'untitled.mup',
 		dirty = false,
 		pickerInput = null,
-		saveOverride = null, // set by the Drive module while a Drive file is open
+		externalTarget = null, // {save, onClear} while a cloud file is open
 		// auto-save (File > Auto-save): each change writes back to the map's
 		// own file — only ever a writable one (Drive, or a File System Access
 		// handle), never the download fallback
-		autoOn = localStorage.getItem(AUTO_KEY) === '1',
+		autoOn = storageGet(AUTO_KEY) === '1',
 		autoTimer = null,
 		autoBusy = false,
 		autoFailed = false,
 		changeGen = 0;
 
-	const setName = function (name) {
+	const clearExternalTarget = function () {
+			const old = externalTarget;
+			externalTarget = null;
+			if (old && old.onClear) {
+				try { old.onClear(); } catch (e) { window.console.error(e); }
+			}
+		},
+		setName = function (name) {
 			fileName = name;
 			document.title = name.replace(/\.mup$/i, '') + ' — Because';
 			status.setFileName(name);
@@ -59,17 +67,21 @@ export function makeFileIO(engine, status) {
 				status.dirty();
 			}
 		},
-		parseAndLoad = function (text, name, loadedDirty) {
-			const json = JSON.parse(text);
-			engine.loadMap(json);
+		commitDocumentMetadata = function (name, loadedDirty, nextHandle) {
+			clearExternalTarget();
+			fileHandle = nextHandle || null;
 			setName(name);
 			setDirty(loadedDirty);
+		},
+		parseAndLoad = function (text, name, loadedDirty, nextHandle) {
+			const json = JSON.parse(text);
+			engine.loadMap(json);
+			commitDocumentMetadata(name, loadedDirty, nextHandle);
 		},
 		loadFile = function (file) {
 			const reader = new FileReader();
 			reader.onload = ev => parseAndLoad(ev.target.result, file.name, false);
 			reader.readAsText(file);
-			fileHandle = null;
 		},
 		downloadCopy = function (text) {
 			const blob = new Blob([text], { type: 'application/json' }),
@@ -101,7 +113,7 @@ export function makeFileIO(engine, status) {
 		// (e.g. the Open dialog) still has a user gesture to spend: writes
 		// through the file handle when there is one, otherwise downloads.
 		saveQuietly = async function () {
-			if (saveOverride) { return saveOverride(); }
+			if (externalTarget) { return externalTarget.save(); }
 			const text = engine.serialize();
 			if (fileHandle) {
 				const writable = await fileHandle.createWritable();
@@ -115,7 +127,7 @@ export function makeFileIO(engine, status) {
 			io.autosave();
 			return true;
 		},
-		canWriteInPlace = () => !!(saveOverride || fileHandle),
+		canWriteInPlace = () => !!(externalTarget || fileHandle),
 		scheduleAutoSave = function () {
 			if (!autoOn || autoFailed || !canWriteInPlace()) { return; }
 			if (autoTimer) { window.clearTimeout(autoTimer); }
@@ -130,8 +142,8 @@ export function makeFileIO(engine, status) {
 			autoBusy = true;
 			status.saving();
 			try {
-				if (saveOverride) {
-					await saveOverride({ auto: true }); // Drive tracks + marks saved
+				if (externalTarget) {
+					await externalTarget.save({ auto: true }); // provider tracks + marks saved
 				} else {
 					const text = engine.serialize(),
 						writable = await fileHandle.createWritable();
@@ -167,7 +179,7 @@ export function makeFileIO(engine, status) {
 		setAutoSave(on) {
 			autoOn = !!on;
 			autoFailed = false;
-			try { localStorage.setItem(AUTO_KEY, autoOn ? '1' : ''); } catch (e) { /* quota — non-fatal */ }
+			storageSet(AUTO_KEY, autoOn ? '1' : '');
 			track('auto_save_toggle', { enabled: autoOn ? 'on' : 'off' });
 			if (!autoOn && autoTimer) { window.clearTimeout(autoTimer); autoTimer = null; }
 			// run inside the user's click, so a Drive token popup can open
@@ -179,7 +191,10 @@ export function makeFileIO(engine, status) {
 			setDirty(false);
 			io.autosave();
 		},
-		setSaveOverride(fn) { saveOverride = fn || null; },
+		setSaveOverride(fn, onClear) {
+			clearExternalTarget();
+			if (fn) { externalTarget = { save: fn, onClear: onClear || null }; }
+		},
 		// Save / Don't save / Cancel before anything that replaces the map
 		guardUnsaved(proceed) {
 			if (!dirty) { proceed(); return; }
@@ -219,7 +234,6 @@ export function makeFileIO(engine, status) {
 		},
 		newMap() {
 			io.guardUnsaved(function () {
-				fileHandle = null;
 				noteMapSource('new');
 				engine.loadMap({
 					formatVersion: 3,
@@ -228,8 +242,7 @@ export function makeFileIO(engine, status) {
 					attr: { theme: 'argMappingSimple' },
 					ideas: { 1: { id: 1, title: CONCLUSION_PLACEHOLDER, attr: {} } }
 				}, { selectRoot: true });
-				setName('untitled.mup');
-				setDirty(false);
+				commitDocumentMetadata('untitled.mup', false, null);
 			});
 		},
 		open() {
@@ -241,8 +254,7 @@ export function makeFileIO(engine, status) {
 						});
 						const file = await handle.getFile();
 						noteMapSource('file_picker');
-						parseAndLoad(await file.text(), file.name, false);
-						fileHandle = handle;
+						parseAndLoad(await file.text(), file.name, false, handle);
 					} catch (e) {
 						if (e && e.name === 'AbortError') { return; }
 						throw e;
@@ -262,35 +274,40 @@ export function makeFileIO(engine, status) {
 		},
 		// ?src= loader entry — parsed JSON straight in, no file handle
 		loadJson(json, name) {
-			fileHandle = null;
 			engine.loadMap(json);
-			setName(name || 'untitled.mup');
-			setDirty(false);
+			commitDocumentMetadata(name || 'untitled.mup', false, null);
 		},
 		async save(as) {
-			if (!as && saveOverride) { return saveOverride(); }
+			if (!as && externalTarget) { return externalTarget.save(); }
 			const text = engine.serialize();
+			let targetHandle = fileHandle,
+				pickedNewHandle = false;
 			if (window.showSaveFilePicker && (as || !fileHandle)) {
 				try {
-					fileHandle = await window.showSaveFilePicker({
+					targetHandle = await window.showSaveFilePicker({
 						suggestedName: fileName,
 						types: [{ description: 'Argument maps', accept: { 'application/json': ['.mup'] } }]
 					});
+					pickedNewHandle = true;
 				} catch (e) {
 					if (e && e.name === 'AbortError') { return false; }
 					throw e;
 				}
 			}
-			if (fileHandle) {
-				const writable = await fileHandle.createWritable();
+			if (targetHandle) {
+				const writable = await targetHandle.createWritable();
 				await writable.write(text);
 				await writable.close();
-				setName(fileHandle.name);
+				if (pickedNewHandle) {
+					clearExternalTarget();
+					fileHandle = targetHandle;
+				}
+				setName(targetHandle.name);
 			} else {
 				downloadCopy(text);
 			}
 			track('map_save', {
-				destination: fileHandle ? 'file' : 'download',
+				destination: targetHandle ? 'file' : 'download',
 				mode: as ? 'save_as' : 'save'
 			});
 			setDirty(false);
@@ -298,11 +315,9 @@ export function makeFileIO(engine, status) {
 			return true;
 		},
 		autosave() {
-			try {
-				localStorage.setItem(AUTOSAVE_KEY, engine.serialize());
-				localStorage.setItem(NAME_KEY, fileName);
-				localStorage.setItem(DIRTY_KEY, dirty ? '1' : '');
-			} catch (e) { /* quota — non-fatal */ }
+			storageSet(AUTOSAVE_KEY, engine.serialize());
+			storageSet(NAME_KEY, fileName);
+			storageSet(DIRTY_KEY, dirty ? '1' : '');
 		},
 		restoreAutosave() {
 			try {

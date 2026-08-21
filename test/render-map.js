@@ -4,8 +4,9 @@
 //   node render_engine.js --css override.css --out out.png [--keep-selection] [--url URL]
 const puppeteer = require('puppeteer-core');
 const fs = require('fs');
+const { resolveChrome } = require('./chrome-path');
 
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = resolveChrome();
 function arg(name, def) { const i = process.argv.indexOf('--' + name); return i >= 0 ? process.argv[i + 1] : def; }
 const has = name => process.argv.includes('--' + name);
 
@@ -22,7 +23,7 @@ const pad = parseInt(arg('pad', '48'), 10);
 	page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
 	page.on('pageerror', e => errors.push('pageerror: ' + e.message));
 
-	await page.goto(url, { waitUntil: 'networkidle0', timeout: 20000 });
+	await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
 	await page.waitForSelector('.mapjs-node', { timeout: 8000 });
 	// hide the dev toolbar so it never intrudes
 	await page.evaluate(() => {

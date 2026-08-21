@@ -1,4 +1,4 @@
-/*global window, document, localStorage*/
+/*global window, document*/
 /*
  * Print / Save as PDF.
  *
@@ -32,6 +32,7 @@
 
 import { track } from './analytics.js';
 import { initModal } from './a11y.js';
+import { get as storageGet, set as storageSet } from './safe-storage.js';
 
 const KEY = 'because.print',
 	STYLE_ID = 'print-css',
@@ -62,11 +63,11 @@ const KEY = 'because.print',
 	}),
 	readOpts = function () {
 		let stored = null;
-		try { stored = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { /* private mode, or junk */ }
+		try { stored = JSON.parse(storageGet(KEY) || 'null'); } catch (e) { /* junk */ }
 		return normalize(stored);
 	},
 	saveOpts = function (opts) {
-		try { localStorage.setItem(KEY, JSON.stringify(opts)); } catch (e) { /* private mode */ }
+		storageSet(KEY, JSON.stringify(opts));
 	};
 
 export function makePrint(container) {

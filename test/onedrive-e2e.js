@@ -7,8 +7,9 @@
 const puppeteer = require('puppeteer-core');
 const fs = require('fs');
 const path = require('path');
+const { resolveChrome } = require('./chrome-path');
 
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = resolveChrome();
 const BASE = process.env.BASE || 'http://127.0.0.1:8871';
 let failures = 0;
 const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if (!cond) { failures += 1; } };
@@ -105,9 +106,9 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 		window.prompt = () => 'Copy of map';
 	}, DEATH_MUP);
 
-	await page.goto(BASE + '/app/index.html', { waitUntil: 'networkidle0' });
+	await page.goto(BASE + '/app/index.html', { waitUntil: 'domcontentloaded' });
 	await page.evaluate(() => localStorage.clear());
-	await page.goto(BASE + '/app/index.html', { waitUntil: 'networkidle0' });
+	await page.goto(BASE + '/app/index.html', { waitUntil: 'domcontentloaded' });
 	await page.waitForSelector('.mapjs-node', { timeout: 8000 });
 
 	// dismiss the first-visit welcome modal so it never blocks clicks
@@ -292,7 +293,7 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 		'the switch names the connected account');
 
 	// return visit: the persisted refresh token skips the popup entirely
-	await page.reload({ waitUntil: 'networkidle0' });
+	await page.reload({ waitUntil: 'domcontentloaded' });
 	await page.waitForSelector('.mapjs-node', { timeout: 8000 });
 	await page.evaluate(async () => { // the config module reset on reload
 		const mod = await import('./js/config.js');
@@ -307,6 +308,38 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 		const btn = document.querySelector('.panel-close button');
 		if (btn) { btn.click(); }
 	});
+
+	// Rebind a real OneDrive item, then prove local Save As retires it.
+	await clickMenu('File', 'Open from OneDrive');
+	await page.waitForFunction(() => Array.from(document.querySelectorAll('.od-list .od-item'))
+		.some(b => b.textContent.indexOf('OD map.mup') >= 0), { timeout: 6000 });
+	await page.evaluate(() => {
+		Array.from(document.querySelectorAll('.od-list .od-item'))
+			.find(b => b.textContent.indexOf('OD map.mup') >= 0).click();
+	});
+	await page.waitForFunction(() => window.__because.onedrive.currentFile() !== null, { timeout: 6000 });
+	const localOneDriveSave = await page.evaluate(async () => {
+		let writes = 0;
+		window.showSaveFilePicker = async () => ({
+			name: 'local-from-onedrive.mup',
+			createWritable: async () => ({
+				write: async () => { writes += 1; },
+				close: async () => {}
+			})
+		});
+		const beforeCloudCalls = window.__odCalls.length;
+		await window.__because.io.save(true);
+		await window.__because.io.save(false);
+		return {
+			writes,
+			cloudCalls: window.__odCalls.length - beforeCloudCalls,
+			providerCleared: window.__because.onedrive.currentFile() === null,
+			name: window.__because.io.fileName()
+		};
+	});
+	ok(localOneDriveSave.writes === 2 && localOneDriveSave.cloudCalls === 0 &&
+		localOneDriveSave.providerCleared && localOneDriveSave.name === 'local-from-onedrive.mup',
+		'local Save As clears OneDrive and makes subsequent Save local-only');
 
 	ok(await page.evaluate(() => !window.__because.analytics.events().some(ev =>
 		/[\w-]{25,}/.test(JSON.stringify(ev.params)))),

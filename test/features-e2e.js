@@ -4,8 +4,9 @@
 // styling, and dark-mode handling of author-set node colours.
 // Expects `python3 -m http.server 8871` at repo root.
 const puppeteer = require('puppeteer-core');
+const { resolveChrome } = require('./chrome-path');
 
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = resolveChrome();
 const BASE = process.env.BASE || 'http://127.0.0.1:8871';
 let failures = 0;
 const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if (!cond) { failures += 1; } };
@@ -19,9 +20,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 	page.on('pageerror', e => errors.push(e.message));
 	page.on('dialog', d => d.accept());
 
-	await page.goto(BASE + '/app/index.html', { waitUntil: 'networkidle0' });
+	await page.goto(BASE + '/app/index.html', { waitUntil: 'domcontentloaded' });
 	await page.evaluate(() => localStorage.clear());
-	await page.goto(BASE + '/app/index.html', { waitUntil: 'networkidle0' });
+	await page.goto(BASE + '/app/index.html', { waitUntil: 'domcontentloaded' });
 	await page.waitForSelector('.mapjs-node', { timeout: 8000 });
 	await page.evaluate(() => {
 		const box = document.getElementById('intro-dont-show');
@@ -196,7 +197,13 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 	ok(await page.$('.connector-popover') === null, 'Escape closes the connector popover');
 
 	// ---- double-click an unlabelled connector opens the label editor ----
-	await page.mouse.click(connectorPoint.x, connectorPoint.y, { clickCount: 2 });
+	const labelConnectorPoint = await page.evaluate(() => {
+		const path = document.querySelector('#connector_2_11 path.mapjs-link-hit') ||
+			document.querySelector('#connector_2_11 path'),
+			r = path.getBoundingClientRect();
+		return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+	});
+	await page.mouse.click(labelConnectorPoint.x, labelConnectorPoint.y, { count: 2 });
 	await page.waitForSelector('.connector-label-editor', { timeout: 5000 });
 	ok(true, 'double-clicking an unlabelled connector opens the label editor');
 	await page.keyboard.type('New label via dblclick');
@@ -324,7 +331,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 			r = path.getBoundingClientRect();
 		return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
 	});
-	await page.mouse.click(scrolledPoint.x, scrolledPoint.y, { clickCount: 2 });
+	await page.mouse.click(scrolledPoint.x, scrolledPoint.y, { count: 2 });
 	await page.waitForSelector('.connector-label-editor', { timeout: 5000 });
 	const editorDistance = await page.evaluate(p => {
 		const r = document.querySelector('.connector-label-editor').getBoundingClientRect();
@@ -1556,7 +1563,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 	// the choice survives a reload
 	await clickMenu('View', 'Floating controls');
 	await sleep(300);
-	await page.reload({ waitUntil: 'networkidle0' });
+	await page.reload({ waitUntil: 'domcontentloaded' });
 	await page.waitForSelector('.mapjs-node', { timeout: 8000 });
 	await sleep(500);
 	const reloaded = await layoutState();

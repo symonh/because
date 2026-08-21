@@ -6,8 +6,9 @@
 const puppeteer = require('puppeteer-core');
 const fs = require('fs');
 const path = require('path');
+const { resolveChrome } = require('./chrome-path');
 
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = resolveChrome();
 const BASE = process.env.BASE || 'http://127.0.0.1:8871';
 let failures = 0;
 const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if (!cond) { failures += 1; } };
@@ -114,9 +115,9 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 		window.prompt = () => 'Copy of map';
 	}, DEATH_MUP);
 
-	await page.goto(BASE + '/app/index.html', { waitUntil: 'networkidle0' });
+	await page.goto(BASE + '/app/index.html', { waitUntil: 'domcontentloaded' });
 	await page.evaluate(() => localStorage.clear());
-	await page.goto(BASE + '/app/index.html', { waitUntil: 'networkidle0' });
+	await page.goto(BASE + '/app/index.html', { waitUntil: 'domcontentloaded' });
 	await page.waitForSelector('.mapjs-node', { timeout: 8000 });
 
 	// dismiss the first-visit welcome modal so it never blocks clicks
@@ -329,7 +330,7 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 	// ---- account persistence: no chooser on return visits ----
 	ok(await page.evaluate(() => localStorage.getItem('because.drive.account') === 'sc@test'),
 		'the granting account persists in localStorage');
-	await page.reload({ waitUntil: 'networkidle0' });
+	await page.reload({ waitUntil: 'domcontentloaded' });
 	await page.waitForSelector('.mapjs-node', { timeout: 8000 });
 	await page.evaluate(() => { window.__alerts = []; window.alert = m => window.__alerts.push(String(m)); });
 	await clickMenu('File', 'Open from Google Drive');
@@ -398,6 +399,31 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 		/[\w-]{25,}/.test(JSON.stringify(ev.params)))),
 		'still no Drive-id-sized token in any analytics event');
 	await page.click('.panel-close button');
+
+	// A successful local Save As must retire the Drive target. Plain Save
+	// afterwards writes the local handle and the provider marker is gone.
+	const localDriveSave = await page.evaluate(async () => {
+		let writes = 0;
+		window.showSaveFilePicker = async () => ({
+			name: 'local-from-drive.mup',
+			createWritable: async () => ({
+				write: async () => { writes += 1; },
+				close: async () => {}
+			})
+		});
+		const beforeCloudCalls = window.__driveCalls.length;
+		await window.__because.io.save(true);
+		await window.__because.io.save(false);
+		return {
+			writes,
+			cloudCalls: window.__driveCalls.length - beforeCloudCalls,
+			providerCleared: window.__because.drive.currentFile() === null,
+			name: window.__because.io.fileName()
+		};
+	});
+	ok(localDriveSave.writes === 2 && localDriveSave.cloudCalls === 0 &&
+		localDriveSave.providerCleared && localDriveSave.name === 'local-from-drive.mup',
+		'local Save As clears Drive and makes subsequent Save local-only');
 
 	if (errors.length) { console.log('PAGE ERRORS:', errors.join(' | ')); failures += 1; }
 	await browser.close();
