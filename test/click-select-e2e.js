@@ -2,7 +2,8 @@
 // is NOT selected and check whether selection moves to it. Then a stress
 // loop of drags/undo/edits interleaved with clean-click checks.
 const puppeteer = require('puppeteer-core');
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const { resolveChrome } = require('./chrome-path');
+const CHROME = resolveChrome();
 const BASE = process.env.BASE || 'http://127.0.0.1:8871';
 let failures = 0;
 const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if (!cond) { failures += 1; } };
@@ -12,9 +13,9 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 	const page = await browser.newPage();
 	await page.setViewport({ width: 1500, height: 950 });
 	page.on('pageerror', e => console.log('PAGE ERROR:', e.message));
-	await page.goto(BASE + '/app/index.html', { waitUntil: 'networkidle0' });
+	await page.goto(BASE + '/app/index.html', { waitUntil: 'domcontentloaded' });
 	await page.evaluate(() => localStorage.clear());
-	await page.goto(BASE + '/app/index.html', { waitUntil: 'networkidle0' });
+	await page.goto(BASE + '/app/index.html', { waitUntil: 'domcontentloaded' });
 	await page.waitForSelector('.mapjs-node');
 
 	// dismiss the first-visit welcome modal so it never blocks clicks

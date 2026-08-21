@@ -11,6 +11,101 @@ import { installDropPolicy } from './drop-policy.js';
 const MAPJS = window.MAPJS,
 	jQuery = window.jQuery;
 
+const objectValue = value => !!value && typeof value === 'object' && !Array.isArray(value),
+	failMap = message => { throw new Error('Invalid map: ' + message); },
+	validateRawNode = function (node, path) {
+		if (!objectValue(node)) { failMap(path + ' must be an object'); }
+		['attr', 'style'].forEach(function (key) {
+			if (node[key] !== undefined && !objectValue(node[key])) {
+				failMap(path + '.' + key + ' must be an object');
+			}
+		});
+		if (node.ideas !== undefined) {
+			if (!objectValue(node.ideas)) { failMap(path + '.ideas must be an object'); }
+			const ranks = new Set();
+			Object.keys(node.ideas).forEach(function (key) {
+				const rank = parseFloat(key);
+				if (!Number.isFinite(rank) || rank === 0) {
+					failMap(path + '.ideas has invalid rank ' + key);
+				}
+				if (ranks.has(rank)) { failMap(path + '.ideas has colliding rank ' + key); }
+				ranks.add(rank);
+				validateRawNode(node.ideas[key], path + '.ideas[' + key + ']');
+			});
+		}
+	},
+	validateLinks = function (links) {
+		if (links === undefined) { return; }
+		if (!Array.isArray(links) || links.some(link => !objectValue(link))) {
+			failMap('links must be an array of objects');
+		}
+	},
+	validateThemeValues = function (value, path) {
+		if (value === null) { failMap(path + ' must not be null'); }
+		if (typeof value === 'number' && !Number.isFinite(value)) {
+			failMap(path + ' must be finite');
+		}
+		if (Array.isArray(value)) {
+			value.forEach((item, index) => validateThemeValues(item, path + '[' + index + ']'));
+		} else if (objectValue(value)) {
+			Object.keys(value).forEach(key => validateThemeValues(value[key], path + '.' + key));
+		}
+	},
+	validateThemeLayout = function (themeJson) {
+		const layout = themeJson.layout;
+		if (layout === undefined) { return; }
+		if (!objectValue(layout)) { failMap('theme.layout must be an object'); }
+		if (layout.orientation !== undefined && typeof layout.orientation !== 'string') {
+			failMap('theme.layout.orientation must be a string');
+		}
+		if (layout.spacing === undefined) { return; }
+		if (typeof layout.spacing === 'number') {
+			if (!Number.isFinite(layout.spacing) || layout.spacing < 0) {
+				failMap('theme.layout.spacing must be non-negative and finite');
+			}
+			return;
+		}
+		if (!objectValue(layout.spacing)) {
+			failMap('theme.layout.spacing must be a number or object');
+		}
+		['h', 'v'].forEach(function (key) {
+			if (!Number.isFinite(layout.spacing[key]) || layout.spacing[key] < 0) {
+				failMap('theme.layout.spacing.' + key + ' must be non-negative and finite');
+			}
+		});
+		if (layout.spacing.nestedGroupLabel !== undefined &&
+				(!Number.isFinite(layout.spacing.nestedGroupLabel) || layout.spacing.nestedGroupLabel < 0)) {
+			failMap('theme.layout.spacing.nestedGroupLabel must be non-negative and finite');
+		}
+	},
+	validateCanonical = function (candidate) {
+		if (!objectValue(candidate.ideas) || Object.keys(candidate.ideas).length === 0) {
+			failMap('upgraded map must contain a root idea');
+		}
+		const ids = new Set();
+		const visit = function (node, path) {
+			if (!objectValue(node)) { failMap(path + ' must be an object'); }
+			if (typeof node.title !== 'string') { failMap(path + '.title must be a string'); }
+			if (!(typeof node.id === 'string' || (typeof node.id === 'number' && Number.isFinite(node.id)))) {
+				failMap(path + '.id must be a string or finite number');
+			}
+			const id = String(node.id);
+			if (ids.has(id)) { failMap('duplicate id ' + id); }
+			ids.add(id);
+			['attr', 'style'].forEach(function (key) {
+				if (node[key] !== undefined && !objectValue(node[key])) {
+					failMap(path + '.' + key + ' must be an object');
+				}
+			});
+			if (node.ideas !== undefined) {
+				if (!objectValue(node.ideas)) { failMap(path + '.ideas must be an object'); }
+				Object.keys(node.ideas).forEach(key => visit(node.ideas[key], path + '.ideas[' + key + ']'));
+			}
+		};
+		visit(candidate, 'root');
+		validateLinks(candidate.links);
+	};
+
 // A new map's conclusion claim carries this as real title text. Listing it
 // in the MapModel's selectAllTitles (below) makes editNode select the whole
 // title on every open path — Space, F2, double-click, or the menu — so the
@@ -27,22 +122,28 @@ export function initEngine(container) {
 		theme = new MAPJS.Theme(baseThemeJson),
 		currentMapJson = null,
 		labelsOn = true,
-		loadToken = 0; // invalidates deferred work when another map loads first
+		loadToken = 0, // invalidates deferred work when another map loads first
+		pendingLoad = null;
 	const mapModel = new MAPJS.MapModel([CONCLUSION_PLACEHOLDER]),
 		// above this, loading is deferred behind an overlay; a 68-node map
 		// measured ~140ms of layout, so only genuinely huge maps qualify
 		LARGE_MAP_NODES = 100,
 		listeners = { mapChanged: [], mapLoaded: [], loadStarted: [], loadFinished: [] },
-		emit = (name, ...args) => listeners[name].forEach(fn => fn(...args)),
-		refreshThemeCSS = function (themeJson) {
-			const themeCSS = themeJson && new MAPJS.ThemeProcessor().process(themeJson).css;
-			if (!themeCSS) { return false; }
+		emit = (name, ...args) => listeners[name].slice().forEach(function (fn) {
+			try { fn(...args); } catch (e) { window.console.error(e); }
+		}),
+		installThemeCSS = function (css) {
+			if (!css) { return false; }
 			let styleElement = jQuery('#themeCSS');
 			if (!styleElement.length) {
 				styleElement = jQuery('<style id="themeCSS" type="text/css"></style>').appendTo('head');
 			}
-			styleElement.text(themeCSS);
+			styleElement.text(css);
 			return true;
+		},
+		refreshThemeCSS = function (themeJson) {
+			const themeCSS = themeJson && new MAPJS.ThemeProcessor().process(themeJson).css;
+			return installThemeCSS(themeCSS);
 		},
 		// the editor auto-selects the root on load, which draws the dotted
 		// "activated" border; a freshly opened map should look clean.
@@ -80,6 +181,34 @@ export function initEngine(container) {
 		countNodes = function (json) {
 			const kids = (json && json.ideas) || {};
 			return 1 + Object.keys(kids).reduce((n, k) => n + countNodes(kids[k]), 0);
+		},
+		prepareMap = function (mapJson) {
+			if (!objectValue(mapJson)) { failMap('top level must be an object'); }
+			if (mapJson.formatVersion !== undefined && !Number.isFinite(Number(mapJson.formatVersion))) {
+				failMap('formatVersion must be finite');
+			}
+			if (mapJson.theme !== undefined && !objectValue(mapJson.theme)) {
+				failMap('theme must be an object');
+			}
+			validateRawNode(mapJson, 'root');
+			validateLinks(mapJson.links);
+			const clone = JSON.parse(JSON.stringify(mapJson)),
+				idea = MAPJS.content(clone);
+			validateCanonical(idea);
+			const preparedBaseTheme = augmentThemeJson(resolveThemeJson(clone)),
+				preparedThemeJson = themeFilter ? themeFilter(preparedBaseTheme) : preparedBaseTheme;
+			validateThemeValues(preparedThemeJson, 'theme');
+			validateThemeLayout(preparedThemeJson);
+			const preparedTheme = new MAPJS.Theme(preparedThemeJson),
+				preparedThemeCSS = new MAPJS.ThemeProcessor().process(preparedThemeJson).css;
+			preparedTheme.attributeColorFilter = attrColorFilter;
+			return { idea, baseTheme: preparedBaseTheme, theme: preparedTheme, css: preparedThemeCSS };
+		},
+		finishPending = function (record) {
+			if (!record || record.finished) { return; }
+			record.finished = true;
+			if (record.started) { emit('loadFinished'); }
+			if (pendingLoad === record) { pendingLoad = null; }
 		};
 
 	// mapjs dispatches nodeClicked for a plain left-button tap and leaves
@@ -103,26 +232,26 @@ export function initEngine(container) {
 		mapModel,
 		on(name, fn) { listeners[name].push(fn); },
 		loadMap(mapJson, options) {
+			const prepared = prepareMap(mapJson);
+			finishPending(pendingLoad);
 			// New maps ask to keep the auto-selected conclusion selected and
 			// focused; every other load clears it so the map opens clean.
 			const selectRoot = !!(options && options.selectRoot);
-			baseThemeJson = augmentThemeJson(resolveThemeJson(mapJson));
-			applyTheme(false);
-			applyLabels();
-			currentMapJson = mapJson;
-			// mapLoaded means "a new map is replacing the old one" and must
-			// fire inside this call: drive.js binds its file marker right
-			// after loadJson returns and this event must not wipe it later
-			emit('mapLoaded', mapJson);
 			loadToken += 1;
 			const token = loadToken,
+				record = { token: token, started: false, finished: false },
 				heavy = function () {
 					try {
-						const idea = MAPJS.content(mapJson);
-						idea.addEventListener('changed', () => emit('mapChanged'));
-						mapModel.setIdea(idea);
+						baseThemeJson = prepared.baseTheme;
+						theme = prepared.theme;
+						installThemeCSS(prepared.css);
+						applyLabels();
+						prepared.idea.addEventListener('changed', () => emit('mapChanged'));
+						mapModel.setIdea(prepared.idea);
+						currentMapJson = mapJson;
+						emit('mapLoaded', mapJson);
 					} catch (e) {
-						emit('loadFinished');
+						finishPending(record);
 						throw e;
 					}
 					// center once the DomMapController has finished the initial layout
@@ -146,12 +275,14 @@ export function initEngine(container) {
 						} else {
 							deselectAll();
 						}
-						emit('loadFinished');
+						finishPending(record);
 					}, 250);
 				};
-			if (countNodes(mapJson) >= LARGE_MAP_NODES) {
+			pendingLoad = record;
+			if (countNodes(prepared.idea) >= LARGE_MAP_NODES) {
 				// big maps block the main thread for seconds in setIdea; two
 				// animation frames let the loading overlay paint first
+				record.started = true;
 				emit('loadStarted', mapJson);
 				window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
 					if (token !== loadToken) { return; }
@@ -159,6 +290,9 @@ export function initEngine(container) {
 				}));
 			} else {
 				heavy();
+				// small loads never showed the overlay; only their delayed
+				// centring remains cancellable.
+				pendingLoad = null;
 			}
 		},
 		// re-resolve and apply a named theme, recording it on the map.

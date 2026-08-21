@@ -10,7 +10,7 @@
  * vendored 200 KB library is not worth one scope and one flow; the
  * whole exchange is ~100 lines against two documented endpoints. The
  * client id is public by design; PKCE replaces the client secret. The
- * refresh token persists in localStorage so return visits skip the
+ * refresh token persists in browser storage so return visits skip the
  * popup (Microsoft caps SPA refresh tokens at ~24h, after which the
  * popup reappears once).
  *
@@ -26,6 +26,7 @@
 import { onedriveConfig } from './config.js';
 import { track, noteMapSource } from './analytics.js';
 import { initModal } from './a11y.js';
+import { get as storageGet, set as storageSet, remove as storageRemove } from './safe-storage.js';
 
 const AUTH_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
 	TOKEN_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
@@ -38,8 +39,8 @@ const AUTH_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize
 export function makeOneDrive(engine, io, status) {
 	let accessToken = null,
 		tokenExpiresAt = 0,
-		accountHint = window.localStorage.getItem(ACCOUNT_KEY) || null,
-		refreshToken = window.localStorage.getItem(RT_KEY) || null,
+		accountHint = storageGet(ACCOUNT_KEY),
+		refreshToken = storageGet(RT_KEY),
 		currentFile = null; // {id, name, webUrl} while the open map lives in OneDrive
 
 	const b64url = bytes => window.btoa(String.fromCharCode.apply(null, bytes))
@@ -54,7 +55,7 @@ export function makeOneDrive(engine, io, status) {
 			tokenExpiresAt = Date.now() + (Number(data.expires_in) || 3600) * 1000;
 			if (data.refresh_token) {
 				refreshToken = data.refresh_token;
-				try { window.localStorage.setItem(RT_KEY, refreshToken); } catch (e) { /* non-fatal */ }
+				storageSet(RT_KEY, refreshToken);
 			}
 			if (data.id_token) {
 				// display / login-hint use only, so no signature validation
@@ -64,7 +65,7 @@ export function makeOneDrive(engine, io, status) {
 						email = claims.preferred_username || claims.email;
 					if (email) {
 						accountHint = email;
-						window.localStorage.setItem(ACCOUNT_KEY, email);
+						storageSet(ACCOUNT_KEY, email);
 					}
 				} catch (e) { /* non-fatal */ }
 			}
@@ -158,7 +159,7 @@ export function makeOneDrive(engine, io, status) {
 				} catch (e) {
 					// stale grant — forget it and fall through to the popup
 					refreshToken = null;
-					try { window.localStorage.removeItem(RT_KEY); } catch (ignore) { /* non-fatal */ }
+					storageRemove(RT_KEY);
 				}
 			}
 			return authInteractive(forceSelect);
@@ -303,8 +304,8 @@ export function makeOneDrive(engine, io, status) {
 				}),
 				meta = await resp.json();
 			track('map_save', { destination: 'onedrive', mode: asCopy ? 'save_copy' : 'save_as' });
+			io.setSaveOverride(o => onedrive.save(false, o), () => { currentFile = null; });
 			currentFile = { id: meta.id, name: meta.name, webUrl: meta.webUrl };
-			io.setSaveOverride(o => onedrive.save(false, o));
 			io.markSaved(meta.name);
 			return true;
 		},
@@ -315,12 +316,6 @@ export function makeOneDrive(engine, io, status) {
 			return title.slice(0, 60).replace(/[\\/:*?"<>|]/g, '') + '.mup';
 		};
 
-	// opening anything that is not this OneDrive file unbinds Save from it
-	engine.on('mapLoaded', function () {
-		currentFile = null;
-		io.setSaveOverride(null);
-	});
-
 	const onedrive = {
 		isConfigured: () => !!onedriveConfig.clientId,
 		currentFile: () => currentFile,
@@ -330,10 +325,8 @@ export function makeOneDrive(engine, io, status) {
 			accessToken = null;
 			refreshToken = null;
 			accountHint = null;
-			try {
-				window.localStorage.removeItem(ACCOUNT_KEY);
-				window.localStorage.removeItem(RT_KEY);
-			} catch (e) { /* non-fatal */ }
+			storageRemove(ACCOUNT_KEY);
+			storageRemove(RT_KEY);
 			try {
 				await ensureToken(true); // shows the account picker
 				window.alert('OneDrive is now connected as ' +
@@ -356,9 +349,9 @@ export function makeOneDrive(engine, io, status) {
 						contentResp = await window.fetch(meta['@microsoft.graph.downloadUrl']),
 						text = await contentResp.text();
 					noteMapSource('onedrive');
-					io.loadJson(JSON.parse(text), doc.name); // clears currentFile via mapLoaded
+					io.loadJson(JSON.parse(text), doc.name);
+					io.setSaveOverride(o => onedrive.save(false, o), () => { currentFile = null; });
 					currentFile = { id: doc.id, name: doc.name, webUrl: meta.webUrl || doc.webUrl };
-					io.setSaveOverride(o => onedrive.save(false, o));
 				} catch (e) {
 					showError(e);
 				}

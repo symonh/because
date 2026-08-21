@@ -14,8 +14,9 @@
 const { chromium } = require('playwright-core');
 const path = require('path');
 const fs = require('fs');
+const { resolveChrome } = require('./chrome-path');
 
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = resolveChrome();
 const BASE = process.env.BASE || 'http://127.0.0.1:8871';
 const OUT = path.join(__dirname, '..', 'site', 'og.png');
 

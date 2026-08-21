@@ -1,1 +1,21 @@
-{"name":"because-test","private":true,"license":"MIT","type":"commonjs","dependencies":{"puppeteer-core":"^23.0.0"},"devDependencies":{"axe-core":"^4.12.1","playwright-core":"^1.61.1"}}
+{
+  "name": "because-test",
+  "private": true,
+  "license": "MIT",
+  "type": "commonjs",
+  "engines": { "node": ">=22.12.0" },
+  "scripts": {
+    "test": "node run-tests.js",
+    "test:chrome": "node run-tests.js chrome",
+    "test:webkit": "node run-tests.js webkit",
+    "test:runner": "node run-tests.self-test.js",
+    "install:webkit": "playwright-core install webkit"
+  },
+  "dependencies": {
+    "puppeteer-core": "25.8.0"
+  },
+  "devDependencies": {
+    "axe-core": "4.12.1",
+    "playwright-core": "1.61.1"
+  }
+}

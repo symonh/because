@@ -2,7 +2,8 @@
 // actually produce? The bracket line is drawn by the connector between the
 // parent claim and the group, so a group with no parent may lose it.
 const puppeteer = require('puppeteer-core');
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const { resolveChrome } = require('./chrome-path');
+const CHROME = resolveChrome();
 const BASE = 'http://127.0.0.1:8871';
 const OUT = process.argv[2] || '/tmp/shots';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -36,9 +37,9 @@ const MAP = {
 	const page = await browser.newPage();
 	await page.setViewport({ width: 1400, height: 900, deviceScaleFactor: 2 });
 	page.on('pageerror', e => console.log('PAGEERROR', e.message));
-	await page.goto(BASE + '/app/index.html', { waitUntil: 'networkidle0' });
+	await page.goto(BASE + '/app/index.html', { waitUntil: 'domcontentloaded' });
 	await page.evaluate(() => localStorage.clear());
-	await page.goto(BASE + '/app/index.html', { waitUntil: 'networkidle0' });
+	await page.goto(BASE + '/app/index.html', { waitUntil: 'domcontentloaded' });
 	await page.waitForSelector('.mapjs-node', { timeout: 8000 });
 	await page.evaluate(() => {
 		const box = document.getElementById('intro-dont-show');
