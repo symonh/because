@@ -9,7 +9,9 @@ argument-mapping theme, so existing course maps open unchanged and render the
 way they did in MindMup. (Briefly named ArgumentBase — legacy infrastructure
 IDs such as the Firebase site `argumentbase` keep the old name.)
 
-![the app](docs/app-ui.png)
+<img width="1000" height="793" alt="image" src="https://github.com/user-attachments/assets/73f93522-bed1-4a86-8f30-7f88f0a4f6ef" />
+
+
 
 ## Run it
 
@@ -81,7 +83,6 @@ without a line in the reference fails the suite.
   your own text there instead (up to 10 characters, stored per claim as
   `attr.claimLabel`); clearing it returns the claim to the computed number.
 
-![co-premises vs independent reasons](docs/copremises-vs-independent.png)
 
 ## Fidelity
 
