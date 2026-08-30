@@ -16,6 +16,7 @@
 import { driveConfig } from './config.js';
 import { track, noteMapSource } from './analytics.js';
 import { initModal } from './a11y.js';
+import { storage } from './storage.js';
 
 const GSI_SRC = 'https://accounts.google.com/gsi/client',
 	GAPI_SRC = 'https://apis.google.com/js/api.js',
@@ -41,7 +42,7 @@ export function makeDrive(engine, io, status) {
 		tokenExpiresAt = 0,
 		tokenClient = null,
 		pickerReady = false,
-		accountHint = window.localStorage.getItem(ACCOUNT_KEY) || null,
+		accountHint = storage.read(ACCOUNT_KEY),
 		currentDriveFile = null; // {id, name, canEdit} while the open map lives in Drive
 
 	const scriptPromises = {},
@@ -109,7 +110,7 @@ export function makeDrive(engine, io, status) {
 					const email = info && info.user && info.user.emailAddress;
 					if (email) {
 						accountHint = email;
-						try { window.localStorage.setItem(ACCOUNT_KEY, email); } catch (e) { /* non-fatal */ }
+						storage.write(ACCOUNT_KEY, email);
 					}
 				})
 				.catch(() => {});
@@ -155,7 +156,7 @@ export function makeDrive(engine, io, status) {
 		},
 		// resolves true to go on to the Picker, false if the reader backed out
 		cookieNote = function () {
-			if (!APPLE_WEBKIT || window.localStorage.getItem(COOKIE_NOTE_KEY)) {
+			if (!APPLE_WEBKIT || storage.read(COOKIE_NOTE_KEY)) {
 				return Promise.resolve(true);
 			}
 			return new Promise(function (resolve) {
@@ -190,7 +191,7 @@ export function makeDrive(engine, io, status) {
 				go.addEventListener('click', function () {
 					// only a reader who got this far is spared it next time;
 					// cancelling leaves the note to be said again
-					try { window.localStorage.setItem(COOKIE_NOTE_KEY, '1'); } catch (e) { /* non-fatal */ }
+					storage.write(COOKIE_NOTE_KEY, '1');
 					close(true);
 				});
 				actions.append(cancel, go);
@@ -283,8 +284,10 @@ export function makeDrive(engine, io, status) {
 				}),
 				meta = await resp.json();
 			track('map_save', { destination: 'drive', mode: asCopy ? 'save_copy' : 'save_as' });
+			// claim Save before recording the file: claiming releases the
+			// previous target, and that release clears currentDriveFile
+			io.setSaveTarget(opts => drive.save(false, opts), () => { currentDriveFile = null; });
 			currentDriveFile = { id: meta.id, name: meta.name };
-			io.setSaveOverride(opts => drive.save(false, opts));
 			io.markSaved(meta.name);
 			return true;
 		},
@@ -318,12 +321,6 @@ export function makeDrive(engine, io, status) {
 			return title.slice(0, 60).replace(/[\\/:*?"<>|]/g, '') + '.mup';
 		};
 
-	// opening anything that is not this Drive file unbinds Save from Drive
-	engine.on('mapLoaded', function () {
-		currentDriveFile = null;
-		io.setSaveOverride(null);
-	});
-
 	// preload the Google scripts so the consent popup opens inside the
 	// user's click (a lazy script load would outlive the gesture and get
 	// popup-blocked, most reliably in Safari)
@@ -341,7 +338,7 @@ export function makeDrive(engine, io, status) {
 		async switchAccount() {
 			accessToken = null;
 			accountHint = null;
-			try { window.localStorage.removeItem(ACCOUNT_KEY); } catch (e) { /* non-fatal */ }
+			storage.remove(ACCOUNT_KEY);
 			try {
 				const token = await ensureToken(true); // shows the account chooser
 				await captureAccount(token);
@@ -360,9 +357,9 @@ export function makeDrive(engine, io, status) {
 							encodeURIComponent(doc.id) + '?alt=media&supportsAllDrives=true'),
 						text = await resp.text();
 					noteMapSource('drive');
-					io.loadJson(JSON.parse(text), doc.name); // clears currentDriveFile via mapLoaded
+					io.loadJson(JSON.parse(text), doc.name); // releases the previous save target
+					io.setSaveTarget(opts => drive.save(false, opts), () => { currentDriveFile = null; });
 					currentDriveFile = { id: doc.id, name: doc.name };
-					io.setSaveOverride(opts => drive.save(false, opts));
 					// warn about a view-only file NOW, not when the first
 					// save fails (Drive would mask that failure as a 404)
 					try {

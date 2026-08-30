@@ -116,15 +116,15 @@ figure offers for download and hands to the editor. Edit the JSON, rerun
 `node figures/build.mjs`: see [docs/figures.md](docs/figures.md).
 
 Tests: `cd test && npm ci`, then `npm test`. The runner serves the repo root
-and runs all eight suites in order: the Chrome ones via puppeteer-core
-(`app-e2e.js`, `click-select-e2e.js`, `drive-e2e.js`, `onedrive-e2e.js`,
-`features-e2e.js`),
+and runs all nine suites in order: the Chrome ones via puppeteer-core
+(`app-e2e.js`, `robustness-e2e.js` — blocked storage and unreadable files,
+`click-select-e2e.js`, `drive-e2e.js`, `onedrive-e2e.js`, `features-e2e.js`),
 then `webkit-e2e.js` (Playwright WebKit, the Safari-engine check),
 `a11y-e2e.js` (WCAG 2.2 AA gate: axe-core scans plus the keyboard model, also
 WebKit — see docs/accessibility.md) and `site-e2e.js` (the landing page's
 figures, both engines). `npm test -- app-e2e.js` runs only the suites named.
 It needs a system Chrome (or `CHROME_PATH` pointing at one) and Playwright
-WebKit (`npx playwright-core install webkit`). All eight must pass before
+WebKit (`npx playwright-core install webkit`). All nine must pass before
 deploying.
 
 ## License

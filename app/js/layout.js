@@ -1,10 +1,10 @@
-/*global window, document, localStorage*/
+/*global window, document*/
 /*
  * Chrome layout: a slim top bar plus a left icon rail ('left', the
  * default), cards floating over an edge-to-edge canvas ('floating'), or the
  * old top bar and horizontal toolbar ('classic'). Chosen from the View
  * menu. Like dark mode this is a view preference and nothing else: it lives
- * in localStorage under because.layout and never touches map data, so a
+ * under because.layout and never touches map data, so a
  * .mup serializes byte-identical in any of the three.
  *
  * Below 720px a mobile arrangement (top bar + bottom command bar)
@@ -19,6 +19,7 @@
 
 import { buildToolbar, buildMobileBar, applyToolbarRoving } from './toolbar.js';
 import { iconSVG } from './icons.js';
+import { storage } from './storage.js';
 
 const KEY = 'because.layout',
 	MODES = ['left', 'floating', 'classic'],
@@ -41,9 +42,8 @@ export function initLayout(commands, io, menus, neutralPref) {
 		mobilebar = document.getElementById('mobilebar'),
 		mobileQuery = window.matchMedia(MOBILE_QUERY);
 
-	let mode = 'left',
-		stored = null;
-	try { stored = localStorage.getItem(KEY); } catch (e) { /* private mode */ }
+	let mode = 'left';
+	const stored = storage.read(KEY);
 	if (MODES.indexOf(stored) >= 0) { mode = stored; }
 
 	// the pill carries the same brand mark as the top bar; cloning beats a
@@ -110,7 +110,7 @@ export function initLayout(commands, io, menus, neutralPref) {
 		setLayout = function (next) {
 			if (MODES.indexOf(next) < 0 || next === mode) { return; }
 			mode = next;
-			try { localStorage.setItem(KEY, mode); } catch (e) { /* private mode */ }
+			storage.write(KEY, mode);
 			apply();
 		};
 

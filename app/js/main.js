@@ -179,7 +179,13 @@ document.addEventListener('DOMContentLoaded', function () {
 		window.fetch(src)
 			.then(r => { if (!r.ok) { throw new Error('HTTP ' + r.status); } return r.json(); })
 			.then(json => io.loadJson(json, decodeURIComponent(src.replace(/.*\//, ''))))
-			.catch(() => io.restoreAutosave() || io.newMap());
+			// a link that cannot be fetched or opened falls back to the
+			// reader's own last map rather than an alert at boot; the
+			// failure is still worth counting
+			.catch(function (e) {
+				track('map_open_error', { description: String((e && e.message) || e).slice(0, 100) });
+				if (!io.restoreAutosave()) { io.newMap(); }
+			});
 	} else if (!io.restoreAutosave()) {
 		io.newMap();
 	}

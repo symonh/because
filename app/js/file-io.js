@@ -1,4 +1,4 @@
-/*global window, document, Blob, URL, FileReader, localStorage*/
+/*global window, document, Blob, URL, FileReader*/
 /*
  * Open/save .mup files, the unsaved-changes guard, and autosave. Uses the
  * File System Access API when available (real Save), otherwise falls back
@@ -10,6 +10,7 @@
 import { track, noteMapSource } from './analytics.js';
 import { initModal } from './a11y.js';
 import { CONCLUSION_PLACEHOLDER } from './engine.js';
+import { storage } from './storage.js';
 
 const AUTOSAVE_KEY = 'because.autosave',
 	NAME_KEY = 'because.autosave.name',
@@ -24,8 +25,8 @@ const AUTOSAVE_KEY = 'because.autosave',
 		'because.autosave.dirty': 'argumentbase.autosave.dirty'
 	},
 	getStored = function (key) {
-		const value = localStorage.getItem(key);
-		return value !== null ? value : localStorage.getItem(LEGACY_KEYS[key]);
+		const value = storage.read(key);
+		return value !== null ? value : storage.read(LEGACY_KEYS[key]);
 	};
 
 export function makeFileIO(engine, status) {
@@ -33,11 +34,11 @@ export function makeFileIO(engine, status) {
 		fileName = 'untitled.mup',
 		dirty = false,
 		pickerInput = null,
-		saveOverride = null, // set by the Drive module while a Drive file is open
+		saveTarget = null, // {save, release} while a cloud file owns Save
 		// auto-save (File > Auto-save): each change writes back to the map's
 		// own file — only ever a writable one (Drive, or a File System Access
 		// handle), never the download fallback
-		autoOn = localStorage.getItem(AUTO_KEY) === '1',
+		autoOn = storage.read(AUTO_KEY) === '1',
 		autoTimer = null,
 		autoBusy = false,
 		autoFailed = false,
@@ -59,17 +60,44 @@ export function makeFileIO(engine, status) {
 				status.dirty();
 			}
 		},
-		parseAndLoad = function (text, name, loadedDirty) {
-			const json = JSON.parse(text);
-			engine.loadMap(json);
+		// Whatever claimed Save for the outgoing map gives it up here, so a
+		// provider drops its own file marker at the same moment.
+		releaseSaveTarget = function () {
+			const released = saveTarget;
+			saveTarget = null;
+			if (released) { released.release(); }
+		},
+		// Every path that replaces the open document ends here: the new map
+		// owns Save, and inherits a writable handle only if one was chosen
+		// for it.
+		adoptDocument = function (name, loadedDirty, handle) {
+			releaseSaveTarget();
+			fileHandle = handle || null;
 			setName(name);
 			setDirty(loadedDirty);
 		},
+		parseAndLoad = function (text, name, loadedDirty, handle) {
+			const json = JSON.parse(text);
+			engine.loadMap(json);
+			adoptDocument(name, loadedDirty, handle);
+		},
+		// A map that cannot be read has to say so: doing nothing at all is
+		// indistinguishable from a file that opened and changed nothing.
+		reportOpenFailure = function (name, e) {
+			track('map_open_error', { description: String((e && e.message) || e).slice(0, 100) });
+			window.alert('“' + name + '” could not be opened. It may not be a valid .mup file.');
+		},
 		loadFile = function (file) {
 			const reader = new FileReader();
-			reader.onload = ev => parseAndLoad(ev.target.result, file.name, false);
+			reader.onload = function (ev) {
+				try {
+					parseAndLoad(ev.target.result, file.name, false);
+				} catch (e) {
+					reportOpenFailure(file.name, e);
+				}
+			};
+			reader.onerror = () => reportOpenFailure(file.name, reader.error);
 			reader.readAsText(file);
-			fileHandle = null;
 		},
 		downloadCopy = function (text) {
 			const blob = new Blob([text], { type: 'application/json' }),
@@ -101,7 +129,7 @@ export function makeFileIO(engine, status) {
 		// (e.g. the Open dialog) still has a user gesture to spend: writes
 		// through the file handle when there is one, otherwise downloads.
 		saveQuietly = async function () {
-			if (saveOverride) { return saveOverride(); }
+			if (saveTarget) { return saveTarget.save(); }
 			const text = engine.serialize();
 			if (fileHandle) {
 				const writable = await fileHandle.createWritable();
@@ -115,7 +143,7 @@ export function makeFileIO(engine, status) {
 			io.autosave();
 			return true;
 		},
-		canWriteInPlace = () => !!(saveOverride || fileHandle),
+		canWriteInPlace = () => !!(saveTarget || fileHandle),
 		scheduleAutoSave = function () {
 			if (!autoOn || autoFailed || !canWriteInPlace()) { return; }
 			if (autoTimer) { window.clearTimeout(autoTimer); }
@@ -130,8 +158,8 @@ export function makeFileIO(engine, status) {
 			autoBusy = true;
 			status.saving();
 			try {
-				if (saveOverride) {
-					await saveOverride({ auto: true }); // Drive tracks + marks saved
+				if (saveTarget) {
+					await saveTarget.save({ auto: true }); // the provider tracks + marks saved
 				} else {
 					const text = engine.serialize(),
 						writable = await fileHandle.createWritable();
@@ -167,7 +195,7 @@ export function makeFileIO(engine, status) {
 		setAutoSave(on) {
 			autoOn = !!on;
 			autoFailed = false;
-			try { localStorage.setItem(AUTO_KEY, autoOn ? '1' : ''); } catch (e) { /* quota — non-fatal */ }
+			storage.write(AUTO_KEY, autoOn ? '1' : '');
 			track('auto_save_toggle', { enabled: autoOn ? 'on' : 'off' });
 			if (!autoOn && autoTimer) { window.clearTimeout(autoTimer); autoTimer = null; }
 			// run inside the user's click, so a Drive token popup can open
@@ -179,7 +207,12 @@ export function makeFileIO(engine, status) {
 			setDirty(false);
 			io.autosave();
 		},
-		setSaveOverride(fn) { saveOverride = fn || null; },
+		// A cloud provider claims Save while one of its files is open, and
+		// hands in the teardown to run when anything else claims it back.
+		setSaveTarget(save, release) {
+			releaseSaveTarget();
+			if (save) { saveTarget = { save: save, release: release || function () {} }; }
+		},
 		// Save / Don't save / Cancel before anything that replaces the map
 		guardUnsaved(proceed) {
 			if (!dirty) { proceed(); return; }
@@ -219,7 +252,6 @@ export function makeFileIO(engine, status) {
 		},
 		newMap() {
 			io.guardUnsaved(function () {
-				fileHandle = null;
 				noteMapSource('new');
 				engine.loadMap({
 					formatVersion: 3,
@@ -228,24 +260,23 @@ export function makeFileIO(engine, status) {
 					attr: { theme: 'argMappingSimple' },
 					ideas: { 1: { id: 1, title: CONCLUSION_PLACEHOLDER, attr: {} } }
 				}, { selectRoot: true });
-				setName('untitled.mup');
-				setDirty(false);
+				adoptDocument('untitled.mup', false, null);
 			});
 		},
 		open() {
 			io.guardUnsaved(async function () {
 				if (window.showOpenFilePicker) {
+					let handle = null;
 					try {
-						const [handle] = await window.showOpenFilePicker({
+						[handle] = await window.showOpenFilePicker({
 							types: [{ description: 'Argument maps', accept: { 'application/json': ['.mup'] } }]
 						});
 						const file = await handle.getFile();
 						noteMapSource('file_picker');
-						parseAndLoad(await file.text(), file.name, false);
-						fileHandle = handle;
+						parseAndLoad(await file.text(), file.name, false, handle);
 					} catch (e) {
 						if (e && e.name === 'AbortError') { return; }
-						throw e;
+						reportOpenFailure((handle && handle.name) || 'The file', e);
 					}
 					return;
 				}
@@ -262,17 +293,16 @@ export function makeFileIO(engine, status) {
 		},
 		// ?src= loader entry — parsed JSON straight in, no file handle
 		loadJson(json, name) {
-			fileHandle = null;
 			engine.loadMap(json);
-			setName(name || 'untitled.mup');
-			setDirty(false);
+			adoptDocument(name || 'untitled.mup', false, null);
 		},
 		async save(as) {
-			if (!as && saveOverride) { return saveOverride(); }
+			if (!as && saveTarget) { return saveTarget.save(); }
 			const text = engine.serialize();
+			let handle = fileHandle;
 			if (window.showSaveFilePicker && (as || !fileHandle)) {
 				try {
-					fileHandle = await window.showSaveFilePicker({
+					handle = await window.showSaveFilePicker({
 						suggestedName: fileName,
 						types: [{ description: 'Argument maps', accept: { 'application/json': ['.mup'] } }]
 					});
@@ -281,16 +311,24 @@ export function makeFileIO(engine, status) {
 					throw e;
 				}
 			}
-			if (fileHandle) {
-				const writable = await fileHandle.createWritable();
+			if (handle) {
+				const writable = await handle.createWritable();
 				await writable.write(text);
 				await writable.close();
-				setName(fileHandle.name);
+				// the chosen file is the map's home now, so it takes Save
+				// over from any cloud target — but only once the write
+				// landed, or a failed Save As would strand the map
+				if (handle !== fileHandle) {
+					releaseSaveTarget();
+					fileHandle = handle;
+				}
+				setName(handle.name);
 			} else {
+				// a download is a copy, not a new home: Drive keeps Save
 				downloadCopy(text);
 			}
 			track('map_save', {
-				destination: fileHandle ? 'file' : 'download',
+				destination: handle ? 'file' : 'download',
 				mode: as ? 'save_as' : 'save'
 			});
 			setDirty(false);
@@ -298,11 +336,9 @@ export function makeFileIO(engine, status) {
 			return true;
 		},
 		autosave() {
-			try {
-				localStorage.setItem(AUTOSAVE_KEY, engine.serialize());
-				localStorage.setItem(NAME_KEY, fileName);
-				localStorage.setItem(DIRTY_KEY, dirty ? '1' : '');
-			} catch (e) { /* quota — non-fatal */ }
+			storage.write(AUTOSAVE_KEY, engine.serialize());
+			storage.write(NAME_KEY, fileName);
+			storage.write(DIRTY_KEY, dirty ? '1' : '');
 		},
 		restoreAutosave() {
 			try {

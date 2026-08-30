@@ -1,4 +1,3 @@
-/*global localStorage*/
 /*
  * "Allow neutral connectors" (View menu) — an AUTHORING preference, off by
  * default. With it off the app is the app it was before the neutral connector
@@ -6,7 +5,7 @@
  * all (so it still reaches the browser), no Insert item, no row in the
  * keyboard reference, and commands.addNeutral does nothing if something calls
  * it anyway. Turning it on lights all of that up. Like dark mode and the
- * layout choice this lives in localStorage and never touches map data.
+ * layout choice this lives in browser storage and never touches map data.
  *
  * What it deliberately does NOT gate is RENDERING. The theme keeps its
  * neutral-group styles whatever this is set to, so a .mup that already uses
@@ -18,14 +17,13 @@
  * this preference is about; writing one is.
  */
 
+import { storage } from './storage.js';
+
 const KEY = 'because.neutral';
 
 export function makeNeutralPref() {
 	const listeners = [];
-	let on = false,
-		stored = null;
-	try { stored = localStorage.getItem(KEY); } catch (e) { /* private mode */ }
-	on = stored === '1'; // first visit, and any unset value, is off
+	let on = storage.read(KEY) === '1'; // first visit, and any unset value, is off
 
 	return {
 		isOn: () => on,
@@ -34,7 +32,7 @@ export function makeNeutralPref() {
 			const value = !!next;
 			if (value === on) { return; }
 			on = value;
-			try { localStorage.setItem(KEY, on ? '1' : '0'); } catch (e) { /* private mode */ }
+			storage.write(KEY, on ? '1' : '0');
 			listeners.forEach(fn => fn(on));
 		},
 		toggle() { this.set(!on); }

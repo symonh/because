@@ -19,6 +19,7 @@ const TEST_DIR = __dirname,
 	PORT = Number(process.env.PORT) || 8871,
 	SUITES = [
 		'app-e2e.js',
+		'robustness-e2e.js',
 		'click-select-e2e.js',
 		'drive-e2e.js',
 		'onedrive-e2e.js',

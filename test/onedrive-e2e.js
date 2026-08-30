@@ -8,7 +8,8 @@ const puppeteer = require('puppeteer-core');
 const fs = require('fs');
 const path = require('path');
 
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const { chromePath } = require('./chrome-path');
+const CHROME = chromePath();
 const BASE = process.env.BASE || 'http://127.0.0.1:8871';
 let failures = 0;
 const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if (!cond) { failures += 1; } };
@@ -281,6 +282,29 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 	ok(await page.evaluate(() => window.__because.analytics.events().some(e => e.name === 'onedrive_error')),
 		'the failure lands in analytics as onedrive_error');
 	await page.evaluate(() => { window.__odFail = false; });
+
+	// ---- a local Save As takes Save back from OneDrive ----
+	ok(await page.evaluate(() => window.__because.onedrive.currentFile() !== null),
+		'precondition: a OneDrive file owns Save before the local Save As');
+	const odHandedBack = await page.evaluate(async () => {
+		let writes = 0;
+		window.showSaveFilePicker = async () => ({
+			name: 'kept-locally.mup',
+			createWritable: async () => ({ write: async () => { writes += 1; }, close: async () => {} })
+		});
+		const before = window.__odCalls.length;
+		await window.__because.io.save(true);
+		await window.__because.io.save(false);
+		return {
+			writes,
+			odCalls: window.__odCalls.length - before,
+			odFile: window.__because.onedrive.currentFile(),
+			name: window.__because.io.fileName()
+		};
+	});
+	ok(odHandedBack.writes === 2 && odHandedBack.odCalls === 0 && odHandedBack.odFile === null &&
+		odHandedBack.name === 'kept-locally.mup',
+		'a local Save As retires the OneDrive file and later saves stay local');
 
 	// switch account forces the account picker and names the new account
 	await page.evaluate(() => { window.__alerts = []; window.alert = m => window.__alerts.push(String(m)); });

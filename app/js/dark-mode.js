@@ -1,4 +1,4 @@
-/*global window, document, localStorage*/
+/*global window, document*/
 /*
  * Dark mode is a view preference, not map data: the chrome flips via a
  * body class and the map re-renders through a theme filter, while the
@@ -7,6 +7,7 @@
  * and printing is always light.
  */
 import { darkenThemeJson, darkenUserColor } from './themes.js';
+import { storage } from './storage.js';
 
 const KEY = 'because.darkmode',
 	LEGACY_KEY = 'argumentbase.darkmode';
@@ -24,15 +25,12 @@ export function makeDarkMode(engine) {
 		},
 		apply = function () {
 			applyView(dark);
-			try { localStorage.setItem(KEY, dark ? '1' : '0'); } catch (e) { /* private mode */ }
+			storage.write(KEY, dark ? '1' : '0');
 			listeners.forEach(fn => fn(dark));
 		};
 
-	let stored = null;
-	try {
-		stored = localStorage.getItem(KEY);
-		if (stored === null) { stored = localStorage.getItem(LEGACY_KEY); }
-	} catch (e) { /* private mode */ }
+	let stored = storage.read(KEY);
+	if (stored === null) { stored = storage.read(LEGACY_KEY); }
 	dark = stored === '1'; // first visit (stored null) opens light
 	apply();
 

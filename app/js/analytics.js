@@ -1,4 +1,4 @@
-/*global window, document, navigator, localStorage*/
+/*global window, document, navigator*/
 /*
  * Google Analytics (GA4) integration. This module owns every gtag touch:
  * config.js holds the measurement id, this file the sending machinery,
@@ -19,9 +19,10 @@
  * window.__because.analytics.events() — they just are not sent.
  */
 import { gaConfig } from './config.js';
+import { storage } from './storage.js';
 
 const APP_VERSION = 'dev', // deploy.sh stamps the git commit into the deployed copy
-	DEBUG_KEY = 'because.ga.debug', // localStorage '1': send from localhost + GA DebugView
+	DEBUG_KEY = 'because.ga.debug', // stored '1': send from localhost + GA DebugView
 	BUFFER_MAX = 300,
 	MAX_ERRORS = 10, // per session; a render loop must not flood the property
 	buffer = [];
@@ -32,7 +33,7 @@ let enabled = false,
 	editCount = 0;
 
 const debugOn = function () {
-		try { return localStorage.getItem(DEBUG_KEY) === '1'; } catch (e) { return false; }
+		return storage.read(DEBUG_KEY) === '1';
 	},
 	// dev servers and the e2e suites run on loopback; keep their traffic
 	// out of the production property unless explicitly forced

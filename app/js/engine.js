@@ -80,6 +80,17 @@ export function initEngine(container) {
 		countNodes = function (json) {
 			const kids = (json && json.ideas) || {};
 			return 1 + Object.keys(kids).reduce((n, k) => n + countNodes(kids[k]), 0);
+		},
+		// mapjs fills in a missing title but hands a non-string one straight
+		// to the renderer, which calls string methods on it. Coerce in
+		// place: the object the model ends up holding has to stay the one
+		// currentMapJson points at (see loadMap).
+		normalizeTitles = function (node) {
+			if (node.title !== undefined && node.title !== null && typeof node.title !== 'string') {
+				node.title = String(node.title);
+			}
+			const kids = node.ideas || {};
+			Object.keys(kids).forEach(key => normalizeTitles(kids[key]));
 		};
 
 	// mapjs dispatches nodeClicked for a plain left-button tap and leaves
@@ -103,12 +114,26 @@ export function initEngine(container) {
 		mapModel,
 		on(name, fn) { listeners[name].push(fn); },
 		loadMap(mapJson, options) {
+			// a .mup is an object holding at least one root idea; anything
+			// else models as a single blank node, silently replacing the
+			// open map with nothing
+			if (!mapJson || typeof mapJson !== 'object' ||
+					!mapJson.ideas || !Object.keys(mapJson.ideas).length) {
+				throw new Error('not an argument map');
+			}
+			normalizeTitles(mapJson);
 			// New maps ask to keep the auto-selected conclusion selected and
 			// focused; every other load clears it so the map opens clean.
 			const selectRoot = !!(options && options.selectRoot);
+			// build the aggregate before touching any app state, so a map
+			// mapjs cannot model is refused with nothing replaced yet
+			const idea = MAPJS.content(mapJson);
 			baseThemeJson = augmentThemeJson(resolveThemeJson(mapJson));
 			applyTheme(false);
 			applyLabels();
+			// the same object the model holds: setThemeByName deletes an
+			// embedded theme through this reference, and that deletion has
+			// to reach what serialize() writes
 			currentMapJson = mapJson;
 			// mapLoaded means "a new map is replacing the old one" and must
 			// fire inside this call: drive.js binds its file marker right
@@ -116,12 +141,15 @@ export function initEngine(container) {
 			emit('mapLoaded', mapJson);
 			loadToken += 1;
 			const token = loadToken,
+				previousIdea = mapModel.getIdea(),
 				heavy = function () {
 					try {
-						const idea = MAPJS.content(mapJson);
 						idea.addEventListener('changed', () => emit('mapChanged'));
 						mapModel.setIdea(idea);
 					} catch (e) {
+						// a map mapjs can model but not draw must not take
+						// the editor with it: put the last drawable one back
+						if (previousIdea) { mapModel.setIdea(previousIdea); }
 						emit('loadFinished');
 						throw e;
 					}

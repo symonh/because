@@ -1,11 +1,11 @@
-// E2e for the 2026-07-16 evening feature batch: theme switcher button,
-// loading overlay, rich text (⌘B/I/U + font size), connector popover
-// (Stronger/Weaker) and label editing by double-click, right-click node
-// styling, and dark-mode handling of author-set node colours.
-// Expects `python3 -m http.server 8871` at repo root.
+// E2e for the theme switcher button, loading overlay, rich text (⌘B/I/U +
+// font size), connector popover (Stronger/Weaker) and label editing by
+// double-click, right-click node styling, dark-mode handling of author-set
+// node colours, and the layout modes.
 const puppeteer = require('puppeteer-core');
 
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const { chromePath } = require('./chrome-path');
+const CHROME = chromePath();
 const BASE = process.env.BASE || 'http://127.0.0.1:8871';
 let failures = 0;
 const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if (!cond) { failures += 1; } };
@@ -1806,6 +1806,30 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 			!!document.getElementById('print-css') &&
 			!!a && (a === map || map.contains(a));
 	}), 'Print lays out the sheet, closes the dialog and returns focus to the map');
+
+	// ---- a named theme replaces an embedded one in the SAVED map ----
+	// The engine keeps currentMapJson pointing at the same object the model
+	// holds; setThemeByName deletes the embedded theme through that
+	// reference, so a copy anywhere in the load path would strand the
+	// deletion and the file would keep rendering the old theme.
+	const themeSwap = await page.evaluate(async () => {
+		const { argMappingSimple } = await import('./js/themes.js'),
+			embedded = JSON.parse(JSON.stringify(argMappingSimple));
+		embedded.name = 'embedded marker';
+		window.__because.engine.loadMap({
+			formatVersion: 3, id: 'root', theme: embedded,
+			ideas: { 1: { id: 1, title: 'Conclusion', attr: {} } }
+		});
+		await new Promise(r => setTimeout(r, 300));
+		const before = !!JSON.parse(window.__because.engine.serialize()).theme;
+		window.__because.engine.setThemeByName('argMappingHighImpact');
+		await new Promise(r => setTimeout(r, 200));
+		const saved = JSON.parse(window.__because.engine.serialize());
+		return { before, embeddedLeft: !!saved.theme, named: saved.attr && saved.attr.theme };
+	});
+	ok(themeSwap.before, 'precondition: the loaded map serializes with its embedded theme');
+	ok(!themeSwap.embeddedLeft && themeSwap.named === 'argMappingHighImpact',
+		'choosing a named theme drops the embedded one from the saved map');
 
 	if (errors.length) { console.log('PAGE ERRORS:', errors.join(' | ')); failures += 1; }
 	await browser.close();

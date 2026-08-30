@@ -39,9 +39,9 @@ OAuth setup.
   redraw `site/og.png` — the social card renders the same map. See
   docs/figures.md.
 - Tests: `cd test && npm test`. It serves the repo root and runs all
-  eight suites in order: the Chrome suites (`app-e2e.js`,
-  `click-select-e2e.js`, `drive-e2e.js`, `onedrive-e2e.js`,
-  `features-e2e.js`), then `webkit-e2e.js`
+  nine suites in order: the Chrome suites (`app-e2e.js`,
+  `robustness-e2e.js`, `click-select-e2e.js`, `drive-e2e.js`,
+  `onedrive-e2e.js`, `features-e2e.js`), then `webkit-e2e.js`
   (Playwright WebKit — the Safari rule), `a11y-e2e.js` (WCAG 2.2 AA
   gate; docs/accessibility.md) and `site-e2e.js` (the landing-page
   figures, both engines). `npm test -- app-e2e.js` runs only the suites

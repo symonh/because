@@ -7,7 +7,8 @@ const puppeteer = require('puppeteer-core');
 const fs = require('fs');
 const path = require('path');
 
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const { chromePath } = require('./chrome-path');
+const CHROME = chromePath();
 const BASE = process.env.BASE || 'http://127.0.0.1:8871';
 let failures = 0;
 const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if (!cond) { failures += 1; } };
@@ -398,6 +399,29 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 		/[\w-]{25,}/.test(JSON.stringify(ev.params)))),
 		'still no Drive-id-sized token in any analytics event');
 	await page.click('.panel-close button');
+
+	// ---- a local Save As takes Save back from Drive ----
+	ok(await page.evaluate(() => window.__because.drive.currentFile() !== null),
+		'precondition: a Drive file owns Save before the local Save As');
+	const handedBack = await page.evaluate(async () => {
+		let writes = 0;
+		window.showSaveFilePicker = async () => ({
+			name: 'kept-locally.mup',
+			createWritable: async () => ({ write: async () => { writes += 1; }, close: async () => {} })
+		});
+		const before = window.__driveCalls.length;
+		await window.__because.io.save(true);  // File > Save As, to a local file
+		await window.__because.io.save(false); // File > Save must follow it there
+		return {
+			writes,
+			driveCalls: window.__driveCalls.length - before,
+			driveFile: window.__because.drive.currentFile(),
+			name: window.__because.io.fileName()
+		};
+	});
+	ok(handedBack.writes === 2 && handedBack.driveCalls === 0 && handedBack.driveFile === null &&
+		handedBack.name === 'kept-locally.mup',
+		'a local Save As retires the Drive file and later saves stay local');
 
 	if (errors.length) { console.log('PAGE ERRORS:', errors.join(' | ')); failures += 1; }
 	await browser.close();

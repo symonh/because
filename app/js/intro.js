@@ -1,4 +1,4 @@
-/*global document, localStorage*/
+/*global document*/
 /*
  * First-visit welcome modal: says what Because is and what argument
  * visualization is for (language adapted from philmaps.com), with a
@@ -10,6 +10,7 @@
 
 import { track } from './analytics.js';
 import { initModal } from './a11y.js';
+import { storage } from './storage.js';
 
 const KEY = 'because.intro.dismissed';
 
@@ -21,9 +22,7 @@ export function makeIntro() {
 			if (!overlay) { return; }
 			if (rememberChoice) {
 				const box = overlay.querySelector('#intro-dont-show');
-				try {
-					localStorage.setItem(KEY, box && box.checked ? '1' : '0');
-				} catch (e) { /* private mode */ }
+				storage.write(KEY, box && box.checked ? '1' : '0');
 				track('intro_dismissed', { dont_show_again: box && box.checked ? 'yes' : 'no' });
 			}
 			// modal.close() removes the overlay and restores focus
@@ -72,9 +71,7 @@ export function makeIntro() {
 			});
 		};
 
-	let dismissed = null;
-	try { dismissed = localStorage.getItem(KEY); } catch (e) { /* private mode */ }
-	if (dismissed !== '1') { show('first_visit'); }
+	if (storage.read(KEY) !== '1') { show('first_visit'); }
 
 	return { show: () => show('menu') };
 }

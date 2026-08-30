@@ -1,4 +1,4 @@
-/*global document, window, navigator, localStorage*/
+/*global document, window, navigator*/
 /*
  * The keyboard reference — opened with ? or from Help > Keyboard shortcuts.
  *
@@ -30,6 +30,7 @@
 
 import { track } from './analytics.js';
 import { initModal } from './a11y.js';
+import { storage } from './storage.js';
 
 const PLATFORM_KEY = 'because.help.platform',
 	// token -> what is printed on that platform's keyboard
@@ -156,7 +157,7 @@ export function makeShortcutHelp(neutralPref) {
 	// a chosen platform outlives the dialog (a teacher demoing the other set
 	// reopens it repeatedly), but not the session — a fresh load detects again
 	try {
-		const saved = localStorage.getItem(PLATFORM_KEY);
+		const saved = storage.read(PLATFORM_KEY);
 		if (saved === 'mac' || saved === 'win') { mac = saved === 'mac'; }
 	} catch (e) { /* private mode */ }
 
@@ -172,7 +173,7 @@ export function makeShortcutHelp(neutralPref) {
 		setPlatform = function (nextMac) {
 			if (nextMac === mac) { return; }
 			mac = nextMac;
-			try { localStorage.setItem(PLATFORM_KEY, mac ? 'mac' : 'win'); } catch (e) { /* private mode */ }
+			storage.write(PLATFORM_KEY, mac ? 'mac' : 'win');
 			track('help_platform', { platform: mac ? 'mac' : 'windows' });
 			paint();
 		},
