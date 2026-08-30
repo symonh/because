@@ -1,0 +1,48 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.12.0
+          cache: npm
+          cache-dependency-path: test/package-lock.json
+
+      - name: Install test dependencies
+        working-directory: test
+        run: npm ci
+
+      - name: Install WebKit and system dependencies
+        working-directory: test
+        run: npx playwright-core install --with-deps webkit
+
+      - name: Check test runner lifecycle
+        working-directory: test
+        run: npm run test:runner
+
+      - name: Run browser test matrix
+        working-directory: test
+        run: npm test
+
+      - name: Check deploy preflight
+        run: bash test/deploy-preflight.sh
+
+      - name: Check generated figures
+        run: node figures/build.mjs --check
