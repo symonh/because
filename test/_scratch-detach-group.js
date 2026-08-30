@@ -2,7 +2,8 @@
 // actually produce? The bracket line is drawn by the connector between the
 // parent claim and the group, so a group with no parent may lose it.
 const puppeteer = require('puppeteer-core');
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const { chromePath } = require('./chrome-path');
+const CHROME = chromePath();
 const BASE = 'http://127.0.0.1:8871';
 const OUT = process.argv[2] || '/tmp/shots';
 const sleep = ms => new Promise(r => setTimeout(r, ms));

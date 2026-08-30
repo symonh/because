@@ -5,7 +5,8 @@
 const puppeteer = require('puppeteer-core');
 const fs = require('fs');
 
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const { chromePath } = require('./chrome-path');
+const CHROME = chromePath();
 function arg(name, def) { const i = process.argv.indexOf('--' + name); return i >= 0 ? process.argv[i + 1] : def; }
 const has = name => process.argv.includes('--' + name);
 

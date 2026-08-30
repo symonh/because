@@ -202,8 +202,8 @@ from `src/assets/js/argmap.js` in that repo without redesign.
 
 ## Tests
 
-`cd test && node site-e2e.js` (needs `python3 -m http.server 8871` at the repo
-root, like the other suites). In both Chrome and real WebKit it checks the
+`cd test && npm test -- site-e2e.js` (the runner serves the repo root). In
+both Chrome and real WebKit it checks the
 committed render is current, the no-JS figure, the hydrated geometry (adjacent
 co-premises, hugging bracket, plumb straight connector, centred conclusion), the
 keyboard model, all three bracket shapes plus the implicit dash and the

@@ -2,13 +2,14 @@
 // the pre-rendered figure is in the HTML, hydrates to the authentic MindMup
 // geometry in both engines, stays correct with JavaScript off, keeps the WCAG
 // 2.2 AA gate clean, and the .mup it offers really opens in the editor.
-// Expects `python3 -m http.server 8871` at the repo root.
+// Run through `npm test`, which serves the repo root, or set BASE.
 const { webkit, chromium } = require('playwright-core');
 const { execFileSync } = require('node:child_process');
 const fs = require('fs');
 const path = require('path');
 
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const { chromePath } = require('./chrome-path');
+const CHROME = chromePath();
 const BASE = process.env.BASE || 'http://127.0.0.1:8871';
 const SITE = BASE + '/site/index.html';
 const ROOT = path.join(__dirname, '..');

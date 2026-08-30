@@ -2,10 +2,11 @@
 // scans of every chrome state must come back clean, and the keyboard
 // model must hold — Tab walks the chrome, the menubar is a real ARIA
 // menubar, dialogs trap and restore focus, and the philmaps keys still
-// work with focus in the map. Expects `python3 -m http.server 8871`
-// at the repo root (same as the other suites).
+// work with focus in the map. Run through `npm test`, which serves the
+// repo root, or set BASE.
 const { webkit, chromium } = require('playwright-core');
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const { chromePath } = require('./chrome-path');
+const CHROME = chromePath();
 const fs = require('fs');
 const path = require('path');
 const axeSource = fs.readFileSync(path.join(__dirname, 'node_modules', 'axe-core', 'axe.min.js'), 'utf8');

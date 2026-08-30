@@ -1,7 +1,8 @@
 // Where does the Because/But label sit now? Measure against the connector's
 // vertical span and against the arrowhead, and shoot a crop for the eye.
 const puppeteer = require('puppeteer-core');
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const { chromePath } = require('./chrome-path');
+const CHROME = chromePath();
 const BASE = 'http://127.0.0.1:8871';
 const OUT = process.argv[2] || '/tmp/shots';
 const sleep = ms => new Promise(r => setTimeout(r, ms));

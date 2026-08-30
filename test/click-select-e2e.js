@@ -2,7 +2,8 @@
 // is NOT selected and check whether selection moves to it. Then a stress
 // loop of drags/undo/edits interleaved with clean-click checks.
 const puppeteer = require('puppeteer-core');
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const { chromePath } = require('./chrome-path');
+const CHROME = chromePath();
 const BASE = process.env.BASE || 'http://127.0.0.1:8871';
 let failures = 0;
 const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if (!cond) { failures += 1; } };

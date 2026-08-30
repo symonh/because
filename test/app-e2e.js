@@ -1,8 +1,10 @@
 // End-to-end smoke test for the Because app shell.
-// Serves nothing itself — expects `python3 -m http.server 8871` at repo root.
+// Serves nothing itself: run it through `npm test`, or point BASE at a
+// server on the repo root.
 const puppeteer = require('puppeteer-core');
 
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const { chromePath } = require('./chrome-path');
+const CHROME = chromePath();
 const BASE = process.env.BASE || 'http://127.0.0.1:8871';
 let failures = 0;
 

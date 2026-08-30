@@ -2,8 +2,8 @@
 // which renders the hero's own map through the real figure component, so the
 // card and the page cannot drift apart (docs/figures.md).
 //
-// Expects `python3 -m http.server 8871` at the repo root, like the e2e suites:
-// the card loads site/js/argmap.js as a module, and file:// will not.
+// Needs the repo root served at BASE (default http://127.0.0.1:8871): the card
+// loads site/js/argmap.js as a module, and file:// will not.
 //
 //   cd test && node og-shot.js
 //
@@ -15,7 +15,8 @@ const { chromium } = require('playwright-core');
 const path = require('path');
 const fs = require('fs');
 
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const { chromePath } = require('./chrome-path');
+const CHROME = chromePath();
 const BASE = process.env.BASE || 'http://127.0.0.1:8871';
 const OUT = path.join(__dirname, '..', 'site', 'og.png');
 
