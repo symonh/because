@@ -9,9 +9,7 @@ argument-mapping theme, so existing course maps open unchanged and render the
 way they did in MindMup. (Briefly named ArgumentBase — legacy infrastructure
 IDs such as the Firebase site `argumentbase` keep the old name.)
 
-<img width="1000" height="793" alt="image" src="https://github.com/user-attachments/assets/73f93522-bed1-4a86-8f30-7f88f0a4f6ef" />
-
-
+![The Because editor with an argument map open: a conclusion, a reason made of two claims (the second implicit, so dashed), and an objection.](docs/app-ui.png)
 
 ## Run it
 
@@ -82,7 +80,6 @@ without a line in the reference fails the suite.
   notes; claim numbering (1.1, 2.1 …) is a view toggle. Click a number to put
   your own text there instead (up to 10 characters, stored per claim as
   `attr.claimLabel`); clearing it returns the claim to the computed number.
-
 
 ## Fidelity
 
