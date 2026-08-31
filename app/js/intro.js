@@ -48,7 +48,7 @@ export function makeIntro() {
 				'reason, <kbd>Tab</kbd> to add a co-premise, or <kbd>Alt+O</kbd> ' +
 				'to raise an objection. Press <kbd>?</kbd> for the full list of keys, also under ' +
 				'<b>Help&nbsp;&gt;&nbsp;Keyboard shortcuts</b>. Your maps stay on ' +
-				'your device or in your own Google Drive — there are no accounts, ' +
+				'your device or in your own Google Drive or OneDrive — there are no accounts, ' +
 				'and your map content is never sent to us. The app collects ' +
 				'anonymous usage statistics to help improve it (see the ' +
 				'<a href="https://app.philmaps.com/privacy" target="_blank" rel="noopener">privacy policy</a>). ' +

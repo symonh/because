@@ -98,15 +98,15 @@
 </nav>
 <main>
 	<h1>Privacy Policy</h1>
-	<p class="updated">Because (app.philmaps.com) · Effective July 16, 2026</p>
+	<p class="updated">Because (app.philmaps.com) · Effective August 24, 2026</p>
 
 	<div class="summary">
 		<strong>In short:</strong> Because runs entirely in your browser. It has
 		no user accounts and no servers of its own that receive your data. Your
 		argument maps stay on your device and, if you choose to use the Google
-		Drive integration, in your own Google Drive. We collect anonymous usage
-		statistics through Google Analytics; your map content is never part of
-		them.
+		Drive or Microsoft OneDrive integration, in your own Drive or OneDrive.
+		We collect anonymous usage statistics through Google Analytics; your map
+		content is never part of them.
 	</div>
 
 	<h2>Who we are</h2>
@@ -121,14 +121,15 @@
 	<ul>
 		<li><strong>Your argument maps.</strong> Maps you create or open are
 		processed in your browser. When you save, the file is written to your
-		own device or, if you use the Drive integration, to your own Google
-		Drive. Map content is never sent to us.</li>
+		own device or, if you use one of the cloud integrations, to your own
+		Google Drive or Microsoft OneDrive. Map content is never sent to us.</li>
 		<li><strong>Local preferences and crash recovery.</strong> The app
 		keeps a copy of your current map and your settings (for example, dark
 		mode) in your browser's local storage so that work survives a crash or
-		an accidental tab close. This data stays in your browser. You can
-		remove it at any time by clearing your browser's site data for
-		app.philmaps.com.</li>
+		an accidental tab close. If you connect OneDrive, your Microsoft
+		sign-in is kept there too, as described below. This data stays in your
+		browser. You can remove it at any time by clearing your browser's site
+		data for app.philmaps.com.</li>
 	</ul>
 
 	<h2>Google Drive integration</h2>
@@ -153,6 +154,43 @@
 	API Services User Data Policy</a>, including the Limited Use
 	requirements.</p>
 
+	<h2>Microsoft OneDrive integration</h2>
+	<p>If you choose to connect OneDrive, the app requests four Microsoft Graph
+	permissions: <code>Files.ReadWrite</code>, <code>offline_access</code>,
+	<code>openid</code> and <code>profile</code>. <code>Files.ReadWrite</code>
+	covers the files in your own OneDrive. It is not
+	<code>Files.ReadWrite.All</code>, which would also reach files shared with
+	you from elsewhere in your organisation. The app requests nothing over your
+	mail, calendar, directory, or other people's accounts.</p>
+	<p>Microsoft publishes no per-file equivalent of Google's
+	<code>drive.file</code> for work or school accounts, so this is the
+	narrowest permission that allows a map to be opened and saved. The in-app
+	folder browser bounds what the app is used for rather than what the
+	permission allows: it reads the folder listings you navigate through and
+	the <code>.mup</code> file you pick, and nothing else.</p>
+	<ul>
+		<li>File content moves directly between your browser and
+		<code>graph.microsoft.com</code> over an encrypted connection. We
+		operate no server that receives, stores, or inspects it.</li>
+		<li>Sign-in uses the authorization-code flow with PKCE from a public
+		client. No client secret exists and no credential of ours takes part in
+		the exchange; Microsoft issues the token to your browser.</li>
+		<li>Unlike the Google integration, the app keeps the Microsoft refresh
+		token and the email address you signed in with in your browser's local
+		storage, so that returning to the app does not reopen the sign-in popup
+		every time. Microsoft limits these tokens to roughly a day. Both stay in
+		your browser and are never transmitted to us. <strong>File &gt; Switch
+		Microsoft account…</strong> deletes them, as does clearing your
+		browser's site data for app.philmaps.com.</li>
+		<li>You can withdraw the app's access at any time: on a personal
+		Microsoft account at
+		<a href="https://account.live.com/consent/Manage">account.live.com/consent/Manage</a>,
+		and on a work or school account at
+		<a href="https://myaccount.microsoft.com">myaccount.microsoft.com</a>,
+		where an administrator can also revoke it for the whole organisation.
+		Doing so has no effect on your files, which remain in your OneDrive.</li>
+	</ul>
+
 	<h2>Usage analytics</h2>
 	<p>To understand how many people use Because and which features they
 	use, the app sends anonymous usage statistics to Google Analytics.
@@ -169,7 +207,8 @@
 		returning visits be counted as the same browser.</li>
 	</ul>
 	<p>What analytics never includes: the content of your maps, claim text,
-	file names, Google Drive identifiers, or anything else you type. We have
+	file names, Google Drive or OneDrive identifiers, or anything else you
+	type. We have
 	disabled Google's advertising and cross-site "signals" features; the
 	data is used for aggregate statistics only and is not used for
 	advertising.</p>
@@ -203,9 +242,9 @@
 	request from us by name; the usage statistics we keep are aggregate and
 	not tied to your identity. To remove everything associated with the app:
 	clear your browser's site data for app.philmaps.com (this also removes
-	the analytics cookie), revoke the app's Drive access at the link above,
-	and delete any map files you no longer want from your own Drive or
-	device.</p>
+	the analytics cookie and any stored Microsoft sign-in), revoke the app's
+	Drive or OneDrive access at the links above, and delete any map files you
+	no longer want from your own Drive, OneDrive, or device.</p>
 
 	<h2>Changes to this policy</h2>
 	<p>If the app's data practices change — for example, if a future version
