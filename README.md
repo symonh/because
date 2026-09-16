@@ -103,7 +103,7 @@ samples/       synthetic .mup fixtures safe for a public repo
 samples-local/ real course maps — gitignored, never commit
 site/          the landing page and its root-level pages (/privacy, /terms)
 figures/       the landing page's argument-map figures: source maps + renderer
-test/          eight e2e suites (Chrome + real WebKit) and render-map.js (headless renders)
+test/          nine e2e suites (Chrome + real WebKit) and render-map.js (headless renders)
 docs/          rendered proofs
 ```
 
