@@ -23,7 +23,7 @@ figures/lib/render.js     (mapJson, opts) -> HTML; owns the numbering
 figures/lib/describe.js   (mapJson) -> the prose text alternative
 figures/lib/mup.js        (mapJson) -> MindMup formatVersion 3, + a validator
 figures/lib/smartquotes.js  straight quotes -> curly, for display text only
-site/css/argmap.css       the frame and the whole visual grammar
+site/css/argmap.css       the frame and the whole visual grammar, light and dark
 site/js/argmap.js         hydration: layout, connectors, keyboard
 site/maps/*.mup           generated, committed, served for download
 docs/og-card.html         the social card's source — the hero's map again
@@ -209,6 +209,7 @@ co-premises, hugging bracket, plumb straight connector, centred conclusion), the
 keyboard model, all three bracket shapes plus the implicit dash and the
 inference-objection bar, the legend cards (right bracket per card, inert and
 aria-hidden, one panel height across the row), the narrow-viewport fit, reduced
-motion, and that the generated `.mup` really opens in the app through `?src=`. It
-also runs axe-core over the page for the WCAG 2.2 AA gate — with reduced motion
-on, so nothing is measured mid-fade.
+motion, the colour scheme (light, a live switch to dark, print staying light), and
+that the generated `.mup` really opens in the app through `?src=`. It also runs
+axe-core over the three site pages in both schemes for the WCAG 2.2 AA gate —
+with reduced motion on, so nothing is measured mid-fade.

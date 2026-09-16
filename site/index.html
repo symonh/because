@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Because — a free editor for argument maps</title>
 <meta name="description" content="Because is a free, browser-based editor for argument visualizations (.mup argument maps). Map the structure of an argument: conclusions, reasons, objections and co-premises.">
-<meta name="theme-color" content="#17191c">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f7f4ed">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#17191c">
 <!-- Google's OAuth brand-verification checker matches the consent-screen app
      name ("Because") against the machine-readable names on this page, so the
      name must appear in these tags exactly, not only in the prose. -->
@@ -25,8 +27,9 @@
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="icon" href="favicon.png" type="image/png" sizes="48x48">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<!-- Argument-map figures: the frame and the authentic map grammar. Loaded
-     before the page's own <style> so the page can still override it. -->
+<!-- Shared tokens, then the argument-map figures; both load before the page's
+     own <style> so the page can still override them. -->
+<link rel="stylesheet" href="css/site.css">
 <link rel="stylesheet" href="css/argmap.css">
 <script type="application/ld+json">
 {
@@ -39,72 +42,27 @@
 }
 </script>
 <style>
-	/* ----------------------------------------------------------------------
-	 * Dark landing page for Because. Palette is the editor's own dark mode
-	 * (app/css/app.css: canvas #1b1d20, surfaces #24272b/#2a2e33, accent
-	 * blue #22aae0/#6cc4ee, hairlines #3d4248) and the argument-map grammar
-	 * (green group = supporting reasons, red group = objection, dashed
-	 * border = implicit claim), so the page feels like the tool it opens.
-	 * -------------------------------------------------------------------- */
-	:root {
-		--bg: #17191c;
-		--bg-canvas: #1b1d20;
-		--surface: #212429;
-		--surface-2: #262a30;
-		--border: #2f343a;
-		--border-strong: #3d4248;
-		--text: #d7dbe0;
-		--text-strong: #f1f3f5;
-		--muted: #9aa1a8;
-		--accent: #5cc8f2;
-		--accent-ink: #ffffff;
-		--btn: #147aa6;
-		--btn-hover: #0f6a90;
-		--green: #45c07d;
-		--green-dim: #339966;
-		--red: #ef6f66;
-		--red-dim: #d84a4a;
-		--wire: #464c53;
-		--radius: 14px;
-		--maxw: 1080px;
-		--font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-	}
+	/* Colours come from css/site.css, which follows the system light/dark
+	 * preference; the figures draw the editor's own map grammar. */
+	:root { --maxw: 1080px; }
 
-	* { box-sizing: border-box; }
-
-	html { -webkit-text-size-adjust: 100%; }
 	@media (prefers-reduced-motion: no-preference) {
 		html { scroll-behavior: smooth; }
 	}
 
-	::selection { background: rgba(34,170,224,0.38); color: #fff; }
-
 	body {
-		margin: 0;
-		font-family: var(--font);
-		color: var(--text);
-		line-height: 1.65;
-		background-color: var(--bg);
-		/* soft accent glows for depth — blue near the hero, a faint green
-		 * lower down; all sit behind content and never scroll horizontally */
+		/* soft accent glows behind the content: blue near the hero, green to
+		 * the left, blue again at the foot */
 		background-image:
-			radial-gradient(900px 520px at 78% -8%, rgba(34,170,224,0.16), transparent 60%),
-			radial-gradient(720px 480px at 6% 8%, rgba(69,192,125,0.10), transparent 55%),
-			radial-gradient(1100px 700px at 50% 118%, rgba(34,170,224,0.07), transparent 60%);
-		background-attachment: fixed;
-		-webkit-font-smoothing: antialiased;
+			radial-gradient(900px 520px at 78% -8%, var(--glow-blue), transparent 60%),
+			radial-gradient(720px 480px at 6% 8%, var(--glow-green), transparent 55%),
+			radial-gradient(1100px 700px at 50% 118%, var(--glow-blue-soft), transparent 60%);
 		text-rendering: optimizeLegibility;
 		overflow-x: hidden;
 	}
 
-	a { color: var(--accent); text-decoration: none; }
+	a { text-decoration: none; }
 	a:hover { text-decoration: underline; }
-	a:focus-visible,
-	button:focus-visible {
-		outline: 2px solid var(--accent);
-		outline-offset: 3px;
-		border-radius: 4px;
-	}
 	/* Links inside a run of prose are underlined at rest: colour alone must not
 	 * be what tells a reader a word is a link (WCAG 1.4.1). Standalone links —
 	 * the nav, the CTAs, the footer's row — read as links from their position,
@@ -117,40 +75,11 @@
 		text-underline-offset: 2px;
 	}
 
-	strong { color: var(--text-strong); font-weight: 650; }
-	code {
-		font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-		font-size: 0.86em;
-		background: var(--surface-2);
-		border: 1px solid var(--border);
-		border-radius: 5px;
-		padding: 1px 6px;
-		color: #cfe6f2;
-	}
-
 	.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
 	.prose { max-width: 720px; }
 
 	/* ---- top bar ---------------------------------------------------------- */
-	.nav {
-		position: sticky;
-		top: 0;
-		z-index: 20;
-		backdrop-filter: saturate(140%) blur(10px);
-		-webkit-backdrop-filter: saturate(140%) blur(10px);
-		background: rgba(23,25,28,0.72);
-		border-bottom: 1px solid var(--border);
-	}
-	.nav-inner {
-		max-width: var(--maxw);
-		margin: 0 auto;
-		padding: 12px 24px;
-		display: flex;
-		align-items: center;
-		gap: 12px;
-	}
-	.brand { display: flex; align-items: center; gap: 10px; color: var(--text-strong); }
-	.brand svg { display: block; }
+	.nav-inner { max-width: var(--maxw); }
 	.brand-name { font-weight: 700; font-size: 18px; letter-spacing: -0.01em; }
 	.nav-links { margin-left: auto; display: flex; align-items: center; gap: 20px; }
 	.nav-links a { color: var(--muted); font-size: 15px; }
@@ -162,7 +91,7 @@
 		padding: 7px 14px;
 		background: var(--surface);
 	}
-	.nav-links .nav-cta:hover { border-color: var(--accent); color: #fff; }
+	.nav-links .nav-cta:hover { border-color: var(--accent); color: var(--text-strong); }
 
 	/* ---- hero ------------------------------------------------------------- */
 	.hero {
@@ -194,13 +123,13 @@
 		align-items: center;
 		gap: 9px;
 		background: var(--btn);
-		color: var(--accent-ink);
+		color: var(--btn-ink);
 		font-size: 16px;
 		font-weight: 650;
 		padding: 13px 26px;
 		border-radius: 10px;
 		box-shadow: 0 1px 0 rgba(255,255,255,0.12) inset,
-		            0 10px 26px -10px rgba(34,170,224,0.55);
+		            0 10px 26px -10px var(--btn-glow);
 		transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 	}
 	.cta:hover {
@@ -208,7 +137,7 @@
 		text-decoration: none;
 		transform: translateY(-1px);
 		box-shadow: 0 1px 0 rgba(255,255,255,0.12) inset,
-		            0 14px 30px -10px rgba(34,170,224,0.6);
+		            0 14px 30px -10px var(--btn-glow);
 	}
 	.cta svg { transition: transform 0.15s ease; }
 	.cta:hover svg { transform: translateX(3px); }
@@ -299,7 +228,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: rgba(34,170,224,0.12);
+		background: var(--accent-wash);
 		color: var(--accent);
 		margin-bottom: 16px;
 	}
@@ -332,7 +261,7 @@
 	footer {
 		margin-top: 72px;
 		border-top: 1px solid var(--border);
-		background: rgba(0,0,0,0.15);
+		background: var(--footer-bg);
 	}
 	.foot-inner {
 		max-width: var(--maxw);
@@ -348,8 +277,7 @@
 	.foot-inner .brand { margin-right: 8px; }
 	.foot-inner a { color: var(--muted); }
 	.foot-inner a:hover { color: var(--text-strong); }
-	.foot-copy { width: 100%; margin-top: 4px; color: #7d848b; font-size: 13.5px; }
-	.foot-copy a { color: #8f969d; }
+	.foot-copy { width: 100%; margin-top: 4px; color: var(--faint); font-size: 13.5px; }
 
 	/* ---- entrance (respecting reduced motion) ----------------------------- */
 	@media (prefers-reduced-motion: no-preference) {

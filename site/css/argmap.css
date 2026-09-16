@@ -3,10 +3,11 @@
  * (.fig and its two bars) and the canvas interior (.argmap, .am-*).
  *
  * Authentic MindMup argument-mapping grammar (app/js/themes.js argMappingSimple
- * + app/css/argmap.css) in the editor's own dark palette, so a figure here is
- * the same drawing the reader will get after clicking "Open in the editor".
- * Every value the figure needs is a --am-* token declared below, so this file is
- * self-contained and cannot collide with the page's own variables.
+ * + app/css/argmap.css) in the editor's light palette, or its dark-mode mapping
+ * when the system prefers dark, so a figure here is the same drawing the reader
+ * gets in the editor. Every value the figure needs is a --am-* token declared
+ * below, so this file is self-contained and cannot collide with the page's own
+ * variables.
  *
  * Ported from PhilMaps (src/assets/css/argmap.css + site.css §13); see
  * docs/figures.md.
@@ -53,32 +54,62 @@
  * use bare inline maps. Every name is --am-* namespaced, so nothing here can
  * collide with the page's own variables. */
 :root {
-	/* map content — the editor's dark-mode mapping of the authentic theme
-	   (DARK_COLORS in app/js/themes.js), not an approximation of it */
-	--am-paper: #26292d;
-	--am-ink: #e2e5e7;
-	--am-border: #9aa0a6;
-	--am-green: #3fb377;
-	--am-red: #ff5d5d;
-	--am-neutral: #4aa3e8;
+	/* map content — the authentic theme as the editor draws it in light mode:
+	   node paper, ink, border and shadow from argMappingSimple, canvas from
+	   #map-container */
+	--am-paper: #ffffff;
+	--am-ink: #4f4f4f;
+	--am-border: #707070;
+	--am-border-hover: #5c5c5c;
+	--am-green: #339966;
+	--am-red: #ff0000;
+	--am-neutral: #0070c0;
 	--am-select: #22aae0;
 	--am-badge: rgba(34, 170, 224, 0.8);
-	--am-shadow: 2px 2px 3px rgba(0, 0, 0, 0.45);
-	--am-canvas: #1b1d20;
-	--am-grid-dot: rgba(255, 255, 255, 0.05);
+	--am-shadow: 2px 2px 2px rgba(7, 7, 7, 0.3);
+	--am-canvas: #ffffff;
+	--am-grid-dot: rgba(60, 45, 20, 0.07);
 
-	/* the frame around it — the landing page's own surfaces */
-	--am-frame: #212429;
-	--am-frame-line: #2f343a;
-	--am-frame-line-strong: #3d4248;
-	--am-chrome: #24272b;
-	--am-chrome-line: #34383d;
-	--am-chrome-ink: #c3c8cd;
-	--am-muted: #9aa1a8;
-	--am-accent: #5cc8f2;
+	/* the frame around it — the site's own surfaces (css/site.css) */
+	--am-frame: #fdfbf7;
+	--am-frame-line: #e6e0d4;
+	--am-frame-line-strong: #d4ccbc;
+	--am-frame-shadow: 0 30px 60px -32px rgba(70, 55, 30, 0.32);
+	--am-chrome: #f3efe7;
+	--am-chrome-line: #e6e0d4;
+	--am-chrome-ink: #3b3731;
+	--am-muted: #696257;
+	--am-accent: #16749f;
 	--am-radius: 14px;
 	--am-font-map: 'NotoSans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 	--am-font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+@media screen and (prefers-color-scheme: dark) {
+	:root {
+		/* the editor's dark-mode mapping of the authentic theme (DARK_COLORS
+		   in app/js/themes.js), not an approximation of it */
+		--am-paper: #26292d;
+		--am-ink: #e2e5e7;
+		--am-border: #9aa0a6;
+		--am-border-hover: #acb1b6;
+		--am-green: #3fb377;
+		--am-red: #ff5d5d;
+		--am-neutral: #4aa3e8;
+		--am-shadow: 2px 2px 3px rgba(0, 0, 0, 0.45);
+		--am-canvas: #1b1d20;
+		--am-grid-dot: rgba(255, 255, 255, 0.05);
+
+		--am-frame: #212429;
+		--am-frame-line: #2f343a;
+		--am-frame-line-strong: #3d4248;
+		--am-frame-shadow: 0 30px 70px -30px rgba(0, 0, 0, 0.75),
+		                   0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+		--am-chrome: #24272b;
+		--am-chrome-line: #34383d;
+		--am-chrome-ink: #c3c8cd;
+		--am-muted: #9aa1a8;
+		--am-accent: #5cc8f2;
+	}
 }
 .argmap {
 	--am-row-gap: 2.933em;      /* vertical gap parent-claim bottom -> bracket bar */
@@ -125,8 +156,7 @@
 	background: var(--am-frame);
 	border: 1px solid var(--am-frame-line-strong);
 	border-radius: var(--am-radius);
-	box-shadow: 0 30px 70px -30px rgba(0, 0, 0, 0.75),
-	            0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+	box-shadow: var(--am-frame-shadow);
 	overflow: hidden;
 }
 
@@ -180,7 +210,7 @@
 }
 .fig-action:hover { color: var(--am-accent); text-decoration: underline; }
 .fig-action:focus-visible {
-	outline: 2px solid var(--am-select);
+	outline: 2px solid var(--am-accent);
 	outline-offset: 3px;
 	border-radius: 4px;
 }
@@ -212,7 +242,7 @@
 }
 .fig-scroller { scrollbar-width: thin; scrollbar-color: var(--am-frame-line-strong) transparent; }
 .fig-scroller:focus-visible {
-	outline: 2px solid var(--am-select);
+	outline: 2px solid var(--am-accent);
 	outline-offset: -2px;
 }
 /* …plus edge-fade masks while more content hides beyond an edge (JS toggles
@@ -555,7 +585,7 @@
 
 /* ---------------------------------------------------------------- hover */
 /* subtle emphasis; never re-layouts. JS thickens the matched connector. */
-.am-claim:hover { border-color: color-mix(in srgb, var(--am-border) 82%, #fff); }
+.am-claim:hover { border-color: var(--am-border-hover); }
 
 /* mini-maps rendered inert (render.js's `inert` option) take no interaction */
 .argmap.am-inert .am-claim { cursor: default; }
@@ -601,29 +631,19 @@
 
 /* --------------------------------------------------------------- print */
 @media print {
-	/* figures print in the LIGHT map grammar, on white */
+	/* the light tokens (the dark set is screen-only), flattened onto white */
 	:root {
-		--am-paper: #fff;
-		--am-ink: #4f4f4f;
-		--am-border: #707070;
-		--am-green: #339966;
-		--am-red: #ff0000;
-		--am-neutral: #0070c0;
 		--am-shadow: none;
-		--am-canvas: #fff;
 		--am-grid-dot: rgba(0, 0, 0, 0.045);
 		--am-frame: #fff;
 		--am-frame-line: #ccc;
 		--am-frame-line-strong: #ccc;
+		--am-frame-shadow: none;
 		--am-chrome: #fff;
 		--am-chrome-line: #ccc;
 		--am-chrome-ink: #333;
 		--am-muted: #444;
 	}
-	.fig { box-shadow: none; }
-	.fig-canvas,
-	.argmap-inline { background-color: #fff; }
 	.fig-scroller { overflow: visible; }
-	.am-claim { box-shadow: none; }
 	.fig-actions { display: none; }
 }

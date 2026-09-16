@@ -1,4 +1,31 @@
-# Because (formerly ArgumentBase) — status (2026-08-12)
+# Because (formerly ArgumentBase) — status (2026-09-16)
+
+## 2026-09-16 — The site follows the system light/dark preference
+
+- The landing page, privacy policy and terms were dark only. They now have
+  a light scheme of warm paper (`#f7f4ed`, cards `#fdfbf7`) around the
+  editor's own light accent `#16749f`, and switch with the system
+  preference live, with no reload and no script. Print always takes the
+  light scheme: the dark tokens are declared under `screen`.
+- The three pages each carried a copy of the palette, and the legal pages'
+  copy had drifted (body text `#d0d5da` against the landing page's
+  `#d7dbe0`). The tokens and the shared base styles now live once, in
+  `site/css/site.css`. In dark the landing page renders as before apart
+  from the footer's copyright links, which now use the footer's muted grey.
+- The figures draw the editor's light theme in light (white paper and
+  canvas, `#707070` borders, `#339966` / `#ff0000` / `#0070c0` brackets, the
+  theme's own `2px 2px 2px` shadow) and its dark-mode mapping in dark. The
+  SVG connectors reference the tokens, so they recolour with the rest.
+  Focus rings on the caption links and the scroller use the page accent,
+  because the map's `#22aae0` is below 3:1 on white.
+- The editor itself is unchanged: it still opens light on a first visit
+  whatever the system prefers.
+- `site/og.png` is still the dark card. `og-shot.js` now pins the dark
+  scheme, and a regenerated card is pixel-identical to the committed one.
+- Gates in `site-e2e`, both engines: light colours, a live switch to dark,
+  and print under a dark preference. Axe now scans privacy and terms as
+  well as the landing page, in both schemes; before, only the landing page
+  was scanned, in the one scheme it had.
 
 ## 2026-08-12 — Claim numbers that outlived their claims
 

@@ -137,8 +137,24 @@ background each color sits on.
 | Focus outline (dark) | `#6cc4ee` | dark chrome | passes |
 
 The site pages (`site/index.html`, `site/privacy.html`, `site/terms.html`)
-use the same darkened link/accent color `#16749f` and muted grey `#6e6e6e`
-for the same reasons.
+take their colors from `site/css/site.css`, which follows the system
+light/dark preference. Light is warm paper (`#f7f4ed`, cards `#fdfbf7`)
+around the editor's own light accent; dark is the editor's dark mode.
+`test/site-e2e.js` runs axe over all three pages in both schemes.
+
+| Element | Light | Ratio | Dark | Ratio |
+|---|---|---|---|---|
+| Body text on page | `#3b3731` on `#f7f4ed` | 10.76 | `#d7dbe0` on `#17191c` | 12.66 |
+| Muted text on page | `#696257` on `#f7f4ed` | 5.49 | `#9aa1a8` on `#17191c` | 6.74 |
+| Muted text on card | `#696257` on `#fdfbf7` | 5.83 | `#9aa1a8` on `#212429` | 5.96 |
+| Footer copyright | `#6f675c` on `#f2eee6` | 4.81 | `#7d848b` on `#141518` | 4.82 |
+| Links, eyebrows, focus outline on page | `#16749f` on `#f7f4ed` | 4.74 | `#5cc8f2` on `#17191c` | 9.23 |
+| Links on card | `#16749f` on `#fdfbf7` | 5.04 | `#5cc8f2` on `#212429` | 8.15 |
+| Button text | `#fff` on `#147aa6` | 4.81 | same | 4.81 |
+
+The figures on the landing page draw the map in the editor's light theme
+or its dark-mode mapping to match, so their map colors fall under
+exception 1 below.
 
 ## Documented exceptions
 

@@ -24,10 +24,12 @@ const OUT = path.join(__dirname, '..', 'site', 'og.png');
 	const browser = await chromium.launch({ executablePath: CHROME });
 	// reducedMotion, so the map's entrance animation never runs: a still image
 	// has nothing to animate, and waiting it out would be a race the shot loses.
+	// The card is dark, and the figure's tokens follow the colour scheme.
 	const context = await browser.newContext({
 		viewport: { width: 1200, height: 630 },
 		deviceScaleFactor: 1,
-		reducedMotion: 'reduce'
+		reducedMotion: 'reduce',
+		colorScheme: 'dark'
 	});
 	const page = await context.newPage();
 	// Chrome asks for /favicon.ico unprompted; a card has no need of one.

@@ -1,7 +1,8 @@
 // E2e for the landing page's argument-map figures (site/, docs/figures.md):
 // the pre-rendered figure is in the HTML, hydrates to the authentic MindMup
-// geometry in both engines, stays correct with JavaScript off, keeps the WCAG
-// 2.2 AA gate clean, and the .mup it offers really opens in the editor.
+// geometry in both engines, stays correct with JavaScript off, follows the
+// system colour scheme, keeps every site page WCAG 2.2 AA-clean in light and
+// dark, and the .mup it offers really opens in the editor.
 // Run through `npm test`, which serves the repo root, or set BASE.
 const { webkit, chromium } = require('playwright-core');
 const { execFileSync } = require('node:child_process');
@@ -334,29 +335,64 @@ function checksGeometry(label, g) {
 			name + ' reduced motion: the map is there at once, no entrance animation');
 		await still.close();
 
+		// ---- colour scheme: follows the system, live; print is always light ----
+		const schemeCtx = await browser.newContext({ viewport: { width: 1440, height: 950 }, colorScheme: 'light', reducedMotion: 'reduce' });
+		const sp = await schemeCtx.newPage();
+		await sp.goto(SITE, { waitUntil: 'load' });
+		await sp.waitForFunction(() => document.querySelector('.argmap[data-hydrated]'), { timeout: 8000 });
+		const colours = () => sp.evaluate(() => ({
+			page: getComputedStyle(document.body).backgroundColor,
+			canvas: getComputedStyle(document.querySelector('.fig-canvas')).backgroundColor,
+			paper: getComputedStyle(document.querySelector('.am-claim')).backgroundColor,
+			link: getComputedStyle(document.querySelector('.am-links path')).stroke
+		}));
+		const light = await colours();
+		ok(light.page === 'rgb(247, 244, 237)' && light.canvas === 'rgb(255, 255, 255)' &&
+			light.paper === 'rgb(255, 255, 255)' && light.link === 'rgb(51, 153, 102)',
+			name + ' scheme: light is warm paper around the authentic light map — ' + JSON.stringify(light));
+		await sp.emulateMedia({ colorScheme: 'dark' });
+		const dark = await colours();
+		ok(dark.page === 'rgb(23, 25, 28)' && dark.canvas === 'rgb(27, 29, 32)' &&
+			dark.paper === 'rgb(38, 41, 45)' && dark.link === 'rgb(63, 179, 119)',
+			name + ' scheme: switching the system to dark recolours the page and the drawn connector without a reload — ' +
+				JSON.stringify(dark));
+		await sp.emulateMedia({ media: 'print', colorScheme: 'dark' });
+		const printed = await colours();
+		ok(printed.paper === 'rgb(255, 255, 255)' && printed.link === 'rgb(51, 153, 102)',
+			name + ' scheme: print takes the light map even when the system prefers dark — ' + JSON.stringify(printed));
+		await schemeCtx.close();
+
 		await browser.close();
 	}
 
-	// ---- axe: the page with the figure in it must stay AA-clean (WebKit) ----
+	// ---- axe: every site page stays AA-clean in both schemes (WebKit) ----
 	// Scanned with reduced motion, so nothing is measured mid-fade: the page's
 	// scroll-reveal holds text at partial opacity, and axe reads that as a
 	// contrast failure on copy that is fine once it has arrived.
 	{
 		const browser = await webkit.launch();
-		const ctx = await browser.newContext({ viewport: { width: 1440, height: 950 }, reducedMotion: 'reduce' });
-		const page = await ctx.newPage();
-		await page.goto(SITE, { waitUntil: 'load' });
-		await page.waitForFunction(() => document.querySelector('.argmap[data-hydrated]'), { timeout: 8000 });
-		await page.evaluate(axeSource);
-		let r = await page.evaluate(o => window.axe.run(document, o), AXE_OPTS);
-		ok(r.violations.length === 0, 'axe clean: landing page — ' +
-			r.violations.map(v => v.id + '(' + v.nodes.length + ')').join(', '));
-		// and with a claim selected, which is when the tree state is live
-		await page.evaluate(() => document.querySelector('.am-claim[data-num="1.1"]').focus());
-		await page.keyboard.press('ArrowDown');
-		r = await page.evaluate(o => window.axe.run(document, o), AXE_OPTS);
-		ok(r.violations.length === 0, 'axe clean: landing page, claim selected — ' +
-			r.violations.map(v => v.id + '(' + v.nodes.length + ')').join(', '));
+		const violations = r => r.violations.map(v => v.id + '(' + v.nodes.length + ')').join(', ');
+		for (const scheme of ['light', 'dark']) {
+			const ctx = await browser.newContext({ viewport: { width: 1440, height: 950 }, reducedMotion: 'reduce', colorScheme: scheme });
+			const page = await ctx.newPage();
+			for (const legal of ['privacy', 'terms']) {
+				await page.goto(BASE + '/site/' + legal + '.html', { waitUntil: 'load' });
+				await page.evaluate(axeSource);
+				const r = await page.evaluate(o => window.axe.run(document, o), AXE_OPTS);
+				ok(r.violations.length === 0, `axe clean (${scheme}): ${legal} — ` + violations(r));
+			}
+			await page.goto(SITE, { waitUntil: 'load' });
+			await page.waitForFunction(() => document.querySelector('.argmap[data-hydrated]'), { timeout: 8000 });
+			await page.evaluate(axeSource);
+			let r = await page.evaluate(o => window.axe.run(document, o), AXE_OPTS);
+			ok(r.violations.length === 0, `axe clean (${scheme}): landing page — ` + violations(r));
+			// and with a claim selected, which is when the tree state is live
+			await page.evaluate(() => document.querySelector('.am-claim[data-num="1.1"]').focus());
+			await page.keyboard.press('ArrowDown');
+			r = await page.evaluate(o => window.axe.run(document, o), AXE_OPTS);
+			ok(r.violations.length === 0, `axe clean (${scheme}): landing page, claim selected — ` + violations(r));
+			await ctx.close();
+		}
 		await browser.close();
 	}
 
