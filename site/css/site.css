@@ -1,6 +1,6 @@
 /*
  * site/css/site.css — colour tokens and base styles shared by the site pages
- * (index, privacy, terms). Each page's own <style> adds its layout.
+ * (index, privacy, terms, accessibility). Each page's own <style> adds its layout.
  *
  * Light is warm paper around the editor's light accent (app/css/app.css);
  * dark is the editor's dark mode. The pages follow the system preference, and
@@ -99,6 +99,9 @@ button:focus-visible {
 
 strong { color: var(--text-strong); font-weight: 650; }
 
+/* long link text such as a bare URL wraps at 320px instead of scrolling */
+main { overflow-wrap: break-word; }
+
 code {
 	font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 	font-size: 0.86em;
@@ -128,3 +131,18 @@ code {
 }
 .brand { display: flex; align-items: center; gap: 10px; color: var(--text-strong); }
 .brand svg { display: block; }
+
+/* ---- footer of the privacy, terms and accessibility pages ---- */
+.site-foot { border-top: 1px solid var(--border); background: var(--footer-bg); }
+.site-foot-inner {
+	max-width: 720px;
+	margin: 0 auto;
+	padding: 26px 24px 36px;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 20px;
+	font-size: 14px;
+}
+.site-foot-inner a { color: var(--muted); }
+.site-foot-inner a:hover { color: var(--text-strong); }
+.site-foot-inner a[aria-current] { color: var(--text-strong); }

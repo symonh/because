@@ -151,7 +151,13 @@ export function makeDrive(engine, io, status) {
 			const benign = /popup_closed|access_denied|user_cancel/i.test(String(e && e.message));
 			if (!benign) {
 				track('drive_error', { description: String((e && e.message) || e) });
-				window.alert(String((e && e.message) || e));
+				// the browser's wording for a dropped connection names no
+				// service and suggests nothing
+				const offline = e instanceof TypeError &&
+					/failed to fetch|networkerror|load failed/i.test(String(e.message));
+				window.alert(offline ?
+					'Google Drive could not be reached. Check the connection and try again; the open map is unchanged.' :
+					String((e && e.message) || e));
 			}
 		},
 		// resolves true to go on to the Picker, false if the reader backed out
@@ -357,7 +363,11 @@ export function makeDrive(engine, io, status) {
 							encodeURIComponent(doc.id) + '?alt=media&supportsAllDrives=true'),
 						text = await resp.text();
 					noteMapSource('drive');
-					io.loadJson(JSON.parse(text), doc.name); // releases the previous save target
+					try {
+						io.loadJson(JSON.parse(text), doc.name); // releases the previous save target
+					} catch (parseErr) {
+						throw new Error('“' + doc.name + '” could not be opened. It may not be a valid .mup file.');
+					}
 					io.setSaveTarget(opts => drive.save(false, opts), () => { currentDriveFile = null; });
 					currentDriveFile = { id: doc.id, name: doc.name };
 					// warn about a view-only file NOW, not when the first

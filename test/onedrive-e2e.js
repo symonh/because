@@ -99,7 +99,7 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 				}
 			}
 			if (u.indexOf('download.test') >= 0) {
-				return Promise.resolve(new Response(deathMup, { status: 200 }));
+				return Promise.resolve(new Response(window.__odBad ? '<html>not a map</html>' : deathMup, { status: 200 }));
 			}
 			return realFetch(url, options);
 		};
@@ -168,9 +168,15 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 		.some(b => b.textContent.indexOf('Nested.mup') >= 0), { timeout: 6000 });
 	ok(await page.evaluate(() => document.querySelector('.od-path').textContent === 'OneDrive › Teaching'),
 		'folder drill-down lists its children');
+	ok(await page.evaluate(() => document.activeElement.textContent.indexOf('Nested.mup') >= 0),
+		'opening a folder puts focus on its first entry, not on the page');
+	ok(await page.evaluate(() => document.querySelector('.od-status').getAttribute('role') === 'status'),
+		'the picker\'s loading, empty-folder and error messages are a status region');
 	await page.click('.od-up');
 	await page.waitForFunction(() => Array.from(document.querySelectorAll('.od-list .od-item'))
 		.some(b => b.textContent.indexOf('OD map.mup') >= 0), { timeout: 6000 });
+	ok(await page.evaluate(() => document.activeElement.classList.contains('od-item')),
+		'going back up keeps focus inside the listing');
 
 	// pick the file: content comes via @microsoft.graph.downloadUrl
 	await page.evaluate(() => {
@@ -327,10 +333,23 @@ const DEATH_MUP = fs.readFileSync(path.join(__dirname, '..', 'samples', 'death.m
 	ok(await page.evaluate(() => window.__authPopups.length === 0 &&
 		window.__tokenPosts.length > 0 && window.__tokenPosts[0].indexOf('grant_type=refresh_token') >= 0),
 		'after a reload the refresh token renews silently — no popup');
+	// a file in OneDrive that is not a map is reported the way a local one is
 	await page.evaluate(() => {
-		const btn = document.querySelector('.panel-close button');
-		if (btn) { btn.click(); }
+		window.__odBad = true;
+		window.__alerts = [];
+		window.alert = m => window.__alerts.push(String(m));
+		Array.from(document.querySelectorAll('.od-list .od-item'))
+			.find(b => b.textContent.indexOf('OD map.mup') >= 0).click();
 	});
+	await page.waitForFunction(() => window.__alerts.length > 0 || document.querySelector('.panel button[data-act="discard"]'), { timeout: 6000 });
+	await page.evaluate(() => {
+		const discard = document.querySelector('.panel button[data-act="discard"]');
+		if (discard) { discard.click(); }
+	});
+	await page.waitForFunction(() => window.__alerts.length > 0, { timeout: 6000 });
+	ok(await page.evaluate(() => window.__alerts[0] === '“OD map.mup” could not be opened. It may not be a valid .mup file.'),
+		'a OneDrive file that is not a map is named and reported in plain words, not as a parser error');
+	await page.evaluate(() => { window.__odBad = false; });
 
 	ok(await page.evaluate(() => !window.__because.analytics.events().some(ev =>
 		/[\w-]{25,}/.test(JSON.stringify(ev.params)))),

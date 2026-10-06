@@ -12,6 +12,9 @@
  *   d      detach the selection (a claim, or a whole reason/objection)
  *   l      label the connector above the selection ("l" for label; the only
  *   other way to it was a thin curve to click or the Edit menu)
+ *   m      move the selection: attach it to a claim or bracket chosen with
+ *   the arrow keys and Enter, or click (move-mode.js)
+ *   ⌘⇧ + arrows  nudge a claim standing free on the canvas
  *   Escape leave the map — focus moves to the app chrome. Tab is the
  *   co-premise key inside the map and so cannot also be the way out, which
  *   left the browser's own F6 as the only exit; WCAG 2.1.2 allows a
@@ -64,6 +67,9 @@ export function bindShortcuts(engine, commands, neutralPref) {
 			onBody = e.target === document.body;
 		if (!onBody && !(container && container.contains(e.target))) { return; }
 		if (onBody && e.key === 'Tab') { return; }
+		// a bare character (t, d, l, z, ?, Shift+T …) acts only while the map
+		// itself has focus, so stray typing elsewhere never edits it (WCAG 2.1.4)
+		if (onBody && !e.altKey && !e.metaKey && !e.ctrlKey && e.key && e.key.length === 1) { return; }
 		const alt = e.altKey && !e.metaKey && !e.ctrlKey,
 			bare = !e.altKey && !e.metaKey && !e.ctrlKey,
 			mod = (e.metaKey || e.ctrlKey) && !e.altKey;
@@ -118,6 +124,16 @@ export function bindShortcuts(engine, commands, neutralPref) {
 			command = commands.detachNode;
 		} else if (bare && e.key === 'l') {
 			command = commands.editConnectorLabel;
+		} else if (bare && e.key === 'm') {
+			command = commands.beginMove;
+		} else if (mod && e.shiftKey && e.key === 'ArrowLeft') {
+			command = commands.nudgeLeft;
+		} else if (mod && e.shiftKey && e.key === 'ArrowRight') {
+			command = commands.nudgeRight;
+		} else if (mod && e.shiftKey && e.key === 'ArrowUp') {
+			command = commands.nudgeUp;
+		} else if (mod && e.shiftKey && e.key === 'ArrowDown') {
+			command = commands.nudgeDown;
 		} else if (bare && e.key === 'Escape' && !onBody &&
 				!document.querySelector(CLOSEABLE)) {
 			// only from inside the map, and only with nothing open that

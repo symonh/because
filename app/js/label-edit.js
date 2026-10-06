@@ -58,20 +58,20 @@ export function makeLabelEdit(engine) {
 				node.attr.parentConnector.label) || '',
 			rect = anchor.getBoundingClientRect(),
 			crect = container.getBoundingClientRect(),
-			// clamp to the container's VISIBLE box (viewport coords), then
-			// convert to content coords: the input is absolute inside the
-			// scrolling container, so the scroll offsets must be added or a
-			// scrolled map puts the editor far from the connector
+			// clamped to the container's visible box. The input lives in the
+			// body, fixed to the viewport: inside the container it would be a
+			// child of role=tree, which admits only treeitems
 			visibleLeft = Math.min(Math.max(4, rect.left - crect.left + rect.width / 2 - 110), crect.width - 224),
 			visibleTop = Math.min(Math.max(4, rect.top - crect.top + rect.height / 2 - 14), crect.height - 32),
 			input = document.createElement('input');
 		input.type = 'text';
 		input.className = 'connector-label-editor';
 		input.setAttribute('aria-label', 'Connector label');
+		input.placeholder = 'Connector label';
 		input.value = current;
-		input.style.left = (visibleLeft + container.scrollLeft) + 'px';
-		input.style.top = (visibleTop + container.scrollTop) + 'px';
-		container.appendChild(input);
+		input.style.left = (visibleLeft + crect.left) + 'px';
+		input.style.top = (visibleTop + crect.top) + 'px';
+		document.body.appendChild(input);
 		activeInput = input;
 		mapModel.setInputEnabled(false, true); // engine hotkeys off while typing
 		input.focus();
@@ -79,22 +79,26 @@ export function makeLabelEdit(engine) {
 		track('connector_action', { action: 'label_edit', has_label: current ? 'yes' : 'no' });
 
 		const finish = function (commit) {
-			if (!activeInput) { return; }
-			const value = input.value.trim();
-			activeInput = null;
-			input.remove();
-			mapModel.setInputEnabled(true);
-			if (commit && value !== current) {
-				content.mergeAttrProperty(connector.to, 'parentConnector', 'label', value || false);
-				track('connector_action', { action: value ? 'label_set' : 'label_cleared' });
-			}
-		};
+				if (!activeInput) { return; }
+				const value = input.value.trim();
+				activeInput = null;
+				container.removeEventListener('scroll', onScroll); // eslint-disable-line no-use-before-define
+				input.remove();
+				mapModel.setInputEnabled(true);
+				if (commit && value !== current) {
+					content.mergeAttrProperty(connector.to, 'parentConnector', 'label', value || false);
+					track('connector_action', { action: value ? 'label_set' : 'label_cleared' });
+				}
+			},
+			onScroll = () => finish(true);
 		input.addEventListener('keydown', function (e) {
 			e.stopPropagation();
 			if (e.key === 'Enter') { finish(true); }
 			if (e.key === 'Escape') { finish(false); }
 		});
 		input.addEventListener('blur', () => finish(true));
+		// a fixed input would drift off its connector as the map scrolls
+		container.addEventListener('scroll', onScroll);
 	}
 
 	mapModel.addEventListener('lineLabelClicked', beginEdit);

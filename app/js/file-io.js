@@ -87,6 +87,12 @@ export function makeFileIO(engine, status) {
 			track('map_open_error', { description: String((e && e.message) || e).slice(0, 100) });
 			window.alert('“' + name + '” could not be opened. It may not be a valid .mup file.');
 		},
+		reportSaveFailure = function (e) {
+			track('map_save_error', { description: String((e && e.message) || e).slice(0, 100) });
+			window.alert('“' + fileName + '” could not be saved' +
+				(e && e.message ? ': ' + e.message : '.') +
+				'\n\nYour changes are still open in the editor. Try File > Save As… to save them somewhere else.');
+		},
 		loadFile = function (file) {
 			const reader = new FileReader();
 			reader.onload = function (ev) {
@@ -131,12 +137,17 @@ export function makeFileIO(engine, status) {
 		saveQuietly = async function () {
 			if (saveTarget) { return saveTarget.save(); }
 			const text = engine.serialize();
-			if (fileHandle) {
-				const writable = await fileHandle.createWritable();
-				await writable.write(text);
-				await writable.close();
-			} else {
-				downloadCopy(text);
+			try {
+				if (fileHandle) {
+					const writable = await fileHandle.createWritable();
+					await writable.write(text);
+					await writable.close();
+				} else {
+					downloadCopy(text);
+				}
+			} catch (e) {
+				reportSaveFailure(e);
+				return false;
 			}
 			track('map_save', { destination: fileHandle ? 'file' : 'download', mode: 'guard' });
 			setDirty(false);
@@ -308,13 +319,19 @@ export function makeFileIO(engine, status) {
 					});
 				} catch (e) {
 					if (e && e.name === 'AbortError') { return false; }
-					throw e;
+					reportSaveFailure(e);
+					return false;
 				}
 			}
 			if (handle) {
-				const writable = await handle.createWritable();
-				await writable.write(text);
-				await writable.close();
+				try {
+					const writable = await handle.createWritable();
+					await writable.write(text);
+					await writable.close();
+				} catch (e) {
+					reportSaveFailure(e);
+					return false;
+				}
 				// the chosen file is the map's home now, so it takes Save
 				// over from any cloud target — but only once the write
 				// landed, or a failed Save As would strand the map

@@ -122,6 +122,8 @@
 .mapjs-node.attr_eval_rejected::after,
 .mapjs-node.attr_eval_accepted::after {
 	content: '\1F6AB';
+	/* empty alternative text: a11y-canvas.js describes the mark in words */
+	content: '\1F6AB' / '';
 	position: absolute;
 	top: -12px;
 	right: -10px;
@@ -135,6 +137,23 @@
 }
 .mapjs-node.attr_eval_accepted::after {
 	content: '\2714\FE0F';
+	content: '\2714\FE0F' / '';
+}
+
+/* View > High-contrast map colours (dark-mode.js): white badge text at
+ * 5.86:1, and evaluation discs at 3:1 or more against the canvas */
+body.high-contrast .mapjs-label,
+body.high-contrast .mapjs-label:hover {
+	background: #0b6aa0;
+	box-shadow: 0 0 0 2px #0b6aa0;
+}
+body.high-contrast .mapjs-node.attr_eval_rejected::after,
+body.high-contrast .mapjs-node.attr_eval_accepted::after {
+	background: #0b6aa0;
+}
+body.dark.high-contrast .mapjs-node.attr_eval_rejected::after,
+body.dark.high-contrast .mapjs-node.attr_eval_accepted::after {
+	background: #22aae0;
 }
 
 /* The theme says maxWidth 146 but MindMup's rendered wrap measures ~154px

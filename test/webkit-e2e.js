@@ -315,7 +315,7 @@ const ok = (cond, name) => { console.log((cond ? 'PASS ' : 'FAIL ') + name); if 
 	}), 'the typed label reaches the premise\'s own bracket in WebKit');
 	// and the announcement follows the data, in Safari's DOM as in Chrome's
 	ok(await page.evaluate(() => document.getElementById('node_10')
-		.getAttribute('aria-label')) === 'Supporting reasons (group), labelled Because',
+		.getAttribute('aria-label')) === 'Supporting reasons (group), labeled Because',
 	'the bracket announces its connector label in WebKit');
 	await page.keyboard.press('Meta+z');
 	await page.waitForTimeout(400);

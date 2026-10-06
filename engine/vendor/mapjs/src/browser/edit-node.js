@@ -27,7 +27,9 @@ jQuery.fn.editNode = function (shouldSelectAll) {
 	} else {
 		textBox.text(unformattedText);
 	}
-	textBox.attr('contenteditable', true).focus();
+	/* LOCAL PATCH: a contenteditable span has no role or name of its own,
+	   so assistive technology needs both while the editor is open */
+	textBox.attr({contenteditable: true, role: 'textbox', 'aria-multiline': 'true', 'aria-label': 'Claim text'}).focus();
 	if (shouldSelectAll) {
 		textBox.selectAll();
 	} else if (unformattedText) {
@@ -39,7 +41,7 @@ jQuery.fn.editNode = function (shouldSelectAll) {
 		const clear = function () {
 				detachListeners(); //eslint-disable-line no-use-before-define
 				textBox.css('word-break', '');
-				textBox.removeAttr('contenteditable');
+				textBox.removeAttr('contenteditable role aria-multiline aria-label');
 				node.shadowDraggable();
 			},
 			finishEditing = function () {

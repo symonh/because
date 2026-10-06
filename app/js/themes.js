@@ -829,6 +829,65 @@ export function darkenThemeJson(json) {
 }
 
 /*
+ * High-contrast variant of the light themes, under the same VIEW contract
+ * as darkenThemeJson. The authentic selection blue, the supporting green,
+ * the opposing red and the selected bracket's #00FF00 fall below 4.5:1
+ * (text) or 3:1 (lines) on white paper; these replacements clear both.
+ */
+const HIGH_CONTRAST_COLORS = {
+	'#22aae0': '#0b6aa0', // selection border: 2.66:1 -> 5.86:1
+	'#339966': '#1f7a4d', // supporting green: 3.57:1 -> 5.32:1
+	'#00ff00': '#1f7a4d', // selected supporting bracket: 1.37:1 -> 5.32:1
+	'#ff0000': '#c00000'  // opposing red: 4.0:1 -> 6.48:1
+};
+
+export function highContrastThemeJson(json) {
+	const t = JSON.parse(JSON.stringify(json)),
+		walk = function (obj) {
+			Object.keys(obj).forEach(function (key) {
+				const value = obj[key];
+				if (typeof value === 'string') {
+					const mapped = HIGH_CONTRAST_COLORS[value.toLowerCase()];
+					if (mapped) { obj[key] = mapped; }
+				} else if (value && typeof value === 'object') {
+					walk(value);
+				}
+			});
+		};
+	walk(t);
+	return t;
+}
+
+/*
+ * High-contrast transform for AUTHOR-set node colours, under the same
+ * contract. The engine inks a coloured claim in the theme's #4f4f4f (or
+ * black, on the palest papers), so a mid-tone paper such as the Coral
+ * swatch (3.16:1) is blended toward white until that ink reaches 4.5:1.
+ */
+const INK_LUMINANCE = 0.0782; // #4f4f4f
+
+export function highContrastUserColor(color) {
+	const m = typeof color === 'string' &&
+		/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color.trim());
+	if (!m) { return color; }
+	let hex = m[1];
+	if (hex.length === 3) { hex = hex.replace(/./g, c => c + c); }
+	const rgb = [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16)),
+		channel = v => {
+			const c = v / 255;
+			return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+		},
+		luminance = c => 0.2126 * channel(c[0]) + 0.7152 * channel(c[1]) + 0.0722 * channel(c[2]);
+	for (let t = 0; t <= 1; t += 0.05) {
+		const mixed = rgb.map(v => Math.round(v + (255 - v) * t));
+		if ((luminance(mixed) + 0.05) / (INK_LUMINANCE + 0.05) >= 4.5) {
+			return t === 0 ? color : '#' + mixed.map(v => v.toString(16).padStart(2, '0')).join('');
+		}
+	}
+	return '#ffffff';
+}
+
+/*
  * Dark-mode transform for AUTHOR-set node colours (attr.style.background /
  * .backgroundColor / .text.color), which bypass the theme JSON entirely.
  * Same contract as darkenThemeJson: render-time only, map data untouched.

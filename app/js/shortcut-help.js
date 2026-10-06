@@ -47,7 +47,7 @@ export const SHORTCUT_GROUPS = [
 		title: 'Building the argument',
 		rows: [
 			{ keys: 'Enter', desc: 'Add a reason under the selected claim', cmd: 'addReason' },
-			{ keys: 'Tab', desc: 'Add a co-premise — a second claim inside the same bracket, jointly making one reason', cmd: 'addCoPremise' },
+			{ keys: 'Tab', altKeys: 'Shift+Tab', desc: 'Add a co-premise — a second claim inside the same bracket, jointly making one reason', cmd: 'addCoPremise' },
 			{ keys: 'Alt+O', desc: 'Add an objection to the selected claim', cmd: 'addObjection' },
 			{ keys: 'Alt+Q', desc: 'Add a neutral connector — a blue flat bracket that asserts no relation, for tying a question to the claims that answer it, or a claim to a question it raises', cmd: 'addNeutral', needs: 'neutral' },
 			{ keys: 'Alt+N', desc: 'Add a sticky note', cmd: 'addSticky' },
@@ -62,7 +62,9 @@ export const SHORTCUT_GROUPS = [
 		rows: [
 			{ keys: 'Arrows', desc: 'Move the selection through the map' },
 			{ keys: 'Shift+Arrows', desc: 'Add the claim you move to, so several are selected at once' },
-			{ keys: 'Mod+←', altKeys: 'Mod+→', desc: 'Reorder the selected claim among its co-premises' },
+			{ keys: 'Mod+←', altKeys: 'Mod+→', desc: 'Reorder the selected claim among its co-premises', cmd: 'moveLeft moveRight' },
+			{ keys: 'M', desc: 'Move the selection: choose a claim or bracket with the arrow keys and press Enter to attach it there, or click one; click blank canvas to place it there. Escape cancels', cmd: 'beginMove' },
+			{ keys: 'Mod+Shift+Arrows', desc: 'Nudge a claim that stands free of the tree', cmd: 'nudgeLeft nudgeRight nudgeUp nudgeDown' },
 			{ keys: 'F', altKeys: '/', desc: 'Collapse or expand everything under the selection' },
 			{ keys: 'Z', altKeys: 'Shift+Z', desc: 'Zoom in / zoom out', cmd: 'zoomIn zoomOut' },
 			{ keys: 'Escape', desc: 'Leave the map: focus moves to the menus, and Tab then walks the rest of the app. Tab cannot do this from inside the map, where it adds a co-premise', cmd: 'leaveMap' }
@@ -97,11 +99,12 @@ export const SHORTCUT_GROUPS = [
 		mouse: true,
 		rows: [
 			{ keys: 'Click a claim number', desc: 'Replace it with your own text, up to 10 characters' },
-			{ keys: 'Right-click a claim', desc: 'Colour and text style' },
+			{ keys: 'Right-click a claim', desc: 'Color and text style' },
 			{ keys: 'Click a connector', desc: 'Make the line stronger or weaker, or edit its label' },
 			{ keys: 'Double-click a connector', desc: 'Edit its label' },
 			{ keys: 'Click above a nested bracket', desc: 'Label the reason or objection to that inference' },
-			{ keys: 'Drag to blank canvas', desc: 'Detach the claim — the same as D' }
+			{ keys: 'Drag to blank canvas', desc: 'Detach the claim — the same as D' },
+			{ keys: 'Drag onto a claim', desc: 'Attach it there — the same as M' }
 		]
 	}
 ];

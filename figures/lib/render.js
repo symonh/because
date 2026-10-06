@@ -181,7 +181,7 @@ export function render(mapJson, opts) {
 	const inert = !!opts.inert;
 
 	const style = 'style="--claim-max-ch:' + model.claimMaxCh + '"';
-	const roleDesc = ' aria-roledescription="argument map"';
+	const roleDesc = ' aria-roledescription="argument map" aria-label="Argument map"';
 	const describedby = opts.descId ? ' aria-describedby="' + esc(opts.descId) + '"' : '';
 	const activedesc = inert ? '' : ' aria-activedescendant=""';
 

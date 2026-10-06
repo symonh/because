@@ -6,12 +6,13 @@ conformance is bounded by the project's rendering-fidelity rule. The
 regression gate is `test/a11y-e2e.js`.
 
 The landing page has its own gate, `test/site-e2e.js`, because its
-argument-map figures draw the same grammar the app does and so inherit
-exception 1 below — including the shape distinction between the three
-bracket kinds. The figures carry the canvas tree semantics described
+argument-map figures draw the same grammar the app does, including the
+shape distinction between the three bracket kinds (see "Map colours and
+the high-contrast view" below). The figures carry the canvas tree semantics described
 under "Canvas tree semantics" (one tab stop, `role="tree"` /
 `role="treeitem"`, `aria-level`, `aria-selected`,
-`aria-activedescendant`, arrow-key navigation) plus a prose text
+`aria-activedescendant`, arrow-key navigation, and the tree named
+"Argument map") plus a prose text
 alternative for each figure; see docs/figures.md.
 
 ## App-chrome measures
@@ -20,7 +21,10 @@ alternative for each figure; see docs/figures.md.
   only in map scope: `app/js/shortcuts.js` returns early when focus is in
   an input, a textarea, a `contenteditable`, or anywhere in the chrome, so
   a bare letter typed in the menus or a text field is never intercepted as
-  a command. Focus on the map container or the body counts as map scope.
+  a command. Single-character keys (t, d, l, m, z, ?, Shift+T) act only
+  while focus is inside the map container; with nothing focused (the
+  body) only Enter and the modifier combinations still reach the map, so
+  stray typing after a load or a Safari toolbar click edits nothing.
 - **Menubar semantics.** The top menu is a WAI-ARIA menubar
   (`<nav role="menubar">`); its titles carry `role="menuitem"` with
   `aria-haspopup`, and dropdown entries are `menuitem`,
@@ -66,6 +70,21 @@ alternative for each figure; see docs/figures.md.
   because the relationships it draws are already in the tree. None of
   this touches map data — attributes go on DOM the engine already
   rendered, so a `.mup` still serializes byte-identical.
+- **Reading order and depth.** The engine appends node elements to the
+  stage in creation order, and assistive technology infers each
+  treeitem's parent from its `aria-level` and the items before it. So
+  after every layout pass `a11y-canvas.js` sets each item's `aria-level`
+  to its depth in the argument (a bracket one level below its claim, the
+  bracket's premises one below that) and moves the elements into argument
+  order: depth first, siblings in numbering order. Elements are moved
+  with `moveBefore` where the browser has it; the element holding focus
+  is never the one moved, and nothing is moved while a claim is being
+  edited, since a blur would commit the edit.
+- **Claim states are described.** Implicit claims, claims marked false or
+  true, and sticky notes say so in the claim's `aria-describedby`
+  ("Implicit claim. Marked false"), ahead of any connector label. The
+  evaluation marks' emoji carry empty CSS alternative text, so the name
+  is the claim's own words.
 - **Connector labels are announced.** The words an author writes on a
   connecting line are drawn in that aria-hidden SVG layer, so until
   2026-08-03 a reader walking the map with the arrow keys never heard
@@ -74,7 +93,7 @@ alternative for each figure; see docs/figures.md.
   `.mup` keeps it on the child, as `attr.parentConnector.label`), so it is
   announced there, in whichever ARIA property does not displace an
   existing name: a bracket's accessible name is written by this app, so
-  the label joins it ("Supporting reasons (group), labelled Because"),
+  the label joins it ("Supporting reasons (group), labeled Because"),
   while a claim's name is the claim's own text, so a claim's label rides
   in `aria-describedby` pointing at a clipped `.sr-only` span outside the
   container (`role="tree"` admits only `treeitem` children, and a span
@@ -98,8 +117,42 @@ alternative for each figure; see docs/figures.md.
   nothing else is open that it already belongs to — a dropped menu, a
   popover, a modal (the `CLOSEABLE` list in `app/js/shortcuts.js`) —
   otherwise the exit would swallow the key that closes them.
+- **Nothing needs a drag (WCAG 2.1.1, 2.5.7).** **Edit > Move…** (M,
+  `app/js/move-mode.js`) picks the selection up; a claim or bracket chosen
+  with the arrow keys and Enter, or clicked, receives it, and a click on
+  blank canvas places it there standing free. It ends in the calls a drag
+  ends in (`dropNode`, `positionNodeAt`), so the map data is the same.
+  Reordering has Move left / Move right (⌘← / ⌘→), the resize handle has
+  Wider claim / Narrower claim (40px steps), a free-standing claim moves
+  20px per ⌘⇧ + arrow, and **Select bracket** reaches a bracket from any
+  of its premises without the 16px strip (the 2.5.8 equivalent-control
+  route).
+- **Focus is never hidden (WCAG 2.4.7, 2.4.11).** Entering a loaded map
+  restores the selection's activated border, which `engine.js`'s
+  `deselectAll` removes for a clean first view. Chrome floating over the
+  canvas (the floating cards, the mobile bar, the Move banner) becomes a
+  visibility and stage margin for the engine (`setChromeMargin`), so a
+  claim that receives focus is scrolled clear of it.
+- **Named editors and toggles.** While a claim is being edited, its title
+  span is a multi-line `role="textbox"` named "Claim text" (a LOCAL PATCH
+  in `engine/vendor/mapjs/src/browser/edit-node.js`); the attributes come
+  off again when editing ends. The style popover's B, I and U buttons are
+  named Bold, Italic and Underline and carry `aria-pressed`: `true` when
+  the whole claim has the format, `mixed` when part of it does, by the
+  same test `toggleFormat` uses to decide what a press does.
 - **Live save status.** `#save-status` is a `role="status"` live region,
-  so screen readers announce save-state changes.
+  so screen readers announce save-state changes. The OneDrive picker's
+  loading, empty-folder and error line is a status region too, and moving
+  between folders puts focus on the new listing's first entry.
+- **Text spacing (WCAG 1.4.12).** Claim sizes are measured at layout and
+  cached, so a spacing stylesheet or inline style that arrives later
+  (the WCAG bookmarklet, a reading extension) would leave claims
+  overlapping. `a11y-canvas.js` watches the head and the root and body
+  `style` attributes for styles this app did not write, clears the
+  engine's size cache and lays the map out again.
+- **Errors are reported.** A local save that fails, and a dropped file
+  that is not a `.mup`, each raise an alert naming the file; a failed save
+  leaves the map in place and marked unsaved.
 - **Focus visibility.** `:focus-visible` outlines (`#16749f`, 5.21:1) are
   drawn on chrome buttons/links/inputs and the map container. A map node
   instead shows selection and keyboard focus through the theme's own
@@ -109,7 +162,7 @@ alternative for each figure; see docs/figures.md.
   bracket's kind. (An earlier build layered a solid ring on top; it read as
   two concentric outlines and, being a single flat colour, hid the
   dotted/dashed state cue.) The border's colour is the authentic theme
-  `#22aae0`, covered by the fidelity exception below; the cues that are not
+  `#22aae0`, or `#0b6aa0` in the high-contrast view below; the cues that are not
   colour are the 1px→3px width jump, the dotted/dashed style, and
   `aria-selected`. The border is part of the rendered map, so it is the one
   focus-affordance that does print.
@@ -153,55 +206,59 @@ around the editor's own light accent; dark is the editor's dark mode.
 | Button text | `#fff` on `#147aa6` | 4.81 | same | 4.81 |
 
 The figures on the landing page draw the map in the editor's light theme
-or its dark-mode mapping to match, so their map colors fall under
-exception 1 below.
+or its dark-mode mapping to match, except that the badges and the claim
+focus ring use the high-contrast `#0b6aa0` (the dark ring keeps
+`#22aae0`), since the page has no switch to offer that view.
 
-## Documented exceptions
+## Map colours and the high-contrast view
 
-1. **Map-canvas content rendering follows the MindMup theme verbatim,
-   with one deliberate exception for shape.** The colors of map content —
-   for example the `#22aae0` claim-number badges and the green/red group
-   colors — come from the authentic theme JSON embedded in `.mup` files,
-   which is the project's fidelity anchor and must not be changed for
-   contrast. Color is not the only cue: the high-impact theme labels
-   groups with bracket text ("Because" / "But"), implicit claims carry
-   dashed borders, claims are numbered, dark mode offers an alternative
-   luminance, and — since color alone previously distinguished a
-   reason's bracket from an objection's — **each bracket kind has its own
-   shape**: a reason's stays rounded, an objection's (opposing-group)
-   renders with square corners, and the neutral connector's
-   (neutral-group) is a bare flat bar with no corners at all
-   (`app/js/themes.js`'s `squareCorners` / `noCorners` flags, read by the
-   `appendOverLine` LOCAL PATCH in
-   `engine/vendor/mapjs/src/core/theme/connector.js`; see
-   `engine/README.md`). So the three kinds are still told apart with
-   color perception removed entirely. These shape changes are
-   intentional and apply only to this app's own named themes — a map
-   with a fully embedded theme (historical MindMup exports) still
-   renders exactly as saved. The neutral connector's `#0070C0` is the
-   one group color that is a local addition rather than an extraction
-   (MindMup's grammar had no neutral bracket); it was chosen to clear
-   3:1 non-text contrast and in fact holds 5.1:1 on white paper and
-   5.3:1 on the dark canvas, so unlike the authentic green and red it
-   needed no separate treatment for the chrome icons. Authoring the
-   neutral connector is off by default behind **View > Allow neutral
-   connectors** (a `localStorage` preference, like dark mode and the
-   layout choice), which adds and removes one toolbar button, one Insert
-   item, one keyboard-reference row and the Alt+Q binding together — so
-   the reference never lists a key the app is ignoring. Rendering is
-   never gated: a map that uses the connector draws it either way.
-   Focus and selection are shown with border style and width (dotted vs
-   dashed, 1px vs 3px) and ARIA state, not color alone.
-2. **Connector curves are thin click targets.** The connecting lines are
-   narrow and can be hard to click precisely. Every connector action has a
-   keyboard-reachable equivalent in the Argument menu — Edit connector
-   label, Stronger connector, Weaker connector — so the mouse target is
-   never the only way to reach a command, and labelling also has a key of
-   its own, **L**, which opens the editor on the connector above the
-   selection.
-3. **Toolbar hints use native tooltips.** Toolbar buttons expose their
-   hint through the native `title` attribute. This relies on the browser's
-   own tooltip behavior rather than a custom AA-styled tooltip.
+The map is drawn in the authentic MindMup theme colours by default, which
+is the project's fidelity anchor. Several of those colours fall below the
+WCAG thresholds on white paper, measured from computed styles:
+
+| Element | Authentic | Ratio | High contrast | Ratio |
+|---|---|---|---|---|
+| Claim-number badge (white text) | `#22aae0` at 0.8 opacity | 2.19 | `#0b6aa0` | 5.86 |
+| Selection / focus border | `#22aae0` | 2.66 | `#0b6aa0` | 5.86 |
+| Selected reason bracket | `#00ff00` | 1.37 | `#1f7a4d` | 5.32 |
+| Supporting line and label text | `#339966` | 3.57 | `#1f7a4d` | 5.32 |
+| Opposing line and label text | `#ff0000` | 4.00 | `#c00000` | 6.48 |
+| Evaluation-mark disc | `#22aae0` at 0.85 | 2.3 | `#0b6aa0` | 5.86 |
+
+In dark mode every map colour clears its threshold except the badges
+(about 3.6), which high contrast also fixes.
+
+**View > High-contrast map colors** switches to the right-hand column.
+It is a view preference under the same contract as dark mode
+(`dark-mode.js`; `highContrastThemeJson` in `themes.js`; the badge and
+disc rules in `argmap.css`): it is stored in `localStorage` as
+`because.highcontrast`, it never alters map data, and printing keeps it.
+WCAG 2.2 allows conformance through an alternate presentation that a
+conforming control switches to (technique G174), so the authentic
+default is not a 1.4.3 or 1.4.11 failure as long as this view exists and
+works. The menu item is a `menuitemcheckbox`, reachable by keyboard like
+every other View item.
+
+Color is not the only cue in either view. Each bracket kind has its own
+shape: a reason's bracket is rounded, an objection's square, and the
+neutral connector's a flat bar (`squareCorners` / `noCorners` in
+`themes.js`, read by the `appendOverLine` LOCAL PATCH in
+`engine/vendor/mapjs/src/core/theme/connector.js`). The high-impact
+themes also label brackets in words, implicit claims have dashed
+borders, and selection is shown by border width and style as well as
+colour. The shape changes apply only to this app's named themes; a map
+with a fully embedded theme (historical MindMup exports) renders exactly
+as saved. Authoring the neutral connector is off by default behind
+**View > Allow neutral connectors**; rendering is never gated.
+
+## Known limitations
+
+1. **Connector curves are thin click targets.** Every connector action
+   has an equivalent in the Argument menu (Edit connector label, Stronger
+   connector, Weaker connector), and labelling also has a key, **L**.
+2. **Toolbar hints use native tooltips.** Toolbar buttons expose their
+   hint through the `title` attribute; the same text is each button's
+   accessible name.
 
 ## Testing
 

@@ -32,7 +32,7 @@ function tools(commands, io, allowNeutral) {
 		zoomReset: ['Reset view', commands.zoomReset],
 		zoomIn: ['Zoom in (Z)', commands.zoomIn],
 		collapse: ['Collapse / expand branch (F)', commands.toggleCollapse],
-		numbering: ['Toggle claim numbering', commands.toggleNumbering]
+		numbering: ['Claim numbering', commands.toggleNumbering]
 	};
 	if (allowNeutral) {
 		table.neutral = ['Add neutral connector (Alt+Q)', commands.addNeutral];
@@ -65,6 +65,7 @@ function toolButton(name, title, run) {
 	const b = document.createElement('button');
 	b.type = 'button';
 	b.className = 'tb-btn';
+	b.dataset.tool = name;
 	b.title = title;
 	b.setAttribute('aria-label', title);
 	b.innerHTML = iconSVG(name);

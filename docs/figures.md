@@ -140,7 +140,7 @@ connector after PhilMaps was built.
 
 ## What the drawing has to get right
 
-Colour is never the only cue (`docs/accessibility.md`, exception 1). Each
+Colour is never the only cue (`docs/accessibility.md`, "Map colours and the high-contrast view"). Each
 bracket kind has its own shape: a reason's corners are **rounded**, an
 objection's are **square**, and the neutral connector's bracket is a **bare flat
 bar** with no corners at all — the same three shapes `connector.js`'s

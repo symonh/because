@@ -375,14 +375,23 @@ function checksGeometry(label, g) {
 		for (const scheme of ['light', 'dark']) {
 			const ctx = await browser.newContext({ viewport: { width: 1440, height: 950 }, reducedMotion: 'reduce', colorScheme: scheme });
 			const page = await ctx.newPage();
-			for (const legal of ['privacy', 'terms']) {
+			for (const legal of ['privacy', 'terms', 'accessibility']) {
 				await page.goto(BASE + '/site/' + legal + '.html', { waitUntil: 'load' });
+				await page.setViewportSize({ width: 320, height: 700 });
+				ok(await page.evaluate(() => document.documentElement.scrollWidth <= 320),
+					`${legal} reflows at 320px without horizontal scrolling (${scheme})`);
+				await page.setViewportSize({ width: 1440, height: 950 });
 				await page.evaluate(axeSource);
 				const r = await page.evaluate(o => window.axe.run(document, o), AXE_OPTS);
 				ok(r.violations.length === 0, `axe clean (${scheme}): ${legal} — ` + violations(r));
 			}
 			await page.goto(SITE, { waitUntil: 'load' });
 			await page.waitForFunction(() => document.querySelector('.argmap[data-hydrated]'), { timeout: 8000 });
+			ok(await page.evaluate(() => Array.from(document.querySelectorAll('svg'))
+				.every(svg => svg.closest('[aria-hidden="true"]'))),
+			`every SVG on the landing page is decorative and hidden (${scheme})`);
+			ok(await page.evaluate(() => document.querySelector('#fig-home-aging .argmap').getAttribute('aria-label') === 'Argument map'),
+				`the hero figure's tree is named "Argument map" (${scheme})`);
 			await page.evaluate(axeSource);
 			let r = await page.evaluate(o => window.axe.run(document, o), AXE_OPTS);
 			ok(r.violations.length === 0, `axe clean (${scheme}): landing page — ` + violations(r));

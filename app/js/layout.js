@@ -106,6 +106,9 @@ export function initLayout(commands, io, menus, neutralPref) {
 			// its tabindex, so leave that one alone.
 			if (eff !== 'left') { themeToggle.setAttribute('tabindex', '0'); }
 			floatMenu.setAttribute('tabindex', '0');
+			// the strips were rebuilt: toggle states and the map's chrome
+			// margin are read afresh (main.js, a11y-canvas.js)
+			window.dispatchEvent(new window.Event('because:chrome'));
 		},
 		setLayout = function (next) {
 			if (MODES.indexOf(next) < 0 || next === mode) { return; }

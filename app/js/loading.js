@@ -1,4 +1,4 @@
-/*global document*/
+/*global document, window*/
 /*
  * Full-window "Opening map…" overlay shown while a large map lays out.
  * The layout pass is one long synchronous block, so the spinner animates
@@ -18,7 +18,10 @@ export function makeLoading() {
 					'<div class="loading-card"><div class="loading-spinner" aria-hidden="true"></div><span class="loading-text"></span></div>';
 				document.body.appendChild(overlay);
 			}
-			overlay.querySelector('.loading-text').textContent = message || 'Opening map…';
+			// filled a frame after insertion: a live region that arrives with
+			// its text already in place is not reliably announced
+			const text = overlay.querySelector('.loading-text');
+			window.requestAnimationFrame(function () { text.textContent = message || 'Opening map…'; });
 		},
 		hide() {
 			if (overlay) {

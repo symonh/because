@@ -8,6 +8,7 @@ import { makeOneDrive } from './onedrive.js';
 import { makeDarkMode } from './dark-mode.js';
 import { makeNeutralPref } from './neutral-pref.js';
 import { makeLabelEdit } from './label-edit.js';
+import { makeMoveMode } from './move-mode.js';
 import { makeNumberEdit } from './number-edit.js';
 import { makeNodeStyle } from './node-style.js';
 import { makeLoading } from './loading.js';
@@ -49,7 +50,9 @@ document.addEventListener('DOMContentLoaded', function () {
 		neutralPref = makeNeutralPref(),
 		shortcutHelp = makeShortcutHelp(neutralPref),
 		labelEdit = makeLabelEdit(engine),
-		commands = makeCommands(engine, darkMode, shortcutHelp, neutralPref, labelEdit);
+		// before the shortcuts: its capture-phase Enter and Escape must win
+		moveMode = makeMoveMode(engine),
+		commands = makeCommands(engine, darkMode, shortcutHelp, neutralPref, labelEdit, moveMode);
 	initCanvasA11y(engine, document.getElementById('map-container'));
 	document.getElementById('skip-link').addEventListener('click', function (e) {
 		e.preventDefault();
@@ -88,6 +91,13 @@ document.addEventListener('DOMContentLoaded', function () {
 	menus.renderMenubar(document.getElementById('menubar'));
 	layout = initLayout(instrument('toolbar'), io, menus, neutralPref);
 	bindShortcuts(engine, instrument('shortcut'), neutralPref);
+
+	// the numbering button is a toggle wherever a layout puts it
+	const syncNumbering = () => document.querySelectorAll('[data-tool="numbering"]')
+		.forEach(b => b.setAttribute('aria-pressed', String(engine.getLabelsOn())));
+	engine.mapModel.addEventListener('labelGeneratorChange', syncNumbering);
+	window.addEventListener('because:chrome', syncNumbering);
+	syncNumbering();
 
 	// the chrome exists, so the opening state in index.html has done its job.
 	// It goes now rather than when a map finishes drawing: a map arriving
@@ -146,7 +156,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	engine.on('loadFinished', () => loading.hide());
 
 	// dev/test handle
-	window.__because = { engine, commands, io, drive, onedrive, darkMode, neutralPref, layout, labelEdit, numberEdit, nodeStyle, intro, shortcutHelp, print, analytics: analyticsApi };
+	window.__because = { engine, commands, moveMode, io, drive, onedrive, darkMode, neutralPref, layout, labelEdit, numberEdit, nodeStyle, intro, shortcutHelp, print, analytics: analyticsApi };
 
 	// every model change marks the map unsaved (relative to its file) and
 	// refreshes the crash-recovery autosave; only File > Save clears it
@@ -169,7 +179,12 @@ document.addEventListener('DOMContentLoaded', function () {
 	window.addEventListener('drop', function (e) {
 		e.preventDefault();
 		const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-		if (f && /\.mup$/i.test(f.name)) { io.openFile(f); }
+		if (!f) { return; }
+		if (/\.mup$/i.test(f.name)) {
+			io.openFile(f);
+		} else {
+			window.alert('“' + f.name + '” is not a .mup file. Because opens argument maps saved as .mup files.');
+		}
 	});
 
 	// ?src= loader (used by tests and for sharing links on the same host)

@@ -14,6 +14,12 @@ const SOURCE = 'ui',
 	FONT_STEP = 1.2,
 	FONT_MIN = 0.4,
 	FONT_MAX = 4,
+	// claim width steps (attr.style.width, what the resize handle writes)
+	WIDTH_STEP = 40,
+	WIDTH_MIN = 80,
+	WIDTH_MAX = 600,
+	// one keyboard step for a claim standing free on the canvas
+	NUDGE = 20,
 	// clear air to the right of the map for a new detached claim: four times
 	// the theme's own 20px gap between siblings, so it reads as standing
 	// apart rather than as one more premise in a row
@@ -27,7 +33,7 @@ const SOURCE = 'ui',
 		if (node.ideas) { Object.keys(node.ideas).forEach(k => stripPositions(node.ideas[k])); }
 	};
 
-export function makeCommands(engine, darkMode, shortcutHelp, neutralPref, labelEdit) {
+export function makeCommands(engine, darkMode, shortcutHelp, neutralPref, labelEdit, moveMode) {
 	// in-memory clipboard: the JSON subtree copied by the last Copy. Kept in
 	// the app layer because mapjs exposes clone/paste on content but no
 	// clipboard of its own (MindMup's cut/copy/paste lived in its closed app).
@@ -46,6 +52,25 @@ export function makeCommands(engine, darkMode, shortcutHelp, neutralPref, labelE
 			if (!node || isGroup(node) || !node.title) { return; }
 			const newTitle = window.MAPJS.richText.toggleFormat(node.title, tag);
 			if (newTitle !== node.title) { mapModel.updateTitle(node.id, newTitle); }
+		},
+		stepWidth = function (delta) {
+			const node = selectedIdea(),
+				layout = mapModel.getCurrentLayout(),
+				box = node && layout && layout.nodes && layout.nodes[node.id];
+			if (!node || isGroup(node) || !box) { return; }
+			const current = (node.attr && node.attr.style && node.attr.style.width) || box.width;
+			mapModel.setNodeWidth(SOURCE, node.id,
+				Math.min(WIDTH_MAX, Math.max(WIDTH_MIN, Math.round(current + delta))));
+		},
+		nudge = function (dx, dy) {
+			const content = idea(),
+				nodeId = selectedId(),
+				parent = findParent(nodeId),
+				layout = mapModel.getCurrentLayout(),
+				box = layout && layout.nodes && layout.nodes[nodeId];
+			// only what already stands free: in the tree, layout decides
+			if (!content || !box || (parent && parent.id !== content.id)) { return; }
+			mapModel.positionNodeAt(nodeId, box.x + dx, box.y + dy, true);
 		},
 		stepFontSize = function (factor) {
 			const node = selectedIdea();
@@ -172,6 +197,25 @@ export function makeCommands(engine, darkMode, shortcutHelp, neutralPref, labelE
 			if (newId) { mapModel.selectNode(newId); }
 		},
 		editNode() { mapModel.editNode(SOURCE, false, false); },
+		// pick the selection up and attach or place it with a click or Enter
+		// (move-mode.js): the drag-free way to everything a drag does
+		beginMove() { if (moveMode) { moveMode.begin(); } },
+		// reorder among co-premises or sibling reasons, as Mod+←/→ does
+		moveLeft() { mapModel.moveLeft(SOURCE); },
+		moveRight() { mapModel.moveRight(SOURCE); },
+		// a bracket is a 16px strip; from any premise its bracket is one step
+		selectBracket() {
+			const parent = findParent(selectedId());
+			if (isGroup(parent)) { mapModel.selectNode(parent.id); }
+		},
+		// the resize handle's drag, in steps
+		widerClaim() { stepWidth(WIDTH_STEP); },
+		narrowerClaim() { stepWidth(-WIDTH_STEP); },
+		// a claim standing free on the canvas, moved by keyboard
+		nudgeLeft() { nudge(-NUDGE, 0); },
+		nudgeRight() { nudge(NUDGE, 0); },
+		nudgeUp() { nudge(0, -NUDGE); },
+		nudgeDown() { nudge(0, NUDGE); },
 		deleteNode() { mapModel.removeSubIdea(SOURCE); },
 		// Take the selection and everything under it out of the tree: it
 		// becomes a root of its own, standing free on the canvas. On a claim

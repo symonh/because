@@ -150,6 +150,77 @@ const editorPage = async function (browser) {
 			`${what} is refused, reported, and leaves the open map alone (${JSON.stringify(outcome)})`);
 	}
 
+	// ---- a dropped file that is not a map ----
+	const droppedOther = await page.evaluate(async () => {
+		const alerts = [];
+		window.alert = m => alerts.push(String(m));
+		window.__because.engine.loadMap({
+			formatVersion: 3, id: 'root',
+			ideas: { 1: { id: 1, title: 'Open already', attr: {} } }
+		});
+		await new Promise(r => setTimeout(r, 350));
+		const dt = new DataTransfer();
+		dt.items.add(new File(['hello'], 'notes.docx'));
+		window.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, cancelable: true }));
+		await new Promise(r => setTimeout(r, 300));
+		return {
+			told: alerts.length === 1 && alerts[0].indexOf('“notes.docx” is not a .mup file') === 0,
+			kept: document.body.textContent.indexOf('Open already') >= 0
+		};
+	});
+	ok(droppedOther.told && droppedOther.kept,
+		`a dropped file that is not a .mup is reported and leaves the open map alone (${JSON.stringify(droppedOther)})`);
+
+	// ---- a local save that fails ----
+	// The write is refused after the picker, the way a locked or read-only
+	// file refuses it; Save As, and Save from the unsaved-changes guard,
+	// must each say so and leave the map unsaved and in place.
+	const failedSave = await page.evaluate(async () => {
+		const alerts = [],
+			io = window.__because.io,
+			status = () => document.getElementById('save-status').textContent,
+			wait = ms => new Promise(r => setTimeout(r, ms));
+		let refuse = false;
+		window.alert = m => alerts.push(String(m));
+		window.showSaveFilePicker = async () => ({
+			name: 'locked.mup',
+			createWritable: async () => {
+				if (refuse) { throw new DOMException('The file is locked.', 'NoModificationAllowedError'); }
+				return { write: async () => {}, close: async () => {} };
+			}
+		});
+		const content = window.__because.engine.mapModel.getIdea();
+		content.updateTitle(1, 'Edited once');
+		await wait(100);
+		refuse = true;
+		const asResult = await io.save(true);
+		const afterAs = { result: asResult, alerts: alerts.slice(), status: status() };
+		// give the map a file handle that works once, then refuses
+		refuse = false;
+		await io.save(true);
+		refuse = true;
+		content.updateTitle(1, 'Edited twice');
+		await wait(100);
+		alerts.length = 0;
+		io.newMap();
+		await wait(100);
+		document.querySelector('.panel button[data-act="save"]').click();
+		await wait(300);
+		return {
+			afterAs,
+			guardAlerts: alerts.slice(),
+			kept: document.body.textContent.indexOf('Edited twice') >= 0,
+			guardStatus: status()
+		};
+	});
+	ok(failedSave.afterAs.result === false && failedSave.afterAs.alerts.length === 1 &&
+		failedSave.afterAs.alerts[0].indexOf('could not be saved: The file is locked.') >= 0 &&
+		failedSave.afterAs.status === 'Unsaved changes',
+		`a failed Save As is reported and the map stays unsaved (${JSON.stringify(failedSave.afterAs)})`);
+	ok(failedSave.guardAlerts.length === 1 && failedSave.guardAlerts[0].indexOf('could not be saved') >= 0 &&
+		failedSave.kept && failedSave.guardStatus === 'Unsaved changes',
+		`a failed save from the unsaved-changes dialog is reported and the map is not replaced (${JSON.stringify(failedSave)})`);
+
 	if (errors.length) { console.log('PAGE ERRORS:', errors.join(' | ')); failures += 1; }
 	await browser.close();
 	console.log(failures === 0 ? 'ALL PASS (robustness)' : failures + ' FAILURES (robustness)');

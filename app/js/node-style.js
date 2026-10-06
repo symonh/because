@@ -17,7 +17,7 @@ import { track } from './analytics.js';
 const SWATCHES = [
 	['None', false],
 	['White', '#ffffff'],
-	['Grey', '#d3d3d3'],
+	['Gray', '#d3d3d3'],
 	['Cyan', '#e0ffff'],
 	['Lemon', '#fafad2'],
 	['Coral', '#f08080'],
@@ -90,6 +90,21 @@ export function makeNodeStyle(engine, commands) {
 				el.setAttribute('aria-pressed', on ? 'true' : 'false');
 			});
 		},
+		// pressed when every run of the title carries the format, the same
+		// test toggleFormat uses to decide whether a press turns it off
+		refreshFormats = function () {
+			if (!popover) { return; }
+			const node = selectedNode(),
+				rich = window.MAPJS.richText,
+				runs = (node && !(node.attr && node.attr.group) && node.title) ?
+					rich.mergeRuns(rich.parseRuns(node.title)).filter(run => run.text.trim() !== '') : [];
+			popover.querySelectorAll('.ns-format').forEach(function (el) {
+				const tag = el.dataset.format,
+					on = runs.filter(run => run[tag]).length;
+				el.setAttribute('aria-pressed',
+					on && on === runs.length ? 'true' : on ? 'mixed' : 'false');
+			});
+		},
 		show = function (x, y) {
 			close();
 			const node = selectedNode();
@@ -98,7 +113,7 @@ export function makeNodeStyle(engine, commands) {
 			popover = document.createElement('div');
 			popover.className = 'node-style-popover';
 			popover.setAttribute('role', 'dialog');
-			popover.setAttribute('aria-label', 'Node colour and style');
+			popover.setAttribute('aria-label', 'Node color and style');
 			// clicks inside must not bubble to the close-on-click-away handler
 			popover.addEventListener('mousedown', e => e.stopPropagation());
 			popover.addEventListener('click', e => e.stopPropagation());
@@ -133,8 +148,8 @@ export function makeNodeStyle(engine, commands) {
 			const customInput = document.createElement('input');
 			customInput.type = 'color';
 			customInput.className = 'ns-custom';
-			customInput.title = 'Custom colour…';
-			customInput.setAttribute('aria-label', 'Custom colour');
+			customInput.title = 'Custom color…';
+			customInput.setAttribute('aria-label', 'Custom color');
 			customInput.value = /^#[0-9a-f]{6}$/i.test(currentBackground() || '') ? currentBackground() : '#fafad2';
 			customInput.addEventListener('input', function () {
 				setBackground(customInput.value);
@@ -147,18 +162,26 @@ export function makeNodeStyle(engine, commands) {
 
 			const textRow = document.createElement('div');
 			textRow.className = 'ns-row ns-text';
-			addButton(textRow, 'ns-btn', 'Smaller text (⌘⇧,)', 'A<small>−</small>', commands.fontSmaller);
-			addButton(textRow, 'ns-btn', 'Bigger text (⌘⇧.)', 'A<small>+</small>', commands.fontBigger);
+			addButton(textRow, 'ns-btn', 'Smaller text (⌘⇧,)', 'A<small>−</small>', commands.fontSmaller)
+				.setAttribute('aria-label', 'Smaller text');
+			addButton(textRow, 'ns-btn', 'Bigger text (⌘⇧.)', 'A<small>+</small>', commands.fontBigger)
+				.setAttribute('aria-label', 'Bigger text');
 			const sep = document.createElement('span');
 			sep.className = 'ns-sep';
 			textRow.appendChild(sep);
-			addButton(textRow, 'ns-btn ns-b', 'Bold (⌘B)', 'B', commands.toggleBold);
-			addButton(textRow, 'ns-btn ns-i', 'Italic (⌘I)', 'I', commands.toggleItalic);
-			addButton(textRow, 'ns-btn ns-u', 'Underline (⌘U)', 'U', commands.toggleUnderline);
+			[['b', 'Bold', '⌘B', commands.toggleBold],
+				['i', 'Italic', '⌘I', commands.toggleItalic],
+				['u', 'Underline', '⌘U', commands.toggleUnderline]].forEach(function ([tag, name, key, run]) {
+				const b = addButton(textRow, 'ns-btn ns-format ns-' + tag, name + ' (' + key + ')',
+					tag.toUpperCase(), run);
+				b.dataset.format = tag;
+				b.setAttribute('aria-label', name);
+			});
 
 			popover.append(swatchRow, textRow);
 			document.body.appendChild(popover);
 			refreshSwatches();
+			refreshFormats();
 
 			const rect = popover.getBoundingClientRect();
 			popover.style.left = Math.max(6, Math.min(x, window.innerWidth - rect.width - 6)) + 'px';
@@ -169,6 +192,7 @@ export function makeNodeStyle(engine, commands) {
 			if (firstSwatch) { firstSwatch.focus(); }
 		};
 
+	mapModel.addEventListener('nodeTitleChanged', refreshFormats);
 	mapModel.addEventListener('contextMenuRequested', function (nodeId, x, y) {
 		track('node_style', { action: 'popover_open', method: 'right_click' });
 		show(x, y);

@@ -18044,7 +18044,7 @@
         } else {
           textBox.text(unformattedText);
         }
-        textBox.attr("contenteditable", true).focus();
+        textBox.attr({ contenteditable: true, role: "textbox", "aria-multiline": "true", "aria-label": "Claim text" }).focus();
         if (shouldSelectAll) {
           textBox.selectAll();
         } else if (unformattedText) {
@@ -18055,7 +18055,7 @@
           const clear = function() {
             detachListeners();
             textBox.css("word-break", "");
-            textBox.removeAttr("contenteditable");
+            textBox.removeAttr("contenteditable role aria-multiline aria-label");
             node.shadowDraggable();
           }, finishEditing = function() {
             let content2;

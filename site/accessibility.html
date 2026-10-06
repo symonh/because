@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Accessibility Statement — Because</title>
+<meta name="description" content="Accessibility statement and WCAG 2.2 Level AA conformance report for Because, a browser-based editor for argument maps.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f7f4ed">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#17191c">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.png" type="image/png" sizes="48x48">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="css/site.css">
+<style>
+	body { background-image: radial-gradient(720px 420px at 80% -10%, var(--glow-blue-soft), transparent 60%); }
+	.nav-inner { max-width: 820px; }
+	.brand { font-weight: 700; font-size: 17px; text-decoration: none; }
+	.nav-inner .open { margin-left: auto; font-size: 14.5px; color: var(--muted); text-decoration: none; }
+	.nav-inner .open:hover { color: var(--text-strong); }
+	main { max-width: 820px; margin: 0 auto; padding: 40px 24px 40px; }
+	h1 { font-size: 30px; letter-spacing: -0.02em; color: var(--text-strong); margin: 0 0 4px; }
+	h2 { font-size: 21px; color: var(--text-strong); margin-top: 44px; }
+	h3 { font-size: 17px; color: var(--text-strong); margin-top: 28px; }
+	.updated { color: var(--muted); font-size: 14px; margin-top: 0; }
+	ul { padding-left: 22px; }
+	li { margin-bottom: 6px; }
+	.summary {
+		background: var(--accent-wash);
+		border: 1px solid var(--accent-line);
+		border-radius: 10px;
+		padding: 14px 18px;
+		margin: 24px 0;
+	}
+	.facts { margin: 0; display: grid; grid-template-columns: 11em 1fr; gap: 8px 18px; }
+	.facts dt { font-weight: 650; color: var(--text-strong); }
+	.facts dd { margin: 0; }
+	@media (max-width: 560px) {
+		.facts { grid-template-columns: 1fr; gap: 2px; }
+		.facts dd { margin-bottom: 10px; }
+	}
+	table { width: 100%; border-collapse: collapse; margin: 14px 0 8px; font-size: 15px; line-height: 1.5; }
+	caption { text-align: left; font-weight: 650; color: var(--text-strong); padding: 0 0 8px; }
+	th, td { text-align: left; vertical-align: top; padding: 9px 10px; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+	thead th { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); border-bottom: 2px solid var(--border-strong); }
+	tbody th { font-weight: 600; color: var(--text-strong); }
+	.sc { width: 30%; }
+	.status { width: 17%; }
+	.level { display: block; font-weight: 400; color: var(--muted); font-size: 13.5px; }
+	.legal-table .law { width: 38%; }
+	@media (max-width: 560px) {
+		table { font-size: 14px; }
+		th, td { padding: 8px 6px; }
+		.sc { width: 34%; }
+		.status { width: 22%; }
+	}
+	@media print {
+		.nav, .site-foot { display: none; }
+		main { max-width: none; padding: 0; }
+		tr { break-inside: avoid; }
+		h2, h3 { break-after: avoid; }
+	}
+</style>
+</head>
+<body>
+<nav class="nav">
+	<div class="nav-inner">
+		<a class="brand" href="/">
+			<svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22"><rect x="7" y="2" width="10" height="6" rx="1.5" fill="#fff" stroke="#707070"/><path d="M12 8v3" stroke="#339966" stroke-width="2"/><path d="M3 12h18M3 12q0 2.5 2.5 2.5M21 12q0 2.5-2.5 2.5" stroke="#339966" stroke-width="2" fill="none"/><rect x="2" y="16" width="8" height="6" rx="1.5" fill="#fff" stroke="#707070"/><rect x="14" y="16" width="8" height="6" rx="1.5" fill="#fff" stroke="#707070" stroke-dasharray="2.5,1.6"/></svg>
+			Because
+		</a>
+		<a class="open" href="/app/">Open the editor</a>
+	</div>
+</nav>
+<main>
+	<h1>Accessibility Statement</h1>
+	<p class="updated">Because (app.philmaps.com) · Assessed October 6, 2026</p>
+
+	<div class="summary">
+		<p><strong>In short:</strong> Because conforms to the Web Content
+		Accessibility Guidelines (WCAG) 2.2 at Level AA, and therefore also to
+		WCAG 2.1 and 2.0 at Level AA. The one part not covered is Google's own
+		file picker for Google Drive, which Google provides. Every function can
+		be carried out with the keyboard alone and without dragging, the argument
+		map is presented to screen readers as a structured tree, and an automated
+		accessibility test suite must pass before any version is published. For
+		help, or to report a problem, write to
+		<a href="mailto:info@disagreewisely.org">info@disagreewisely.org</a>.</p>
+	</div>
+
+	<h2>For accessibility and procurement reviewers</h2>
+	<dl class="facts">
+		<dt>Product</dt>
+		<dd>Because, a free browser-based editor for argument maps</dd>
+		<dt>Provider</dt>
+		<dd><a href="https://www.disagreewisely.org">Disagree Wisely, Inc.</a>, a 501(c)(3) educational nonprofit</dd>
+		<dt>Web address</dt>
+		<dd>https://app.philmaps.com; the editor is at https://app.philmaps.com/app/</dd>
+		<dt>Standard</dt>
+		<dd>WCAG 2.2 (W3C Recommendation), Level A and Level AA</dd>
+		<dt>Conformance</dt>
+		<dd>Conforms, with a statement of partial conformance for one piece of
+		third-party content, the Google Drive file picker (see <a href="#status">Conformance status</a>)</dd>
+		<dt>Assessment</dt>
+		<dd>Self-assessment by the developer, completed October 6, 2026</dd>
+		<dt>Report</dt>
+		<dd>Criterion-by-criterion results for all 55 Level A and AA success
+		criteria, using the conformance terms of the ITI VPAT®
+		(<a href="#report">Conformance report</a>). This page prints as a
+		self-contained document.</dd>
+		<dt>Installation and accounts</dt>
+		<dd>None. Because runs in the browser and has no user accounts. Data
+		handling is described in the <a href="/privacy">privacy policy</a>.</dd>
+		<dt>Contact</dt>
+		<dd><a href="mailto:info@disagreewisely.org">info@disagreewisely.org</a></dd>
+	</dl>
+
+	<h2 id="status">Conformance status</h2>
+	<p>WCAG defines three levels of conformance, A, AA and AAA. Level AA is
+	the level required by the regulations listed below. Because conforms to
+	WCAG 2.2 at Level AA: each of the 55 success criteria at Levels A and AA
+	is either met or does not apply to it. The <a href="#report">conformance
+	report</a> gives the result and the basis for it for every criterion.
+	Two matters bear on how that claim should be read.</p>
+
+	<h3>High-contrast map colors</h3>
+	<p>By default, Because draws argument maps in the colors of the MindMup
+	argument-mapping themes, so that course materials prepared in MindMup
+	look as their authors made them. Several of those colors fall below the
+	WCAG contrast minimums. The white claim numbers on light blue, for
+	example, have a contrast ratio of 2.19:1 against a required 4.5:1.
+	<strong>View &gt; High-contrast map colors</strong> replaces these
+	colors with ones that meet the minimums: the claim numbers become 5.86:1,
+	the green and red connector labels 5.32:1 and 6.48:1, and the selection
+	border 5.86:1. It also lightens any background color an author has given
+	a claim until the claim's text reaches 4.5:1. WCAG allows a page to
+	conform by offering a presentation that meets a criterion through a
+	control that itself conforms (W3C technique G174), and conformance to
+	criteria 1.4.3 and 1.4.11 relies on this setting. The setting is
+	remembered in the browser, is kept when a map is printed, and never
+	changes the map file. The argument-map figures on this site have no such
+	setting, so they use the high-contrast colors throughout.</p>
+
+	<h3>Third-party content</h3>
+	<p>Because can open files from Google Drive through Google's own file
+	picker, which appears inside the editor. Signing in to Google Drive or
+	Microsoft OneDrive takes place on Google's and Microsoft's own pages.
+	These are outside our control and were not evaluated. In WCAG's terms
+	this is a statement of partial conformance due to third-party content:
+	the editor would conform fully if the Google Drive picker were removed.
+	The OneDrive file browser is part of Because and is covered by this
+	statement. The cloud integrations are optional, and maps can always be
+	opened and saved as local files through the browser's own file dialogs
+	(<strong>File &gt; Open</strong> and <strong>File &gt; Save</strong>).</p>
+
+	<h2>Scope</h2>
+	<p>This statement covers:</p>
+	<ul>
+		<li>the editor at https://app.philmaps.com/app/, in each of its
+		layouts (left-side controls, floating controls, classic top controls,
+		and the arrangement used on screens narrower than 720 pixels), in
+		light and dark mode, with and without high-contrast map colors;</li>
+		<li>the pages at https://app.philmaps.com: the home page, the privacy
+		policy, the terms of service, and this statement.</li>
+	</ul>
+	<p>It does not cover Google's and Microsoft's sign-in pages, the Google
+	Drive file picker, external websites linked from Because, or the content
+	of maps that users write. The text of a map and any colors its author
+	chooses are the author's own content, although the high-contrast setting
+	adjusts those colors for display as described above.</p>
+
+	<h2>Relation to legal requirements</h2>
+	<p>Because every Level A and AA success criterion of WCAG 2.0 and 2.1 is
+	also a criterion of WCAG 2.2, conformance to WCAG 2.2 Level AA entails
+	conformance to WCAG 2.1 and 2.0 at Level AA. The one exception is
+	criterion 4.1.1 (Parsing), which WCAG 2.2 removed; the W3C has published
+	errata to WCAG 2.0 and 2.1 under which 4.1.1 is always satisfied for
+	content written in HTML.</p>
+	<table class="legal-table">
+		<caption>Requirements that adopt WCAG</caption>
+		<thead>
+			<tr><th scope="col" class="law">Requirement</th><th scope="col">Technical standard</th><th scope="col">Status</th></tr>
+		</thead>
+		<tbody>
+			<tr>
+				<th scope="row">Americans with Disabilities Act, Title II: Department of Justice rule of 2024 (28 CFR part 35, subpart H)</th>
+				<td>WCAG 2.1 Level AA for web content that state and local governments, including public colleges and universities, provide or make available, directly or through contractors. An interim final rule of April 20, 2026 set the compliance dates at April 26, 2027 for entities serving 50,000 people or more, and April 26, 2028 for others.</td>
+				<td>Conforms</td>
+			</tr>
+			<tr>
+				<th scope="row">Section 508 of the Rehabilitation Act (36 CFR part 1194)</th>
+				<td>WCAG 2.0 Level AA for web content</td>
+				<td>Conforms</td>
+			</tr>
+			<tr>
+				<th scope="row">EN 301 549 (European standard for ICT accessibility)</th>
+				<td>Version 3.2.1: WCAG 2.1 Level AA for web content (clause 9). Version 4.1.1, published September 2, 2026: WCAG 2.2 Level AA.</td>
+				<td>Conforms for clause 9 under either version. The standard's functional performance statements (clause 4) and its documentation and support requirements (clause 12) have not been separately assessed.</td>
+			</tr>
+			<tr>
+				<th scope="row">United Kingdom: Public Sector Bodies (Websites and Mobile Applications) Accessibility Regulations 2018</th>
+				<td>WCAG 2.2 Level AA, the standard against which the Government Digital Service has monitored public sector websites since October 2024</td>
+				<td>Conforms</td>
+			</tr>
+		</tbody>
+	</table>
+
+	<h2>Accessibility features</h2>
+	<ul>
+		<li><strong>Keyboard.</strong> Every command is in the menus, and
+		frequent ones have keys. The arrow keys move through the map,
+		<kbd>Escape</kbd> leaves the map for the menus, and
+		<kbd>?</kbd> opens a list of every key (also under
+		<strong>Help &gt; Keyboard shortcuts</strong>). Single-character keys
+		act only while the map has focus, so typing elsewhere never changes
+		the map.</li>
+		<li><strong>No dragging required.</strong> <strong>Edit &gt; Move…</strong>
+		(<kbd>M</kbd>) attaches the selected claim, reason or objection to
+		another claim, chosen by click or by the arrow keys and
+		<kbd>Enter</kbd>, or places it wherever blank canvas is clicked.
+		<strong>Move left</strong> and <strong>Move right</strong> reorder
+		claims, <strong>Wider claim</strong> and <strong>Narrower claim</strong>
+		resize them, and <strong>Detach from the tree</strong> sets a claim
+		apart.</li>
+		<li><strong>Screen readers.</strong> The map is a tree in which each
+		claim and bracket has its depth in the argument and appears in
+		argument order, so a screen reader can tell which claim each reason or
+		objection answers. Implicit claims, claims marked true or false, notes
+		and connector labels are read with the claim. Changes in save status
+		are announced, and dialogs behave as modal dialogs.</li>
+		<li><strong>Vision.</strong> High-contrast map colors and a dark
+		mode are in the View menu. Reasons, objections and neutral connectors
+		are distinguished by the shape of their brackets (rounded, square, and
+		flat) as well as by color. The editor and the pages can be zoomed to
+		400 percent: at the equivalent width of 320 CSS pixels they reflow
+		without horizontal scrolling. They also accept increased letter, word
+		and line spacing.</li>
+		<li><strong>Motion.</strong> When the operating system asks for
+		reduced motion, animations are turned off.</li>
+	</ul>
+
+	<h2>Browsers and assistive technology</h2>
+	<p>Automated testing covers Safari's engine and Chrome; Microsoft Edge
+	uses Chrome's engine. Firefox is expected to work but is not part of the
+	automated suite. With assistive technology, Because has been used with
+	NVDA and Chrome on Windows, and the two problems an NVDA user reported
+	(connector labels that were not read, and no keyboard route out of the
+	map) were corrected in August 2026. Structured testing with JAWS,
+	VoiceOver, Narrator, TalkBack or speech-input software has not yet been
+	carried out.</p>
+
+	<h2>Known limitations</h2>
+	<ul>
+		<li>The default map colors are those of the MindMup themes, some of
+		which are below the contrast minimums. Use <strong>View &gt;
+		High-contrast map colors</strong>.</li>
+		<li>The lines connecting claims are thin targets for a pointer. The
+		same actions are in the <strong>Argument</strong> menu (Edit connector
+		label, Stronger connector, Weaker connector), and <kbd>L</kbd> edits
+		a connector's label.</li>
+		<li>Toolbar hints are the browser's own tooltips, which appear on
+		hover but not on keyboard focus. The same text is each button's
+		accessible name, so screen readers announce it on focus.</li>
+		<li>When a claim is marked true or false, the mark partly covers the
+		claim's number badge. The number remains part of the claim's name for
+		screen readers.</li>
+		<li>The editor cannot yet record that a claim is written in a language
+		other than English, so a screen reader reads every claim with English
+		pronunciation.</li>
+	</ul>
+
+	<h2 id="report">Conformance report: WCAG 2.2 Level A and AA</h2>
+	<p>The terms in the Conformance column are those of the ITI VPAT®:
+	<em>Supports</em> means that the functionality has at least one method
+	that meets the criterion without known defects; <em>Not applicable</em>
+	means that the criterion is not relevant to Because.</p>
+
+	<table>
+		<caption>Principle 1: Perceivable</caption>
+		<thead>
+			<tr><th scope="col" class="sc">Success criterion</th><th scope="col" class="status">Conformance</th><th scope="col">Remarks</th></tr>
+		</thead>
+		<tbody>
+			<tr><th scope="row">1.1.1 Non-text Content <span class="level">Level A</span></th><td>Supports</td><td>Toolbar and menu icons have text names, and the icons themselves are hidden from assistive technology. Each argument-map figure on the home page has a prose description. Marks on claims are given in words, such as "Marked false".</td></tr>
+			<tr><th scope="row">1.2.1 Audio-only and Video-only (Prerecorded) <span class="level">Level A</span></th><td>Not applicable</td><td>Because contains no audio or video.</td></tr>
+			<tr><th scope="row">1.2.2 Captions (Prerecorded) <span class="level">Level A</span></th><td>Not applicable</td><td>No audio or video.</td></tr>
+			<tr><th scope="row">1.2.3 Audio Description or Media Alternative (Prerecorded) <span class="level">Level A</span></th><td>Not applicable</td><td>No audio or video.</td></tr>
+			<tr><th scope="row">1.2.4 Captions (Live) <span class="level">Level AA</span></th><td>Not applicable</td><td>No live audio.</td></tr>
+			<tr><th scope="row">1.2.5 Audio Description (Prerecorded) <span class="level">Level AA</span></th><td>Not applicable</td><td>No video.</td></tr>
+			<tr><th scope="row">1.3.1 Info and Relationships <span class="level">Level A</span></th><td>Supports</td><td>Menus, toolbars, dialogs and status messages carry WAI-ARIA roles. The map is a tree whose items carry their depth in the argument and appear in argument order. Implicit claims, marks, notes and connector labels are given in each claim's description. Pages use headings, lists and landmarks.</td></tr>
+			<tr><th scope="row">1.3.2 Meaningful Sequence <span class="level">Level A</span></th><td>Supports</td><td>The map is read in argument order: each claim, then its reasons and objections with their premises. Pages are read in visual order.</td></tr>
+			<tr><th scope="row">1.3.3 Sensory Characteristics <span class="level">Level A</span></th><td>Supports</td><td>Instructions name keys and commands. Where a description mentions a bracket's color, it also names its shape and meaning.</td></tr>
+			<tr><th scope="row">1.3.4 Orientation <span class="level">Level AA</span></th><td>Supports</td><td>Neither the editor nor the pages require a particular orientation.</td></tr>
+			<tr><th scope="row">1.3.5 Identify Input Purpose <span class="level">Level AA</span></th><td>Not applicable</td><td>Because collects no information about its users. Sign-in fields belong to Google and Microsoft.</td></tr>
+			<tr><th scope="row">1.4.1 Use of Color <span class="level">Level A</span></th><td>Supports</td><td>Reasons, objections and neutral connectors differ in bracket shape (rounded, square, flat) as well as color. Selection is shown by border width and style. Links within text are underlined.</td></tr>
+			<tr><th scope="row">1.4.2 Audio Control <span class="level">Level A</span></th><td>Not applicable</td><td>No audio.</td></tr>
+			<tr><th scope="row">1.4.3 Contrast (Minimum) <span class="level">Level AA</span></th><td>Supports</td><td>Interface and page text is at least 4.5:1. Map text meets 4.5:1 under View &gt; High-contrast map colors (claim numbers 5.86:1, connector labels at least 5.32:1, claim text on author colors at least 4.5:1), a conforming alternate presentation under technique G174. The default view keeps the MindMup theme colors, which do not all meet it.</td></tr>
+			<tr><th scope="row">1.4.4 Resize Text <span class="level">Level AA</span></th><td>Supports</td><td>Text can be enlarged to 200% without loss of content or function. Menus that no longer fit the window scroll.</td></tr>
+			<tr><th scope="row">1.4.5 Images of Text <span class="level">Level AA</span></th><td>Supports</td><td>No images of text are used.</td></tr>
+			<tr><th scope="row">1.4.10 Reflow <span class="level">Level AA</span></th><td>Supports</td><td>At 320 CSS pixels the editor uses its narrow-screen layout and the pages reflow, without horizontal scrolling. The map is two-dimensional content, which the criterion exempts; each claim wraps within its box, and the map can be zoomed and scrolled.</td></tr>
+			<tr><th scope="row">1.4.11 Non-text Contrast <span class="level">Level AA</span></th><td>Supports</td><td>Controls, icons and focus outlines are at least 3:1. Bracket lines and the selection border meet 3:1 under View &gt; High-contrast map colors (5.32:1 to 6.48:1).</td></tr>
+			<tr><th scope="row">1.4.12 Text Spacing <span class="level">Level AA</span></th><td>Supports</td><td>Pages, menus and dialogs accept WCAG's spacing values without loss. When spacing is applied to an open map, the map is laid out again to fit it.</td></tr>
+			<tr><th scope="row">1.4.13 Content on Hover or Focus <span class="level">Level AA</span></th><td>Supports</td><td>Submenus are the only content that appears on hover. They stay open while the pointer is over them and close with Escape; on narrow screens they open on click. Toolbar hints are the browser's own tooltips.</td></tr>
+		</tbody>
+	</table>
+
+	<table>
+		<caption>Principle 2: Operable</caption>
+		<thead>
+			<tr><th scope="col" class="sc">Success criterion</th><th scope="col" class="status">Conformance</th><th scope="col">Remarks</th></tr>
+		</thead>
+		<tbody>
+			<tr><th scope="row">2.1.1 Keyboard <span class="level">Level A</span></th><td>Supports</td><td>Every function can be reached from the keyboard, including those otherwise done by dragging: Edit &gt; Move… (M), reordering (⌘ or Ctrl with ← and →), Wider claim and Narrower claim, and moving a free-standing claim (⌘ or Ctrl, Shift and the arrow keys). Help &gt; Keyboard shortcuts lists every key.</td></tr>
+			<tr><th scope="row">2.1.2 No Keyboard Trap <span class="level">Level A</span></th><td>Supports</td><td>Escape leaves the map for the menus; within the map, Tab adds a co-premise. This is stated in the keyboard reference and in the description screen readers give for the map. Dialogs and popovers close with Escape.</td></tr>
+			<tr><th scope="row">2.1.4 Character Key Shortcuts <span class="level">Level A</span></th><td>Supports</td><td>Single-character shortcuts act only while the map has focus.</td></tr>
+			<tr><th scope="row">2.2.1 Timing Adjustable <span class="level">Level A</span></th><td>Supports</td><td>Because sets no time limits.</td></tr>
+			<tr><th scope="row">2.2.2 Pause, Stop, Hide <span class="level">Level A</span></th><td>Supports</td><td>Nothing moves, scrolls or updates automatically. A spinner is shown while a large map is laid out, and it stops when reduced motion is requested.</td></tr>
+			<tr><th scope="row">2.3.1 Three Flashes or Below Threshold <span class="level">Level A</span></th><td>Supports</td><td>Nothing flashes.</td></tr>
+			<tr><th scope="row">2.4.1 Bypass Blocks <span class="level">Level A</span></th><td>Supports</td><td>"Skip to map" is the editor's first Tab stop. Pages use navigation, main and footer landmarks and headings.</td></tr>
+			<tr><th scope="row">2.4.2 Page Titled <span class="level">Level A</span></th><td>Supports</td><td>The editor's title names the open file. Each page has its own title.</td></tr>
+			<tr><th scope="row">2.4.3 Focus Order <span class="level">Level A</span></th><td>Supports</td><td>Tab order follows the layout. Dialogs take focus when they open and return it when they close.</td></tr>
+			<tr><th scope="row">2.4.4 Link Purpose (In Context) <span class="level">Level A</span></th><td>Supports</td><td>Each link's text, read with its sentence or figure caption, states its destination.</td></tr>
+			<tr><th scope="row">2.4.5 Multiple Ways <span class="level">Level AA</span></th><td>Supports</td><td>Each page links to the others through its navigation or footer, and every page links to the editor.</td></tr>
+			<tr><th scope="row">2.4.6 Headings and Labels <span class="level">Level AA</span></th><td>Supports</td><td>Dialogs and page sections have headings; controls and fields have descriptive names.</td></tr>
+			<tr><th scope="row">2.4.7 Focus Visible <span class="level">Level AA</span></th><td>Supports</td><td>Controls show a focus outline. A focused claim shows a 3-pixel dotted or dashed border, including on first entry into a map.</td></tr>
+			<tr><th scope="row">2.4.11 Focus Not Obscured (Minimum) <span class="level">Level AA</span></th><td>Supports</td><td>In layouts where controls float over the map, the map scrolls a focused claim clear of them. Elsewhere nothing overlaps focused items.</td></tr>
+			<tr><th scope="row">2.5.1 Pointer Gestures <span class="level">Level A</span></th><td>Supports</td><td>No path-based or multi-point gestures are used. Zoom has buttons, menu items and keys.</td></tr>
+			<tr><th scope="row">2.5.2 Pointer Cancellation <span class="level">Level A</span></th><td>Supports</td><td>Commands run when the pointer is released, and moving off a button before release cancels it.</td></tr>
+			<tr><th scope="row">2.5.3 Label in Name <span class="level">Level A</span></th><td>Supports</td><td>Each control's accessible name contains its visible label.</td></tr>
+			<tr><th scope="row">2.5.4 Motion Actuation <span class="level">Level A</span></th><td>Not applicable</td><td>No function uses device motion.</td></tr>
+			<tr><th scope="row">2.5.7 Dragging Movements <span class="level">Level AA</span></th><td>Supports</td><td>Everything done by dragging can be done with single clicks: Edit &gt; Move… followed by a click on a claim or on blank canvas, Edit &gt; Move left and Move right, Edit &gt; Wider claim and Narrower claim, and Edit &gt; Detach from the tree.</td></tr>
+			<tr><th scope="row">2.5.8 Target Size (Minimum) <span class="level">Level AA</span></th><td>Supports</td><td>Controls are at least 24 by 24 CSS pixels or spaced to that size. Thinner targets drawn in the map have equivalents in the menus: the connector lines (Argument menu), the bracket strip (Edit &gt; Select bracket) and the width handle (Edit &gt; Wider claim, Narrower claim).</td></tr>
+		</tbody>
+	</table>
+
+	<table>
+		<caption>Principle 3: Understandable</caption>
+		<thead>
+			<tr><th scope="col" class="sc">Success criterion</th><th scope="col" class="status">Conformance</th><th scope="col">Remarks</th></tr>
+		</thead>
+		<tbody>
+			<tr><th scope="row">3.1.1 Language of Page <span class="level">Level A</span></th><td>Supports</td><td>Every page declares English.</td></tr>
+			<tr><th scope="row">3.1.2 Language of Parts <span class="level">Level AA</span></th><td>Supports</td><td>The interface and pages contain no passages in another language.</td></tr>
+			<tr><th scope="row">3.2.1 On Focus <span class="level">Level A</span></th><td>Supports</td><td>Moving focus never opens a menu, dialog or window.</td></tr>
+			<tr><th scope="row">3.2.2 On Input <span class="level">Level A</span></th><td>Supports</td><td>Changing a setting changes only what it controls.</td></tr>
+			<tr><th scope="row">3.2.3 Consistent Navigation <span class="level">Level AA</span></th><td>Supports</td><td>Navigation repeated across pages is in the same order. The editor's menus are in the same order in every layout.</td></tr>
+			<tr><th scope="row">3.2.4 Consistent Identification <span class="level">Level AA</span></th><td>Supports</td><td>A function has the same name, or a shortened form of it, wherever it appears.</td></tr>
+			<tr><th scope="row">3.2.6 Consistent Help <span class="level">Level A</span></th><td>Supports</td><td>The contact address is in the same place on every page, and Help is the last menu in every layout of the editor.</td></tr>
+			<tr><th scope="row">3.3.1 Error Identification <span class="level">Level A</span></th><td>Supports</td><td>Files that cannot be opened, saves that fail and connections that fail are reported in text that names the file or service.</td></tr>
+			<tr><th scope="row">3.3.2 Labels or Instructions <span class="level">Level A</span></th><td>Supports</td><td>Fields in dialogs have labels. The in-place editors open on the item they change and are named for assistive technology; the connector-label field also shows a placeholder.</td></tr>
+			<tr><th scope="row">3.3.3 Error Suggestion <span class="level">Level AA</span></th><td>Supports</td><td>Where a remedy is known, the message gives it: saving a copy when a cloud file is read-only or missing, File &gt; Save As when a save fails, and checking the connection when a service cannot be reached.</td></tr>
+			<tr><th scope="row">3.3.4 Error Prevention (Legal, Financial, Data) <span class="level">Level AA</span></th><td>Supports</td><td>Every change to a map can be undone. Replacing a map with unsaved changes, or leaving the page, asks first.</td></tr>
+			<tr><th scope="row">3.3.7 Redundant Entry <span class="level">Level A</span></th><td>Supports</td><td>Nothing already entered is asked for again; file-name prompts are filled in.</td></tr>
+			<tr><th scope="row">3.3.8 Accessible Authentication (Minimum) <span class="level">Level AA</span></th><td>Supports</td><td>Because has no sign-in of its own. Signing in to Google Drive or OneDrive, which is optional, takes place on Google's and Microsoft's pages.</td></tr>
+		</tbody>
+	</table>
+
+	<table>
+		<caption>Principle 4: Robust</caption>
+		<thead>
+			<tr><th scope="col" class="sc">Success criterion</th><th scope="col" class="status">Conformance</th><th scope="col">Remarks</th></tr>
+		</thead>
+		<tbody>
+			<tr><th scope="row">4.1.1 Parsing <span class="level">Level A in WCAG 2.0 and 2.1</span></th><td>Supports</td><td>Removed from WCAG 2.2. Under the W3C errata to WCAG 2.0 and 2.1 it is always satisfied for content written in HTML.</td></tr>
+			<tr><th scope="row">4.1.2 Name, Role, Value <span class="level">Level A</span></th><td>Supports</td><td>Menus and their checkable items, toolbars, toggle buttons, dialogs, the map tree (with level, expanded and selected states) and the text fields expose their name, role and state. These are checked in the accessibility tree that Chrome computes as well as in the markup.</td></tr>
+			<tr><th scope="row">4.1.3 Status Messages <span class="level">Level AA</span></th><td>Supports</td><td>Save status, loading, the OneDrive file browser's status and the instructions for Edit &gt; Move… are announced as status messages. Errors are presented as alerts, which take focus.</td></tr>
+		</tbody>
+	</table>
+
+	<h2>Feedback and requests for assistance</h2>
+	<p>If something in Because is difficult or impossible to use with the
+	technology you rely on, or if you need the content of a map in another
+	form, write to
+	<a href="mailto:info@disagreewisely.org">info@disagreewisely.org</a>.
+	It helps to include the browser, the operating system, any assistive
+	technology, and what you were trying to do. Accessibility problems are
+	handled as defects: once a problem has been reproduced, it is corrected
+	and a test is added to the project's automated test suite, so that a
+	later version cannot reintroduce it.</p>
+
+	<h2>Review of this statement</h2>
+	<p>This statement was prepared on October 6, 2026. It will be revised
+	whenever a change to Because affects anything it says, and its date
+	changed accordingly.</p>
+</main>
+<footer class="site-foot">
+	<div class="site-foot-inner">
+		<a href="/">Because</a>
+		<a href="/app/">Open the editor</a>
+		<a href="/privacy">Privacy policy</a>
+		<a href="/terms">Terms of service</a>
+		<a href="/accessibility" aria-current="page">Accessibility</a>
+		<a href="mailto:info@disagreewisely.org">info@disagreewisely.org</a>
+	</div>
+</footer>
+<script type="module">
+	import { initAnalytics } from '/app/js/analytics.js';
+	initAnalytics({ page: 'accessibility' });
+</script>
+</body>
+</html>

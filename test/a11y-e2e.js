@@ -308,9 +308,9 @@ const AXE_OPTS = {
 	await page.waitForTimeout(400);
 	const labelled = await nodeA11y(connIds.group),
 		described = await nodeA11y(connIds.claim);
-	ok(labelled.label === 'Supporting reasons (group), labelled Because',
+	ok(labelled.label === 'Supporting reasons (group), labeled Because',
 		`a bracket's connector label joins its accessible name (${labelled.label})`);
-	ok(described.desc === 'Connector labelled and' && described.clipped,
+	ok(described.desc === 'Connector labeled and' && described.clipped,
 		`a claim's connector label rides in a visually-hidden description (${described.desc})`);
 	await axeScan('map with connector labels');
 	// clearing the label takes both back, rather than leaving a stale name
@@ -386,6 +386,69 @@ const AXE_OPTS = {
 	await page.keyboard.press('Escape');
 	await page.waitForTimeout(150);
 	ok(await page.evaluate(() => !document.querySelector('.node-style-popover')), 'Escape closes the popover');
+
+	// ---- bold / italic / underline expose their state ----
+	const formats = await page.evaluate(async () => {
+		const m = window.__because.engine.mapModel,
+			firstClaim = function (idea) {
+				for (const k of Object.keys(idea.ideas || {})) {
+					const child = idea.ideas[k];
+					if (!(child.attr && child.attr.group)) { return child; }
+					const found = firstClaim(child);
+					if (found) { return found; }
+				}
+				return null;
+			},
+			id = firstClaim(m.getIdea()).id,
+			original = m.findIdeaById(id).title,
+			pressed = () => Object.fromEntries(Array.from(
+				document.querySelectorAll('.node-style-popover .ns-format'))
+				.map(b => [b.getAttribute('aria-label'), b.getAttribute('aria-pressed')])),
+			wait = () => new Promise(r => setTimeout(r, 150));
+		m.selectNode(id);
+		m.updateTitle(id, 'Plain words');
+		window.__because.nodeStyle.openForSelection();
+		await wait();
+		const plain = pressed();
+		document.querySelector('.node-style-popover .ns-b').click();
+		await wait();
+		const bolded = pressed();
+		window.__because.nodeStyle.close();
+		m.updateTitle(id, '<b>Half</b> plain');
+		window.__because.nodeStyle.openForSelection();
+		await wait();
+		const half = pressed();
+		window.__because.nodeStyle.close();
+		m.updateTitle(id, original);
+		return { plain, bolded, half };
+	});
+	ok(JSON.stringify(Object.keys(formats.plain)) === '["Bold","Italic","Underline"]' &&
+		Object.values(formats.plain).every(v => v === 'false'),
+		'B, I and U are named Bold, Italic and Underline, unpressed on plain text (' + JSON.stringify(formats.plain) + ')');
+	ok(formats.bolded.Bold === 'true' && formats.bolded.Italic === 'false',
+		'pressing Bold reports it pressed (' + JSON.stringify(formats.bolded) + ')');
+	ok(formats.half.Bold === 'mixed',
+		'a partly bold claim reports Bold as mixed (' + JSON.stringify(formats.half) + ')');
+
+	// ---- the inline claim editor is a named text box while it is open ----
+	const claimEditor = await page.evaluate(async () => {
+		document.getElementById('map-container').focus();
+		window.__because.commands.editNode();
+		await new Promise(r => setTimeout(r, 200));
+		const ed = document.querySelector('[data-mapjs-role=title][contenteditable="true"]'),
+			open = ed && {
+				role: ed.getAttribute('role'),
+				name: ed.getAttribute('aria-label'),
+				focused: document.activeElement === ed
+			};
+		return open;
+	});
+	ok(claimEditor && claimEditor.role === 'textbox' && claimEditor.name === 'Claim text' && claimEditor.focused,
+		'the claim editor opens as a focused text box named "Claim text" (' + JSON.stringify(claimEditor) + ')');
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(200);
+	ok(await page.evaluate(() => !document.querySelector('[data-mapjs-role=title][role]')),
+		'closing the editor takes the text-box role off the claim again');
 
 	// ---- keyboard path for connector strength ----
 	const width = await page.evaluate(() => {
@@ -678,6 +741,479 @@ const AXE_OPTS = {
 	'at 640px Escape leaves the map for the bottom bar');
 	await axeScan('mobile layout');
 
+	// the mobile flyout stacks its submenus ABOVE the panel, so the pointer
+	// crosses the other rows on the way: hovering must not swap the submenu
+	const stacked = await page.evaluate(async () => {
+		const wait = ms => new Promise(r => setTimeout(r, ms)),
+			trigger = document.querySelector('#mobilebar [aria-haspopup]');
+		trigger.click();
+		await wait(200);
+		const rows = Array.from(document.querySelectorAll('.menu-flyrow'));
+		rows[0].dispatchEvent(new MouseEvent('mouseenter'));
+		await wait(100);
+		const hoverOpened = !!document.querySelector('.menu-flysub');
+		rows[2].click();
+		await wait(150);
+		const clicked = document.querySelector('.menu-flysub');
+		const label = clicked && clicked.getAttribute('aria-label');
+		document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+		document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+		return { hoverOpened, label, rows: rows.map(r => r.textContent) };
+	});
+	ok(!stacked.hoverOpened && stacked.label === stacked.rows[2],
+		`in the mobile flyout a submenu opens on click, not on hover (${JSON.stringify(stacked)})`);
+	await page.keyboard.press('Escape');
+	await page.keyboard.press('Escape');
+
+	// ---- short window: a menu taller than the space below it scrolls ----
+	await page.setViewportSize({ width: 960, height: 540 });
+	await page.waitForTimeout(400);
+	await page.evaluate(() => Array.from(document.querySelectorAll('.menu-title'))
+		.find(t => t.textContent === 'File').focus());
+	await page.keyboard.press('Enter');
+	await page.waitForTimeout(200);
+	await page.keyboard.press('End');
+	await page.waitForTimeout(200);
+	const shortMenu = await page.evaluate(() => {
+		const m = document.querySelector('.menu-dropdown'), a = document.activeElement,
+			r = a.getBoundingClientRect();
+		return { scrolls: m.scrollHeight > m.clientHeight, last: a.textContent,
+			inView: r.bottom <= window.innerHeight && r.top >= 0 };
+	});
+	ok(shortMenu.scrolls && /Print/.test(shortMenu.last) && shortMenu.inView,
+		`at 960×540 the File menu scrolls and End brings its last item into view (${JSON.stringify(shortMenu)})`);
+	await page.keyboard.press('Escape');
+	await page.setViewportSize({ width: 1500, height: 950 });
+	await page.waitForTimeout(400);
+
+	// ---- reading order: the tree's levels and order describe the argument ----
+	await page.goto(BASE + '/app/index.html?src=../samples/death.mup');
+	await page.waitForSelector('.mapjs-node', { timeout: 8000 });
+	await page.waitForTimeout(700);
+	// what assistive technology infers: each treeitem's parent is the nearest
+	// earlier item one level up. That must be the claim it really hangs from.
+	const inferredParents = () => page.evaluate(() => {
+		const m = window.__because.engine.mapModel,
+			byId = new Map(),
+			parentOf = new Map(),
+			walk = function (idea, parent) {
+				byId.set(String(idea.id), idea);
+				Object.values(idea.ideas || {}).forEach(k => { parentOf.set(String(k.id), idea); walk(k, idea); });
+			};
+		walk(m.getIdea(), null);
+		const items = Array.from(document.querySelectorAll('[data-mapjs-role=stage] > [role=treeitem]'))
+				.filter(el => getComputedStyle(el).opacity !== '0'),
+			idOf = el => el.id.replace(/^node_/, ''),
+			stack = [],
+			wrong = [];
+		items.forEach(function (el) {
+			const level = Number(el.getAttribute('aria-level'));
+			stack.length = level - 1;
+			const inferred = level > 1 ? stack[level - 2] : null;
+			let real = parentOf.get(idOf(el));
+			while (real && !document.getElementById(('node_' + real.id).replace(/[^A-Za-z0-9_-]/g, '_'))) {
+				real = parentOf.get(String(real.id));
+			}
+			const realId = real ? String(real.id) : null;
+			if ((inferred ? idOf(inferred) : null) !== realId) { wrong.push(el.textContent.slice(0, 30)); }
+			stack[level - 1] = el;
+		});
+		return { count: items.length, wrong };
+	});
+	let order = await inferredParents();
+	ok(order.count > 3 && order.wrong.length === 0,
+		`as loaded, every treeitem's level and position name its real parent (${JSON.stringify(order)})`);
+	await page.evaluate(async () => {
+		const m = window.__because.engine.mapModel, wait = ms => new Promise(r => setTimeout(r, ms)),
+			conclusion = Object.values(m.getIdea().ideas)[0];
+		m.selectNode(conclusion.id);
+		document.getElementById('map-container').focus();
+		window.__because.commands.addObjection();
+		await wait(300);
+		document.activeElement.textContent = 'An objection added later';
+		document.activeElement.blur();
+		await wait(300);
+		const premise = Object.values(Object.values(conclusion.ideas)[0].ideas)[0];
+		m.selectNode(premise.id);
+		window.__because.commands.addReason();
+		await wait(300);
+		document.activeElement.textContent = 'A sub-reason added later';
+		document.activeElement.blur();
+		await wait(600);
+	});
+	order = await inferredParents();
+	ok(order.wrong.length === 0,
+		`after adding an objection and then a sub-reason, the order still names every real parent (${JSON.stringify(order)})`);
+	ok(await page.evaluate(() => {
+		const a = document.activeElement;
+		return a && a.getAttribute('role') === 'treeitem' && a.textContent.indexOf('A sub-reason added later') >= 0;
+	}), 'resequencing leaves focus on the claim just written');
+
+	// ---- a claim's state is spoken, not just drawn ----
+	const states = await page.evaluate(async () => {
+		const m = window.__because.engine.mapModel, wait = ms => new Promise(r => setTimeout(r, ms)),
+			conclusion = Object.values(m.getIdea().ideas)[0],
+			premise = Object.values(Object.values(conclusion.ideas)[0].ideas)[0],
+			el = () => document.getElementById(('node_' + premise.id).replace(/[^A-Za-z0-9_-]/g, '_')),
+			desc = () => {
+				const id = el().getAttribute('aria-describedby');
+				return id ? document.getElementById(id).textContent : '';
+			};
+		m.selectNode(premise.id);
+		window.__because.commands.toggleImplicit();
+		window.__because.commands.cycleEvaluation();
+		await wait(300);
+		const both = desc();
+		window.__because.commands.cycleEvaluation();
+		await wait(300);
+		const accepted = desc();
+		window.__because.commands.cycleEvaluation();
+		window.__because.commands.toggleImplicit();
+		await wait(300);
+		return { both, accepted, cleared: desc() };
+	});
+	ok(states.both === 'Implicit claim. Marked false' && states.accepted === 'Implicit claim. Marked true' &&
+		states.cleared === '',
+		`implicit and evaluation states are in the claim's description (${JSON.stringify(states)})`);
+
+	// ---- checked menu items say so once ----
+	await page.evaluate(() => Array.from(document.querySelectorAll('.menu-title'))
+		.find(t => t.textContent === 'View').click());
+	await page.waitForTimeout(150);
+	ok(await page.evaluate(() => {
+		const item = Array.from(document.querySelectorAll('.menu-dropdown [role=menuitemradio]'))
+			.find(i => i.getAttribute('aria-checked') === 'true');
+		return item && item.firstChild.nodeType === 1 && item.firstChild.getAttribute('aria-hidden') === 'true' &&
+			item.firstChild.textContent === '✓ ';
+	}), 'a checked item\'s ✓ is hidden from its name, which aria-checked already covers');
+	await page.keyboard.press('Escape');
+
+	// ---- the connector-label editor is not a child of the tree ----
+	await page.evaluate(() => {
+		const m = window.__because.engine.mapModel,
+			conclusion = Object.values(m.getIdea().ideas)[0],
+			premise = Object.values(Object.values(conclusion.ideas)[0].ideas)[0];
+		m.selectNode(premise.id);
+		document.getElementById('map-container').focus();
+	});
+	await page.keyboard.press('l');
+	await page.waitForSelector('.connector-label-editor', { timeout: 4000 });
+	ok(await page.evaluate(() => {
+		const input = document.querySelector('.connector-label-editor');
+		return input.parentElement === document.body && document.activeElement === input;
+	}), 'the connector-label editor opens focused, outside role=tree');
+	await axeScan('connector label editor open');
+	await page.keyboard.press('Escape');
+
+	// ---- high-contrast map colours: a view preference ----
+	const savedBefore = await page.evaluate(() => window.__because.engine.serialize());
+	await page.evaluate(() => Array.from(document.querySelectorAll('.menu-title'))
+		.find(t => t.textContent === 'View').click());
+	await page.waitForTimeout(150);
+	await page.evaluate(() => Array.from(document.querySelectorAll('.menu-dropdown .menu-item'))
+		.find(i => i.textContent.indexOf('High-contrast map colors') >= 0).click());
+	await page.waitForTimeout(500);
+	const contrast = await page.evaluate(() => {
+		const m = window.__because.engine.mapModel,
+			conclusion = Object.values(m.getIdea().ideas)[0],
+			group = Object.values(conclusion.ideas).find(i => i.attr && i.attr.group === 'supporting'),
+			claim = Object.values(group.ideas)[0];
+		m.selectNode(claim.id);
+		document.getElementById('map-container').focus();
+		const badge = document.querySelector('.mapjs-label');
+		return {
+			body: document.body.classList.contains('high-contrast'),
+			stored: localStorage.getItem('because.highcontrast'),
+			badge: badge && getComputedStyle(badge).backgroundColor,
+			strokes: Array.from(document.querySelectorAll('path.mapjs-connector'))
+				.map(p => getComputedStyle(p).stroke).filter(c => c && c !== 'none')
+		};
+	});
+	await page.waitForTimeout(300);
+	const border = await page.evaluate(() => {
+		const el = document.activeElement;
+		return getComputedStyle(el).borderTopColor;
+	});
+	ok(contrast.body && contrast.stored === '1' && contrast.badge === 'rgb(11, 106, 160)',
+		`high contrast is on, remembered, and the badges are #0b6aa0 (${JSON.stringify(contrast)})`);
+	ok(contrast.strokes.length > 0 && contrast.strokes.every(c =>
+		['rgb(31, 122, 77)', 'rgb(192, 0, 0)', 'rgb(0, 112, 192)', 'rgb(112, 112, 112)'].indexOf(c) >= 0),
+		`every connector is drawn in a colour that clears 3:1 on white (${[...new Set(contrast.strokes)].join(', ')})`);
+	ok(border === 'rgb(11, 106, 160)', `the selected claim's border is #0b6aa0 (${border})`);
+	ok(await page.evaluate(() => window.__because.engine.serialize()) === savedBefore,
+		'high contrast changes no map data');
+	// an author's Coral paper takes #4f4f4f ink at 3.16:1; high contrast lightens it
+	const coral = await page.evaluate(async () => {
+		const m = window.__because.engine.mapModel;
+		m.updateStyle('ui', 'background', '#f08080');
+		await new Promise(r => setTimeout(r, 400));
+		const el = document.getElementById(('node_' + m.getSelectedNodeId()).replace(/[^A-Za-z0-9_-]/g, '_')),
+			title = el.querySelector('[data-mapjs-role=title]') || el,
+			rgb = c => c.match(/\d+/g).slice(0, 3).map(Number),
+			lum = c => {
+				const [r, g, b] = rgb(c).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+				return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+			},
+			bg = getComputedStyle(el).backgroundColor, fg = getComputedStyle(title).color,
+			ratio = (Math.max(lum(bg), lum(fg)) + 0.05) / (Math.min(lum(bg), lum(fg)) + 0.05),
+			stored = m.findIdeaById(m.getSelectedNodeId()).attr.style.background;
+		window.__because.commands.undo();
+		return { bg, fg, ratio: Math.round(ratio * 100) / 100, stored };
+	});
+	ok(coral.ratio >= 4.5 && coral.stored === '#f08080',
+		`under high contrast an author's Coral claim is drawn with 4.5:1 text, and still saves as Coral (${JSON.stringify(coral)})`);
+	await axeScan('map, high contrast');
+	await page.evaluate(() => window.__because.darkMode.toggle());
+	await page.waitForTimeout(400);
+	ok(await page.evaluate(() => getComputedStyle(document.querySelector('.mapjs-label')).backgroundColor) === 'rgb(11, 106, 160)',
+		'in dark mode high contrast still gives the badges #0b6aa0');
+	await axeScan('map, high contrast, dark');
+	await page.evaluate(() => { window.__because.darkMode.toggle(); window.__because.darkMode.toggleHighContrast(); });
+	await page.waitForTimeout(400);
+	ok(await page.evaluate(() => !document.body.classList.contains('high-contrast') &&
+		localStorage.getItem('because.highcontrast') === '0'), 'high contrast turns off again');
+
+	// ---- text spacing applied to an open map (WCAG 1.4.12) ----
+	// the WCAG text-spacing bookmarklet's stylesheet, added after layout
+	const overlaps = () => page.evaluate(() => {
+		const boxes = Array.from(document.querySelectorAll('.mapjs-node:not(.attr_group)'))
+				.map(n => ({ text: n.textContent.slice(0, 20), r: n.getBoundingClientRect(),
+					clipped: n.scrollHeight > n.clientHeight + 1 })),
+			hits = [];
+		boxes.forEach((a, i) => boxes.slice(i + 1).forEach(b => {
+			if (a.r.left < b.r.right - 1 && b.r.left < a.r.right - 1 &&
+					a.r.top < b.r.bottom - 1 && b.r.top < a.r.bottom - 1) { hits.push(a.text + ' / ' + b.text); }
+		}));
+		return { hits, clipped: boxes.filter(b => b.clipped).map(b => b.text) };
+	});
+	await page.evaluate(() => {
+		const st = document.createElement('style');
+		st.id = 'phltsbkmklt';
+		st.textContent = '*{line-height:1.5 !important;letter-spacing:0.12em !important;' +
+			'word-spacing:0.16em !important;}p{margin-bottom:2em !important;}';
+		document.head.appendChild(st);
+	});
+	await page.waitForTimeout(1500);
+	const spaced = await overlaps();
+	ok(spaced.hits.length === 0 && spaced.clipped.length === 0,
+		`text spacing added to an open map lays it out again: no claims overlap or clip (${JSON.stringify(spaced)})`);
+	await page.evaluate(() => document.getElementById('phltsbkmklt').remove());
+	await page.waitForTimeout(1200);
+
+	// ---- everything a drag does, without dragging (WCAG 2.1.1, 2.5.7) ----
+	const fresh = async () => {
+		await page.goto(BASE + '/app/index.html?src=../samples/death.mup');
+		await page.waitForSelector('.mapjs-node', { timeout: 8000 });
+		await page.waitForTimeout(700);
+	};
+	// the map's shape: conclusion -> reason bracket -> premises
+	const shape = () => page.evaluate(() => {
+		const m = window.__because.engine.mapModel,
+			conclusion = Object.values(m.getIdea().ideas)[0],
+			groups = Object.values(conclusion.ideas || {}).filter(i => i.attr && i.attr.group),
+			premises = groups.length ? Object.values(groups[0].ideas || {}) : [];
+		return { root: m.getIdea().id, conclusion: conclusion.id, groups: groups.map(g => g.id),
+			premises: premises.map(p => p.id), titles: premises.map(p => p.title) };
+	});
+	const parentOf = id => page.evaluate(i => {
+		const p = window.__because.engine.mapModel.getIdea().findParent(i);
+		return p && { id: p.id, group: p.attr && p.attr.group, parent: (window.__because.engine.mapModel.getIdea().findParent(p.id) || {}).id };
+	}, id);
+	await fresh();
+	let sh = await shape();
+	// keyboard: M on the second premise, arrow to the first, Enter
+	await page.evaluate(id => { window.__because.engine.mapModel.selectNode(id); document.getElementById('map-container').focus(); }, sh.premises[1]);
+	await page.keyboard.press('m');
+	await page.waitForTimeout(250);
+	const banner = await page.evaluate(() => {
+		const b = document.querySelector('.move-banner');
+		return b && { role: b.getAttribute('role'), text: b.textContent };
+	});
+	ok(banner && banner.role === 'status' && /Moving/.test(banner.text) && /Escape cancels/.test(banner.text),
+		`M picks the selection up and says how to put it down (${banner && banner.text.slice(0, 60)})`);
+	await page.evaluate(id => window.__because.engine.mapModel.selectNode(id), sh.premises[0]);
+	await page.keyboard.press('Enter');
+	await page.waitForTimeout(500);
+	let p = await parentOf(sh.premises[1]);
+	ok(p && p.group === 'supporting' && p.parent === sh.premises[0] && !(await page.evaluate(() => !!document.querySelector('.move-banner'))),
+		`Enter attaches it to the chosen claim as a reason, as a drag would (${JSON.stringify(p)})`);
+	await page.keyboard.press('Meta+z');
+	await page.waitForTimeout(400);
+	ok(JSON.stringify((await parentOf(sh.premises[1])).id) === JSON.stringify(sh.groups[0]), 'one undo puts it back');
+	// Escape cancels
+	await page.evaluate(id => window.__because.engine.mapModel.selectNode(id), sh.premises[1]);
+	await page.keyboard.press('m');
+	await page.waitForTimeout(150);
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(250);
+	ok(await page.evaluate(() => !document.querySelector('.move-banner') && !window.__because.moveMode.isMoving()) &&
+		(await parentOf(sh.premises[1])).id === sh.groups[0], 'Escape puts it down where it was');
+	// pointer, single clicks: move the whole bracket under a premise
+	await page.evaluate(id => window.__because.engine.mapModel.selectNode(id), sh.groups[0]);
+	await page.evaluate(() => window.__because.commands.beginMove());
+	await page.waitForTimeout(200);
+	await fresh();
+	sh = await shape();
+	await page.evaluate(() => {
+		const m = window.__because.engine.mapModel, conclusion = Object.values(m.getIdea().ideas)[0];
+		window.__because.commands.addObjection();
+		return conclusion.id;
+	});
+	await page.waitForTimeout(300);
+	await page.keyboard.type('An objection');
+	await page.keyboard.press('Enter');
+	await page.waitForTimeout(400);
+	const objection = await page.evaluate(() => {
+		const m = window.__because.engine.mapModel, conclusion = Object.values(m.getIdea().ideas)[0];
+		return Object.values(conclusion.ideas).find(i => i.attr && i.attr.group === 'opposing').id;
+	});
+	await page.evaluate(id => window.__because.engine.mapModel.selectNode(id), objection);
+	await page.evaluate(() => Array.from(document.querySelectorAll('.menu-title')).find(t => t.textContent === 'Edit').click());
+	await page.waitForTimeout(150);
+	await page.evaluate(() => Array.from(document.querySelectorAll('.menu-dropdown .menu-item')).find(i => /^Move…/.test(i.textContent)).click());
+	await page.waitForTimeout(250);
+	const targetBox = await page.evaluate(id => {
+		const r = document.getElementById(('node_' + id).replace(/[^A-Za-z0-9_-]/g, '_')).getBoundingClientRect();
+		return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+	}, sh.premises[0]);
+	await page.mouse.click(targetBox.x, targetBox.y);
+	await page.waitForTimeout(500);
+	p = await parentOf(objection);
+	ok(p && p.id === sh.premises[0], `Edit > Move… then a click attaches a whole objection under another claim (${JSON.stringify(p)})`);
+	// pointer onto blank canvas: the claim comes out and stands there
+	await page.evaluate(id => window.__because.engine.mapModel.selectNode(id), sh.premises[1]);
+	await page.evaluate(() => window.__because.commands.beginMove());
+	await page.waitForTimeout(200);
+	const blank = await page.evaluate(() => {
+		const r = document.getElementById('map-container').getBoundingClientRect();
+		return { x: r.right - 120, y: r.top + 80 };
+	});
+	await page.mouse.click(blank.x, blank.y);
+	await page.waitForTimeout(500);
+	const placed = await page.evaluate(id => {
+		const m = window.__because.engine.mapModel, idea = m.getIdea(),
+			node = idea.findSubIdeaById(id), r = document.getElementById(('node_' + id).replace(/[^A-Za-z0-9_-]/g, '_')).getBoundingClientRect();
+		const parent = idea.findParent(id);
+		return { parent: parent ? parent.id : idea.id, root: idea.id, position: node.attr && node.attr.position, cx: r.left + r.width / 2, cy: r.top + r.height / 2 };
+	}, sh.premises[1]);
+	ok(placed.parent === placed.root && Array.isArray(placed.position) &&
+		Math.abs(placed.cx - blank.x) < 30 && Math.abs(placed.cy - blank.y) < 30,
+		`a click on blank canvas places the claim there, standing free (${JSON.stringify(placed)} vs ${JSON.stringify(blank)})`);
+	// keyboard nudge, then width, reorder and the bracket
+	const before = placed.position.slice();
+	await page.evaluate(() => document.getElementById('map-container').focus());
+	await page.keyboard.press('Meta+Shift+ArrowRight');
+	await page.keyboard.press('Meta+Shift+ArrowDown');
+	await page.waitForTimeout(400);
+	const after = await page.evaluate(id => window.__because.engine.mapModel.getIdea().findSubIdeaById(id).attr.position, sh.premises[1]);
+	ok(after[0] === before[0] + 20 && after[1] === before[1] + 20,
+		`⌘⇧ + arrows nudge a free-standing claim by 20px (${JSON.stringify(before)} -> ${JSON.stringify(after)})`);
+	const widths = await page.evaluate(async id => {
+		const m = window.__because.engine.mapModel, w = () => document.getElementById(('node_' + id).replace(/[^A-Za-z0-9_-]/g, '_')).getBoundingClientRect().width;
+		m.selectNode(id);
+		const a = w();
+		window.__because.commands.widerClaim();
+		await new Promise(r => setTimeout(r, 400));
+		const b = w();
+		window.__because.commands.narrowerClaim();
+		window.__because.commands.narrowerClaim();
+		await new Promise(r => setTimeout(r, 400));
+		return { a, b, c: w() };
+	}, sh.premises[0]);
+	ok(widths.b > widths.a + 20 && widths.c < widths.b - 40,
+		`Wider and Narrower claim resize without the drag handle (${JSON.stringify(widths)})`);
+	const bracket = await page.evaluate(id => {
+		const m = window.__because.engine.mapModel;
+		m.selectNode(id);
+		window.__because.commands.selectBracket();
+		return { selected: m.getSelectedNodeId(), parent: m.getIdea().findParent(id).id };
+	}, sh.premises[0]);
+	ok(bracket.selected === bracket.parent, 'Select bracket selects the premise\'s bracket without hitting the 16px strip');
+	const numbering = await page.evaluate(async () => {
+		const pressed = () => document.querySelector('#toolbar [data-tool="numbering"]').getAttribute('aria-pressed'),
+			name = document.querySelector('#toolbar [data-tool="numbering"]').getAttribute('aria-label'),
+			before = pressed();
+		window.__because.commands.toggleNumbering();
+		await new Promise(r => setTimeout(r, 200));
+		const after = pressed();
+		window.__because.commands.toggleNumbering();
+		return { name, before, after };
+	});
+	ok(numbering.name === 'Claim numbering' && numbering.before === 'true' && numbering.after === 'false',
+		`the claim-numbering button reports whether numbering is on (${JSON.stringify(numbering)})`);
+
+	// ---- entering a freshly loaded map shows where focus is (WCAG 2.4.7) ----
+	await fresh();
+	await page.evaluate(() => { if (document.activeElement) { document.activeElement.blur(); } });
+	await page.keyboard.press('Tab'); // the skip link
+	await page.keyboard.press('Enter');
+	await page.waitForTimeout(300);
+	const entry = await page.evaluate(() => {
+		const a = document.activeElement, cs = getComputedStyle(a);
+		return { role: a.getAttribute('role'), width: cs.borderTopWidth, style: cs.borderTopStyle };
+	});
+	ok(entry.role === 'treeitem' && entry.width === '3px' && entry.style !== 'solid',
+		`the skip link lands on a claim drawn with the 3px focus border (${JSON.stringify(entry)})`);
+
+	// ---- single-character keys need the map to have focus (WCAG 2.1.4) ----
+	await fresh();
+	const stray = await page.evaluate(async () => {
+		if (document.activeElement) { document.activeElement.blur(); }
+		const before = window.__because.engine.serialize();
+		['t', 'd', 'm', 'z'].forEach(key => document.body.dispatchEvent(
+			new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })));
+		await new Promise(r => setTimeout(r, 300));
+		return { unchanged: window.__because.engine.serialize() === before,
+			moving: window.__because.moveMode.isMoving() };
+	});
+	ok(stray.unchanged && !stray.moving, 'with nothing focused, t, d, m and z change nothing');
+
+	// ---- the floating cards never hide the focused claim (WCAG 2.4.11) ----
+	await page.evaluate(() => window.__because.layout.setLayout('floating'));
+	await page.setViewportSize({ width: 980, height: 700 });
+	await page.waitForTimeout(300);
+	await page.evaluate(() => {
+		const ideas = {};
+		let id = 2;
+		for (let i = 1; i <= 24; i += 1) {
+			const g = id++, c = id++;
+			ideas[i] = { id: g, title: '', attr: { group: i % 2 ? 'supporting' : 'opposing', contentLocked: true },
+				ideas: { 1: { id: c, title: ['No.', 'Yes.', 'Ok.', 'Hm.'][i % 4] } } };
+		}
+		window.__because.io.loadJson({ id: 'root', formatVersion: 3, ideas: { 1: { id: 1, title: 'Wide root', ideas } } }, 'wide.mup');
+	});
+	await page.waitForTimeout(700);
+	await page.evaluate(() => document.getElementById('map-container').focus());
+	await page.keyboard.press('Shift+Z');
+	await page.waitForTimeout(250);
+	await page.keyboard.press('Shift+Z');
+	await page.waitForTimeout(250);
+	await page.evaluate(() => { window.__because.engine.mapModel.selectNode(1); document.getElementById('map-container').focus(); });
+	await page.waitForTimeout(400);
+	await page.keyboard.press('ArrowDown');
+	await page.waitForTimeout(400);
+	const hidden = [];
+	for (let i = 0; i < 26; i += 1) {
+		await page.keyboard.press('ArrowLeft');
+		await page.waitForTimeout(350);
+		const seen = await page.evaluate(() => {
+			const a = document.activeElement, r = a.getBoundingClientRect();
+			let vis = 0;
+			for (let y = r.top + 0.5; y < r.bottom; y += 2) {
+				for (let x = r.left + 0.5; x < r.right; x += 2) {
+					const e = document.elementFromPoint(x, y);
+					if (e && (e === a || a.contains(e))) { vis += 1; }
+				}
+			}
+			return { id: a.id, vis };
+		});
+		if (seen.vis === 0) { hidden.push(seen.id); }
+	}
+	ok(hidden.length === 0, `walking a wide map in the floating layout, no focused claim is wholly under a card (${hidden.join(', ')})`);
+	await page.evaluate(() => window.__because.layout.setLayout('left'));
+	await page.setViewportSize({ width: 1500, height: 950 });
+	await page.waitForTimeout(300);
+
 	ok(errors.length === 0, 'no page errors (' + errors.join('; ').slice(0, 200) + ')');
 	await browser.close();
 
@@ -742,15 +1278,39 @@ const AXE_OPTS = {
 		'focusing the map lands real focus on a named treeitem (' +
 			(axFocused.length ? axFocused.map(n => n.role.value).join(',') : 'none') + ')');
 	// the connector labels, in the tree a Windows screen reader actually reads
-	ok(axItems.some(i => i.name.value.indexOf('labelled Because') >= 0),
+	ok(axItems.some(i => i.name.value.indexOf('labeled Because') >= 0),
 		'the bracket\'s connector label is in its COMPUTED name (' + cIds.group + ')');
 	ok(axFocused.length === 1 && axFocused[0].description &&
-		axFocused[0].description.value === 'Connector labelled and',
+		axFocused[0].description.value === 'Connector labeled and',
 		'the claim\'s connector label is in its COMPUTED description (' +
 			(axFocused[0] && axFocused[0].description && axFocused[0].description.value) + ')');
 	ok(axTrees.length === 1 && axTrees[0].description &&
 		/Escape/.test(axTrees[0].description.value),
 		'the map\'s way out is in the tree\'s COMPUTED description');
+	// the inline claim editor, as the computed tree presents it
+	await cpage.evaluate(() => window.__because.commands.editNode());
+	await cpage.waitForTimeout(300);
+	const axEditing = (await cdp.send('Accessibility.getFullAXTree')).nodes.filter(n =>
+		(n.properties || []).some(p => p.name === 'focused' && p.value.value) &&
+		n.role && n.role.value !== 'RootWebArea');
+	ok(axEditing.length === 1 && axEditing[0].role.value === 'textbox' &&
+		axEditing[0].name && axEditing[0].name.value === 'Claim text',
+		'the claim editor is a textbox named "Claim text" in the COMPUTED tree (' +
+			axEditing.map(n => n.role.value + ' "' + (n.name && n.name.value) + '"').join(',') + ')');
+	await cpage.keyboard.press('Escape');
+	// an evaluation mark is described in words, and its emoji is not in the name
+	await cpage.evaluate(() => {
+		document.getElementById('map-container').focus();
+		window.__because.commands.cycleEvaluation();
+	});
+	await cpage.waitForTimeout(400);
+	const axMarked = (await cdp.send('Accessibility.getFullAXTree')).nodes.filter(n =>
+		(n.properties || []).some(p => p.name === 'focused' && p.value.value) &&
+		n.role && n.role.value === 'treeitem');
+	ok(axMarked.length === 1 && !/\u{1F6AB}/u.test(axMarked[0].name.value) &&
+		axMarked[0].description && /^Marked false/.test(axMarked[0].description.value),
+		'a claim marked false is described as "Marked false" and its name carries no emoji (' +
+			(axMarked[0] && JSON.stringify([axMarked[0].name.value, axMarked[0].description && axMarked[0].description.value])) + ')');
 	await cr.close();
 
 	console.log(failures ? 'FAILURES: ' + failures : 'ALL PASS');

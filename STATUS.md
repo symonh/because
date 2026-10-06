@@ -1,4 +1,53 @@
-# Because (formerly ArgumentBase) — status (2026-09-16)
+# Because (formerly ArgumentBase) — status (2026-10-06)
+
+## 2026-10-06 — Gaps from a WCAG 2.2 audit, and a high-contrast view
+
+- An audit of the editor and site against every WCAG 2.2 A and AA
+  criterion, run ahead of writing an accessibility statement, found gaps
+  the suite did not cover. All of the following are fixed and gated.
+- **Reading order.** Node elements sat on the stage in creation order
+  with the engine's layout level, so a reason added later could read as
+  belonging to the wrong claim. `a11y-canvas.js` now sets `aria-level`
+  from the argument's depth and keeps the elements in argument order
+  after every layout, without moving the focused element and never while
+  a claim is being edited.
+- **States in words.** Implicit claims, evaluation marks and sticky notes
+  are in the claim's description; the marks' emoji have empty CSS
+  alternative text, so NVDA no longer reads "prohibited".
+- **View > High-contrast map colors.** The authentic badge, selection
+  and bracket colours fail 1.4.3 / 1.4.11 on white (badge 2.19:1). The
+  new view preference replaces them (`highContrastThemeJson`, badge and
+  disc CSS), never alters map data, and satisfies those criteria through
+  technique G174. The landing figures, which have no switch, take the
+  high-contrast badge and focus blue outright; `site/og.png` is redrawn.
+- **Editors and controls.** The inline claim editor is a textbox named
+  "Claim text" (LOCAL PATCH in `edit-node.js`, bundle rebuilt). B, I and U
+  are named and expose `aria-pressed` (true, false or mixed). Checked menu
+  items hide their ✓ glyph from the name. The connector-label input lives
+  in the body rather than inside `role=tree`. The hero figure's tree is
+  named.
+- **Errors and status.** A dropped non-.mup file and a refused local save
+  each raise an alert (a failed save from the unsaved-changes dialog no
+  longer replaces the map; new analytics event `map_save_error`). The
+  OneDrive picker's status line is a live region and folder navigation
+  keeps focus in the listing.
+- **Chrome.** Menubar dropdowns scroll on short or zoomed windows; the
+  mobile flyout opens submenus on click only, since they stack above the
+  rows the pointer has to cross; swatch borders and the cascade arrow
+  clear 3:1; the landing page's feature icons are `aria-hidden`; long
+  URLs wrap at 320px.
+- **Nothing needs a drag.** Edit > Move… (M) attaches the selection to a
+  claim or bracket chosen by click or by arrows and Enter, or places it
+  where blank canvas is clicked (`move-mode.js`, through the same model
+  calls a drag ends in). Move left / right, Wider / Narrower claim,
+  Select bracket and ⌘⇧ + arrows (nudge a free-standing claim) cover
+  reordering, the resize handle, the 16px bracket strip and free placement.
+- **Keyboard and focus.** Single-character shortcuts act only with focus
+  in the map, not on the body. Entering a loaded map draws the focus
+  border. Floating chrome becomes an engine margin, so focus is scrolled
+  clear of it. Shift+Tab (also a co-premise) is in the reference.
+- **Text spacing.** Spacing styles added after load clear the engine's
+  size cache and lay the map out again.
 
 ## 2026-09-16 — The site follows the system light/dark preference
 

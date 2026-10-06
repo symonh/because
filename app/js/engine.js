@@ -101,8 +101,7 @@ export function initEngine(container) {
 
 	installDropPolicy(mapModel);
 	jQuery(container).domMapWidget(console, mapModel, false);
-	// eslint-disable-next-line no-new
-	new MAPJS.DomMapController(
+	const controller = new MAPJS.DomMapController(
 		mapModel,
 		jQuery(container).find('[data-mapjs-role=stage]'),
 		false,
@@ -210,6 +209,16 @@ export function initEngine(container) {
 			themeFilter = fn || null;
 			attrColorFilter = colorFn || null;
 			applyTheme(true);
+		},
+		// keep selected claims clear of chrome floating over the canvas: the
+		// visibility margin is in screen pixels, the stage margin (the scroll
+		// room the engine adds around nodes) in stage pixels
+		setChromeMargin(margin, scale) {
+			const s = scale || 1;
+			controller.setStageVisibilityMargin(margin);
+			controller.setStageMargin(margin && {
+				top: margin.top / s, left: margin.left / s, bottom: margin.bottom / s, right: margin.right / s
+			});
 		},
 		getThemeName() {
 			const idea = mapModel.getIdea();

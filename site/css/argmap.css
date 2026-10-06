@@ -64,8 +64,11 @@
 	--am-green: #339966;
 	--am-red: #ff0000;
 	--am-neutral: #0070c0;
-	--am-select: #22aae0;
-	--am-badge: rgba(34, 170, 224, 0.8);
+	/* badge and selection take the editor's high-contrast blue: the page has
+	   no switch to offer it, and the authentic #22aae0 is 2.19:1 under the
+	   white badge text and 2.66:1 as a focus ring on white */
+	--am-select: #0b6aa0;
+	--am-badge: #0b6aa0;
 	--am-shadow: 2px 2px 2px rgba(7, 7, 7, 0.3);
 	--am-canvas: #ffffff;
 	--am-grid-dot: rgba(60, 45, 20, 0.07);
@@ -95,6 +98,7 @@
 		--am-green: #3fb377;
 		--am-red: #ff5d5d;
 		--am-neutral: #4aa3e8;
+		--am-select: #22aae0;
 		--am-shadow: 2px 2px 3px rgba(0, 0, 0, 0.45);
 		--am-canvas: #1b1d20;
 		--am-grid-dot: rgba(255, 255, 255, 0.05);

@@ -81,6 +81,10 @@ export function makeMenus(commands, io, engine, drive, onedrive, darkMode, label
 			['Edit text (F2)', commands.editNode],
 			['Edit claim number… (or click the number)', () => numberEdit.editSelectedNumber()],
 			['Detach from the tree (D)', commands.detachNode],
+			['Move… (M)', commands.beginMove],
+			['Move left (⌘←)', commands.moveLeft],
+			['Move right (⌘→)', commands.moveRight],
+			['Select bracket', commands.selectBracket],
 			['Delete (⌫)', commands.deleteNode],
 			['—'],
 			['Bold (⌘B)', commands.toggleBold],
@@ -89,7 +93,9 @@ export function makeMenus(commands, io, engine, drive, onedrive, darkMode, label
 			['—'],
 			['Bigger text (⌘⇧.)', commands.fontBigger],
 			['Smaller text (⌘⇧,)', commands.fontSmaller],
-			['Node colour & style… (right-click a node)', () => nodeStyle.openForSelection()]
+			['Wider claim', commands.widerClaim],
+			['Narrower claim', commands.narrowerClaim],
+			['Node color & style… (right-click a node)', () => nodeStyle.openForSelection()]
 		]],
 		['View', () => [
 			['Zoom in (Z)', commands.zoomIn],
@@ -99,6 +105,10 @@ export function makeMenus(commands, io, engine, drive, onedrive, darkMode, label
 			['Collapse / expand branch (F)', commands.toggleCollapse],
 			[(engine.getLabelsOn() ? '✓ ' : '') + 'Claim numbering', commands.toggleNumbering, { check: engine.getLabelsOn() }],
 			[(darkMode && darkMode.isDark() ? '✓ ' : '') + 'Dark mode (Shift+T)', () => darkMode.toggle(), { check: !!(darkMode && darkMode.isDark()) }],
+			[(darkMode && darkMode.isHighContrast() ? '✓ ' : '') + 'High-contrast map colors', () => {
+				track('high_contrast_toggle', { enabled: darkMode.isHighContrast() ? 'off' : 'on' });
+				darkMode.toggleHighContrast();
+			}, { check: !!(darkMode && darkMode.isHighContrast()) }],
 			['—'],
 			// off by default: with it off there is no neutral tool in the
 			// toolbars, no Insert item and no Alt+Q. Maps that already use the
@@ -143,7 +153,8 @@ export function makeMenus(commands, io, engine, drive, onedrive, darkMode, label
 			['About Because', showAbout],
 			['—'],
 			['Privacy policy', () => window.open('https://app.philmaps.com/privacy', '_blank')],
-			['Terms of service', () => window.open('https://app.philmaps.com/terms', '_blank')]
+			['Terms of service', () => window.open('https://app.philmaps.com/terms', '_blank')],
+			['Accessibility statement', () => window.open('https://app.philmaps.com/accessibility', '_blank')]
 		]]
 	];
 
@@ -211,7 +222,16 @@ export function makeMenus(commands, io, engine, drive, onedrive, darkMode, label
 			const item = document.createElement('button');
 			item.type = 'button';
 			item.className = 'menu-item';
-			item.textContent = itemLabel;
+			const stated = opts && ('check' in opts || 'radio' in opts);
+			if (stated && itemLabel.indexOf('✓ ') === 0) {
+				// aria-checked already says this, so the glyph is for the eye only
+				const mark = document.createElement('span');
+				mark.setAttribute('aria-hidden', 'true');
+				mark.textContent = '✓ ';
+				item.append(mark, itemLabel.slice(2));
+			} else {
+				item.textContent = itemLabel;
+			}
 			item.setAttribute('tabindex', '-1');
 			if (opts && 'check' in opts) {
 				item.setAttribute('role', 'menuitemcheckbox');
@@ -240,6 +260,8 @@ export function makeMenus(commands, io, engine, drive, onedrive, darkMode, label
 		const rect = title.getBoundingClientRect();
 		menu.style.left = rect.left + 'px';
 		menu.style.top = rect.bottom + 2 + 'px';
+		// zoomed or short windows: the menu scrolls rather than running off the bottom
+		menu.style.maxHeight = Math.max(120, window.innerHeight - rect.bottom - 10) + 'px';
 		document.body.appendChild(menu);
 		openMenu = menu;
 		openTitle = title;
@@ -430,7 +452,9 @@ export function makeMenus(commands, io, engine, drive, onedrive, darkMode, label
 			row.setAttribute('tabindex', '-1');
 			row.spec = items; // the lazy item builder, as on a menubar title
 			row.addEventListener('mousedown', e => e.preventDefault());
-			row.addEventListener('mouseenter', () => openSub(row));
+			// a submenu opened above the panel is reached by crossing the
+			// other rows, so there it opens on click alone
+			if (placement !== 'up') { row.addEventListener('mouseenter', () => openSub(row)); }
 			row.addEventListener('click', () => focusFirstItem(openSub(row)));
 			rows.push(row);
 			panel.appendChild(row);
@@ -659,7 +683,8 @@ export function makeMenus(commands, io, engine, drive, onedrive, darkMode, label
 			'for tying a question to the claims that answer it, or a claim to a ' +
 			'question it raises.</p>' +
 			'<p><a href="https://app.philmaps.com/privacy" target="_blank">Privacy policy</a> · ' +
-			'<a href="https://app.philmaps.com/terms" target="_blank">Terms of service</a></p>'
+			'<a href="https://app.philmaps.com/terms" target="_blank">Terms of service</a> · ' +
+			'<a href="https://app.philmaps.com/accessibility" target="_blank">Accessibility statement</a></p>'
 		);
 	}
 

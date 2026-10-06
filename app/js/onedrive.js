@@ -185,7 +185,13 @@ export function makeOneDrive(engine, io, status) {
 			const benign = /popup_closed|access_denied|user_cancel/i.test(String(e && e.message));
 			if (!benign) {
 				track('onedrive_error', { description: String((e && e.message) || e) });
-				window.alert(String((e && e.message) || e));
+				// the browser's wording for a dropped connection names no
+				// service and suggests nothing
+				const offline = e instanceof TypeError &&
+					/failed to fetch|networkerror|load failed/i.test(String(e.message));
+				window.alert(offline ?
+					'OneDrive could not be reached. Check the connection and try again; the open map is unchanged.' :
+					String((e && e.message) || e));
 			}
 		},
 		listChildren = async function (folderId) {
@@ -215,7 +221,7 @@ export function makeOneDrive(engine, io, status) {
 				overlay.innerHTML = '<div class="panel od-panel"><h2>Open from OneDrive</h2>' +
 					'<div class="od-crumb"><button type="button" class="od-up" hidden>‹ Back</button>' +
 					'<span class="od-path">OneDrive</span></div>' +
-					'<div class="od-status">Loading…</div>' +
+					'<div class="od-status" role="status">Loading…</div>' +
 					'<ul class="od-list"></ul>' +
 					'<div class="panel-close"><button type="button">Cancel</button></div></div>';
 				document.body.appendChild(overlay);
@@ -224,7 +230,11 @@ export function makeOneDrive(engine, io, status) {
 					statusEl = overlay.querySelector('.od-status'),
 					pathEl = overlay.querySelector('.od-path'),
 					upBtn = overlay.querySelector('.od-up'),
-					render = async function () {
+					// moving between folders destroys the focused button, so
+					// focus waits on the panel and then lands in the new listing
+					render = async function (moveFocus) {
+						const panel = overlay.querySelector('.od-panel');
+						if (moveFocus) { panel.focus(); }
 						pathEl.textContent = ['OneDrive'].concat(stack.map(f => f.name)).join(' › ');
 						upBtn.hidden = !stack.length;
 						statusEl.hidden = false;
@@ -243,7 +253,7 @@ export function makeOneDrive(engine, io, status) {
 								btn.addEventListener('click', function () {
 									if (it.folder) {
 										stack.push(it);
-										render();
+										render(true);
 									} else {
 										finish(it);
 									}
@@ -260,10 +270,14 @@ export function makeOneDrive(engine, io, status) {
 							statusEl.textContent = String((e && e.message) || e);
 							track('onedrive_error', { description: String((e && e.message) || e) });
 						}
+						if (moveFocus && document.activeElement === panel) {
+							(list.querySelector('.od-item') || (upBtn.hidden ? null : upBtn) ||
+								overlay.querySelector('.panel-close button')).focus();
+						}
 					};
 				upBtn.addEventListener('click', function () {
 					stack.pop();
-					render();
+					render(true);
 				});
 				overlay.querySelector('.panel-close button').addEventListener('click', () => finish(null));
 				overlay.addEventListener('click', function (e) {
@@ -351,7 +365,11 @@ export function makeOneDrive(engine, io, status) {
 						contentResp = await window.fetch(meta['@microsoft.graph.downloadUrl']),
 						text = await contentResp.text();
 					noteMapSource('onedrive');
-					io.loadJson(JSON.parse(text), doc.name); // releases the previous save target
+					try {
+						io.loadJson(JSON.parse(text), doc.name); // releases the previous save target
+					} catch (parseErr) {
+						throw new Error('“' + doc.name + '” could not be opened. It may not be a valid .mup file.');
+					}
 					io.setSaveTarget(o => onedrive.save(false, o), () => { currentFile = null; });
 					currentFile = { id: doc.id, name: doc.name, webUrl: meta.webUrl || doc.webUrl };
 				} catch (e) {

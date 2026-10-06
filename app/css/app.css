@@ -171,6 +171,7 @@ body.layout-left #toolbar { grid-area: rail; }
 	border-radius: 8px;
 	box-shadow: var(--card-shadow);
 	padding: 4px 0;
+	overflow-y: auto;
 }
 .menu-item {
 	/* rendered as <button>; reset native button chrome to match the old div */
@@ -202,7 +203,6 @@ body.layout-left #toolbar { grid-area: rail; }
 	padding-left: 16px;
 	font-size: 15px;
 	line-height: 1;
-	opacity: 0.55;
 }
 .menu-flyrow.open { background: var(--chrome-hover); color: var(--accent); }
 
@@ -474,7 +474,7 @@ body.layout-left .tb-sep { width: 18px; height: 1px; margin: 4px 0; }
 .od-list .od-item:hover,
 .od-list .od-item:focus { background: #eef6fa; }
 .connector-label-editor {
-	position: absolute;
+	position: fixed;
 	z-index: 500;
 	width: 220px;
 	padding: 4px 8px;
@@ -580,7 +580,8 @@ body.dark .loading-card {
 	width: 24px;
 	height: 24px;
 	border-radius: 50%;
-	border: 1px solid rgba(0,0,0,0.18);
+	/* 3:1 against the popover, so a white or pale swatch still has an edge */
+	border: 1px solid #767676;
 	cursor: pointer;
 	padding: 0;
 	background: #fff;
@@ -597,7 +598,7 @@ body.dark .loading-card {
 	width: 24px;
 	height: 24px;
 	padding: 0;
-	border: 1px solid rgba(0,0,0,0.18);
+	border: 1px solid #767676;
 	border-radius: 50%;
 	background: conic-gradient(#f66, #fc6, #ff6, #6f6, #6cf, #66f, #f6f, #f66);
 	cursor: pointer;
@@ -616,6 +617,8 @@ body.dark .loading-card {
 	padding: 0 7px;
 }
 .ns-btn:hover { background: #e8f2f8; color: #16749f; }
+.ns-btn[aria-pressed="true"] { background: #e8f2f8; border-color: #16749f; color: #16749f; }
+.ns-btn[aria-pressed="mixed"] { border: 1px dashed #16749f; }
 .ns-btn small { font-size: 10px; font-weight: 700; }
 .ns-i { font-style: italic; }
 .ns-u { text-decoration: underline; }
@@ -625,6 +628,7 @@ body.dark .node-style-popover {
 	border-color: #3d4248;
 	box-shadow: 0 6px 24px rgba(0,0,0,0.5);
 }
+body.dark .ns-swatch { border-color: #8a9096; }
 body.dark .ns-swatch.current { box-shadow: 0 0 0 2px #2a2e33, 0 0 0 4px #6cc4ee; }
 body.dark .ns-btn {
 	background: #34393f;
@@ -632,6 +636,8 @@ body.dark .ns-btn {
 	color: #d3d7db;
 }
 body.dark .ns-btn:hover { background: #3b4148; color: #6cc4ee; }
+body.dark .ns-btn[aria-pressed="true"] { background: #3b4148; border-color: #6cc4ee; color: #6cc4ee; }
+body.dark .ns-btn[aria-pressed="mixed"] { border-color: #6cc4ee; }
 body.dark .ns-sep { background: #4a5057; }
 
 /* ---- connector popover (click a connecting line; label-edit.js) ---- */
@@ -856,7 +862,7 @@ body.dark #map-container:focus-visible {
  * `.mapjs-node:focus { outline:none }` means no browser ring competes — so
  * no rule is needed here, only the deliberate absence of one. The border
  * colour is the authentic theme #22AAE0 (the fidelity anchor, the same blue
- * as the number badge — a documented exception in docs/accessibility.md);
+ * as the number badge), or #0b6aa0 under View > High-contrast map colours;
  * the cues that are NOT colour are the 1px→3px width jump, the dotted/dashed
  * style, and aria-selected. It stays #22AAE0 in dark mode (bright on the
  * dark canvas) and persists when focus leaves the map, so the current
@@ -926,3 +932,27 @@ body.dark #map-container:focus-visible {
 	}
 	#map-container { background: #fff !important; }
 }
+
+/* ---- Edit > Move… (move-mode.js) ---- */
+.move-banner {
+	position: fixed;
+	left: 50%;
+	bottom: 18px;
+	transform: translateX(-50%);
+	z-index: 950;
+	max-width: min(560px, calc(100vw - 32px));
+	padding: 10px 14px;
+	border: 1px solid #16749f;
+	border-radius: 8px;
+	background: #ffffff;
+	color: #2c3e50;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+	font: 14px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+body.dark .move-banner { background: #2a2e34; color: #e2e5e7; border-color: #6cc4ee; }
+@media (max-width: 719px) { .move-banner { bottom: 76px; } }
+body.moving #map-container { cursor: crosshair; }
+.mapjs-node.move-source { outline: 2px dashed #16749f; outline-offset: 4px; }
+body.dark .mapjs-node.move-source { outline-color: #6cc4ee; }
+
+@media print { .move-banner { display: none; } }
