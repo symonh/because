@@ -16,12 +16,14 @@
   browser's copy, whose copy event carries the data; ⌘V keeps its default
   action and moves focus to it just before the browser's paste lands. The
   Edit menu's Paste has no key press to ride, so it reads the clipboard
-  through the Clipboard API, which the browser may ask the reader to allow.
+  through the Clipboard API, starting inside the click: Safari allows that
+  read only during the gesture, and shows its own Paste button to confirm.
 - Gates in the new `clipboard-e2e.js`, Chrome and WebKit with real key
   presses: a copy in one tab pasted into a tab on another origin (claim,
   implicit border, nested objection, note, selection, focus, one undo), the
-  outline as text, ordinary text pasting nothing, and the Edit menu path in
-  Chrome. The old tests drove ⌘V through Puppeteer, which runs the
+  outline as text, ordinary text pasting nothing, the Edit menu reading
+  the clipboard inside the click (both engines), and the real Clipboard API
+  in Chrome. The old tests drove ⌘V through Puppeteer, which runs the
   browser's paste only when asked, so `app-e2e` now asks; the scripted
   pastes in `app-e2e` and `features-e2e` deliver the paste event a real ⌘V
   would.

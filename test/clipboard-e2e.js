@@ -109,7 +109,32 @@ async function scenario(label, browser) {
 	ok((await reasons(target)).length === 1, tag('ordinary text on the clipboard adds nothing to the map'));
 
 	// the Edit menu has no key press behind it, so its Paste reads the
-	// clipboard through the Clipboard API, which Chrome lets a test allow
+	// clipboard through the Clipboard API, which Safari allows only during the
+	// click; no headless engine can press Safari's Paste button, so the API
+	// is stood in for here and asked only whether it was called in time
+	await target.evaluate(() => {
+		document.addEventListener('click', () => {
+			window.inClick = true;
+			setTimeout(() => { window.inClick = false; }, 0);
+		}, true);
+		const html = '<pre data-because-clipboard="' + JSON.stringify({ title: 'Read from the menu.', attr: {} }).replace(/"/g, '&quot;') + '">x</pre>';
+		Object.defineProperty(navigator.clipboard, 'read', { configurable: true, value() {
+			window.readInClick = window.inClick;
+			return Promise.resolve([{ types: ['text/html'], getType: () => Promise.resolve(new Blob([html], { type: 'text/html' })) }]);
+		} });
+	});
+	await select(target, 1);
+	await target.click('.menu-title:has-text("Edit")');
+	await target.click('.menu-item:has-text("Paste as reason")');
+	await target.waitForTimeout(500);
+	ok(await target.evaluate(() => window.readInClick === true), tag('Edit > Paste as reason reads the clipboard inside the click, as Safari requires'));
+	ok(JSON.stringify((await reasons(target)).map(r => r[1])) === JSON.stringify([['An existing reason.'], ['Read from the menu.']]),
+		tag('and pastes what it read'));
+	await target.keyboard.press('Meta+z');
+	await target.waitForTimeout(300);
+	await target.evaluate(() => { delete navigator.clipboard.read; });
+
+	// in Chrome a test can grant the real Clipboard API
 	if (label === 'chrome') {
 		await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: OTHER });
 		await select(source, 3);
@@ -119,7 +144,7 @@ async function scenario(label, browser) {
 		await target.click('.menu-item:has-text("Paste as reason")');
 		await target.waitForTimeout(1200);
 		ok(JSON.stringify((await reasons(target)).map(r => r[1])) === JSON.stringify([['An existing reason.'], ['The copied claim.']]),
-			tag('Edit > Paste as reason pastes copied claims too'));
+			tag('Edit > Paste as reason pastes claims copied in another tab'));
 	}
 
 	ok(source.errors.length === 0 && target.errors.length === 0,

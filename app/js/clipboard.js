@@ -11,12 +11,13 @@
  * browser's copy command, whose copy event carries the data; pasting from
  * the keyboard moves focus to it just before the browser's own paste lands,
  * and reads that paste event. The Edit menu has no key press to ride, so its
- * Paste reads the clipboard through the asynchronous Clipboard API, which
- * the browser may ask the reader to allow.
+ * Paste reads the clipboard through the asynchronous Clipboard API, from
+ * inside the click, since Safari allows that read only during the gesture
+ * (and shows its own Paste button for the reader to confirm).
  */
 
 const MARK = 'data-because-clipboard',
-	// how long an armed paste waits for the browser's paste event
+	// how long a key press's paste is awaited before the textarea is released
 	PASTE_WINDOW_MS = 400;
 
 let proxy = null;
@@ -110,13 +111,37 @@ function validIdea(idea) {
 	return idea && typeof idea === 'object' && typeof idea.title === 'string' ? idea : null;
 }
 
+/** The clipboard through the Clipboard API; must start inside a user gesture. */
+async function readClipboard() {
+	const clip = window.navigator.clipboard;
+	try {
+		if (clip && clip.read) {
+			let html = '', text = '';
+			for (const item of await clip.read()) {
+				if (item.types.indexOf('text/html') >= 0) { html = await (await item.getType('text/html')).text(); }
+				if (item.types.indexOf('text/plain') >= 0) { text = await (await item.getType('text/plain')).text(); }
+			}
+			return ideaFromClipboard(html, text);
+		}
+		return clip && clip.readText ? ideaFromClipboard('', await clip.readText()) : null;
+	} catch (e) {
+		return null; // the reader declined, or the browser cannot read
+	}
+}
+
 /**
- * Arms a paste. From a key press, the browser's own paste follows straight
- * after and lands in the hidden textarea; from anywhere else nothing does,
- * and the clipboard is read through the Clipboard API instead. Calls
+ * Pastes from the clipboard. From a key press (fromKey), the browser's own
+ * paste follows straight after and lands in the hidden textarea; otherwise
+ * the clipboard is read at once through the Clipboard API. Calls
  * receive(idea) once, with null if the clipboard held no claims.
+ * @param {(idea: object|null) => void} receive
+ * @param {{ fromKey?: boolean }} [options]
  */
-export function pasteIdea(receive) {
+export function pasteIdea(receive, options) {
+	if (!(options && options.fromKey)) {
+		readClipboard().then(receive);
+		return;
+	}
 	const box = getProxy(),
 		previous = document.activeElement;
 	let done = false;
@@ -124,7 +149,7 @@ export function pasteIdea(receive) {
 			if (done) { return; }
 			done = true;
 			box.removeEventListener('paste', onPaste);
-			window.clearTimeout(fallback);
+			window.clearTimeout(release);
 			if (previous && previous.focus && document.activeElement === box) { previous.focus(); }
 			receive(idea);
 		},
@@ -132,23 +157,7 @@ export function pasteIdea(receive) {
 			e.preventDefault();
 			finish(ideaFromClipboard(e.clipboardData.getData('text/html'), e.clipboardData.getData('text/plain')));
 		},
-		readAsync = async function () {
-			const clip = window.navigator.clipboard;
-			try {
-				if (clip && clip.read) {
-					let html = '', text = '';
-					for (const item of await clip.read()) {
-						if (item.types.indexOf('text/html') >= 0) { html = await (await item.getType('text/html')).text(); }
-						if (item.types.indexOf('text/plain') >= 0) { text = await (await item.getType('text/plain')).text(); }
-					}
-					return ideaFromClipboard(html, text);
-				}
-				return clip && clip.readText ? ideaFromClipboard('', await clip.readText()) : null;
-			} catch (e) {
-				return null; // the reader declined, or the browser cannot read
-			}
-		},
-		fallback = window.setTimeout(() => { if (!done) { readAsync().then(finish); } }, PASTE_WINDOW_MS);
+		release = window.setTimeout(() => finish(null), PASTE_WINDOW_MS);
 	box.value = '';
 	box.addEventListener('paste', onPaste);
 	box.focus();

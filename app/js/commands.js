@@ -180,7 +180,8 @@ export function makeCommands(engine, darkMode, shortcutHelp, neutralPref, labelE
 		// for. There is always a selection (the model falls back to the
 		// root), so paste always attaches — detaching is done afterwards by
 		// dragging. One undo reverts the whole paste.
-		paste() {
+		// `via` is 'keyboard' for ⌘V, whose own paste event carries the data
+		paste(via) {
 			const targetId = selectedId();
 			pasteIdea(function (clip) {
 				const content = idea();
@@ -197,7 +198,7 @@ export function makeCommands(engine, darkMode, shortcutHelp, neutralPref, labelE
 					}
 				});
 				if (newId) { mapModel.selectNode(newId); }
-			});
+			}, { fromKey: via === 'keyboard' });
 		},
 		editNode() { mapModel.editNode(SOURCE, false, false); },
 		// pick the selection up and attach or place it with a click or Enter

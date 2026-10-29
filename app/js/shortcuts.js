@@ -159,8 +159,11 @@ export function bindShortcuts(engine, commands, neutralPref) {
 			// once this preventDefault lands
 			command = commands.showShortcuts;
 		}
-		if (command) {
-			if (command !== commands.paste) { e.preventDefault(); }
+		if (command === commands.paste) {
+			e.stopImmediatePropagation();
+			command('keyboard');
+		} else if (command) {
+			e.preventDefault();
 			e.stopImmediatePropagation();
 			command();
 		}
