@@ -53,6 +53,7 @@ below are written Mac-first; on Windows and Linux read ⌘ as Ctrl and ⌥ as Al
 | arrows | navigate; Shift+arrows select several claims at once |
 | ⌘←/→ | reorder a claim among its co-premises |
 | F2 / Space | edit; F collapses the branch; Delete removes the selection |
+| ⌘C / ⌘V | copy the selected claim and everything under it; paste copied claims as a reason under the selection, from any Because tab (as text elsewhere, they read as an indented outline) |
 | ⌘Z / ⌘⇧Z | undo / redo (Ctrl+Y also redoes on Windows) |
 | Z / Shift+Z | zoom |
 | Shift+T | dark / light mode |
@@ -103,7 +104,7 @@ samples/       synthetic .mup fixtures safe for a public repo
 samples-local/ real course maps — gitignored, never commit
 site/          the landing page and its root-level pages (/privacy, /terms)
 figures/       the landing page's argument-map figures: source maps + renderer
-test/          nine e2e suites (Chrome + real WebKit) and render-map.js (headless renders)
+test/          ten e2e suites (Chrome + real WebKit) and render-map.js (headless renders)
 docs/          rendered proofs
 ```
 
@@ -113,15 +114,16 @@ figure offers for download and hands to the editor. Edit the JSON, rerun
 `node figures/build.mjs`: see [docs/figures.md](docs/figures.md).
 
 Tests: `cd test && npm ci`, then `npm test`. The runner serves the repo root
-and runs all nine suites in order: the Chrome ones via puppeteer-core
+and runs all ten suites in order: the Chrome ones via puppeteer-core
 (`app-e2e.js`, `robustness-e2e.js` — blocked storage and unreadable files,
 `click-select-e2e.js`, `drive-e2e.js`, `onedrive-e2e.js`, `features-e2e.js`),
 then `webkit-e2e.js` (Playwright WebKit, the Safari-engine check),
-`a11y-e2e.js` (WCAG 2.2 AA gate: axe-core scans plus the keyboard model, also
+`clipboard-e2e.js` (copy in one tab, paste in another on a different origin,
+both engines), `a11y-e2e.js` (WCAG 2.2 AA gate: axe-core scans plus the keyboard model, also
 WebKit — see docs/accessibility.md) and `site-e2e.js` (the landing page's
 figures, both engines). `npm test -- app-e2e.js` runs only the suites named.
 It needs a system Chrome (or `CHROME_PATH` pointing at one) and Playwright
-WebKit (`npx playwright-core install webkit`). All nine must pass before
+WebKit (`npx playwright-core install webkit`). All ten must pass before
 deploying.
 
 ## License

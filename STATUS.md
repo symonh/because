@@ -1,5 +1,31 @@
 # Because (formerly ArgumentBase) — status (2026-10-29)
 
+## 2026-10-29 — Copy and paste go through the system clipboard
+
+- **⌘C copied into the page's memory, so nothing could be pasted
+  anywhere else**: not into another Because tab, and not into a SwayMaps
+  map, where Simon found ⌘V doing nothing. `clipboard.js` now puts the
+  selected claim and everything beneath it on the system clipboard twice
+  over: as an indented outline (text/plain), which reads well pasted into
+  a document or a chat, and as the subtree inside an HTML fragment
+  (text/html), which pastes back exactly, implicit borders, objections and
+  notes included, into any Because tab on any origin. A .mup or subtree
+  copied as JSON text from a file pastes too; ordinary text adds nothing.
+- Safari runs copy and paste only where something is selected or editable,
+  so both go through one hidden textarea: ⌘C selects it and runs the
+  browser's copy, whose copy event carries the data; ⌘V keeps its default
+  action and moves focus to it just before the browser's paste lands. The
+  Edit menu's Paste has no key press to ride, so it reads the clipboard
+  through the Clipboard API, which the browser may ask the reader to allow.
+- Gates in the new `clipboard-e2e.js`, Chrome and WebKit with real key
+  presses: a copy in one tab pasted into a tab on another origin (claim,
+  implicit border, nested objection, note, selection, focus, one undo), the
+  outline as text, ordinary text pasting nothing, and the Edit menu path in
+  Chrome. The old tests drove ⌘V through Puppeteer, which runs the
+  browser's paste only when asked, so `app-e2e` now asks; the scripted
+  pastes in `app-e2e` and `features-e2e` deliver the paste event a real ⌘V
+  would.
+
 ## 2026-10-29 — Inference objections number 2.3; pasted reasons land on the right
 
 - **A claim objecting to an inference was numbered a level too deep.** The

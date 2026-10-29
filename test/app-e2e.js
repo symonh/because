@@ -177,7 +177,8 @@ function ok(cond, name) {
 	const metaPress = async (key, shift) => {
 		await page.keyboard.down('Meta');
 		if (shift) { await page.keyboard.down('Shift'); }
-		await page.keyboard.press(key);
+		// a Mac runs the browser's own paste after ⌘V; Puppeteer only when asked
+		await page.keyboard.press(key, key === 'v' ? { commands: ['paste'] } : undefined);
 		if (shift) { await page.keyboard.up('Shift'); }
 		await page.keyboard.up('Meta');
 		await new Promise(r => setTimeout(r, 300));
@@ -1036,17 +1037,29 @@ function ok(cond, name) {
 			container = document.getElementById('map-container'),
 			fire = (key, code) => container.dispatchEvent(new KeyboardEvent('keydown',
 				{ key: key, code: code, metaKey: true, bubbles: true, cancelable: true })),
-			groupsUnder = id => Object.values(content.findSubIdeaById(id).ideas).filter(k => k.attr && k.attr.group).length;
+			groupsUnder = id => Object.values(content.findSubIdeaById(id).ideas).filter(k => k.attr && k.attr.group).length,
+			// a synthetic key press carries no paste of its own, so deliver the
+			// one the browser would, to wherever ⌘V moved focus
+			land = idea => {
+				const dt = new DataTransfer();
+				dt.setData('text/html', '<pre data-because-clipboard="' + JSON.stringify(idea).replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '">x</pre>');
+				document.activeElement.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+			};
+		const run = [], execCommand = document.execCommand.bind(document);
+		document.execCommand = command => { run.push(command); return execCommand(command); };
 		mm.selectNode(12); container.focus();
 		fire('c', 'KeyJ');                 // ⌘C with 'c' arriving from a non-KeyC slot
+		document.execCommand = execCommand;
 		mm.selectNode(2); container.focus();
 		const before = groupsUnder(2);
 		fire('v', 'KeyB');                 // ⌘V with 'v' from the QWERTY-B slot (Colemak-DH)
+		land(content.clone(12));
 		const afterPaste = groupsUnder(2);
 		fire('z', 'KeyX');                 // ⌘Z with 'z' from a moved slot
 		const afterUndo = groupsUnder(2);
-		return { before, afterPaste, afterUndo };
+		return { copied: run.indexOf('copy') >= 0, before, afterPaste, afterUndo };
 	});
+	ok(layoutIndep.copied, '⌘C follows the character, not the QWERTY slot: it runs the copy');
 	ok(layoutIndep.afterPaste === layoutIndep.before + 1,
 		`⌘V follows the character, not the QWERTY slot (${layoutIndep.before} -> ${layoutIndep.afterPaste})`);
 	ok(layoutIndep.afterUndo === layoutIndep.before,

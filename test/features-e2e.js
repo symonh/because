@@ -1122,9 +1122,14 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 		await sleep(500);
 	}
 	await page.evaluate(() => {
-		const b = window.__because, mm = b.engine.mapModel;
-		mm.selectNode(22); b.commands.copy();
+		const b = window.__because, mm = b.engine.mapModel,
+			land = idea => {
+				const dt = new DataTransfer();
+				dt.setData('text/html', '<pre data-because-clipboard="' + JSON.stringify(idea).replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '">x</pre>');
+				document.activeElement.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+			};
 		mm.selectNode(12); b.commands.paste();
+		land(mm.getIdea().clone(22));
 	});
 	await sleep(700);
 	await page.evaluate(() => window.__because.commands.undo());
@@ -1851,11 +1856,15 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 	// (Enter goes through MapModel, which flips a new child to a positive
 	// rank; paste, drop and sticky notes call the content commands directly)
 	await page.evaluate(() => {
-		const b = window.__because;
-		b.engine.mapModel.selectNode(8);
-		b.commands.copy();
-		b.engine.mapModel.selectNode(1);
+		const b = window.__because, mm = b.engine.mapModel,
+			land = idea => {
+				const dt = new DataTransfer();
+				dt.setData('text/html', '<pre data-because-clipboard="' + JSON.stringify(idea).replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '">x</pre>');
+				document.activeElement.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+			};
+		mm.selectNode(1);
 		b.commands.paste();
+		land(mm.getIdea().clone(8));
 	});
 	await sleep(600);
 	const placed = await page.evaluate(() => {

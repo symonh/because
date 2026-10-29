@@ -25,6 +25,7 @@ const TEST_DIR = __dirname,
 		'onedrive-e2e.js',
 		'features-e2e.js',
 		'webkit-e2e.js', // Playwright WebKit — the Safari rule
+		'clipboard-e2e.js', // copy and paste across tabs and origins, both engines
 		'a11y-e2e.js', // WCAG 2.2 AA gate, both engines (docs/accessibility.md)
 		'site-e2e.js' // the landing page's pre-rendered figures, both engines
 	],

@@ -88,8 +88,8 @@ export const SHORTCUT_GROUPS = [
 		rows: [
 			{ keys: 'Mod+Z', desc: 'Undo', cmd: 'undo' },
 			{ keys: 'Mod+Shift+Z', winNote: 'or Ctrl+Y', desc: 'Redo', cmd: 'redo' },
-			{ keys: 'Mod+C', desc: 'Copy the selected claim and everything under it', cmd: 'copy' },
-			{ keys: 'Mod+V', desc: 'Paste it as a reason under the selection', cmd: 'paste' },
+			{ keys: 'Mod+C', desc: 'Copy the selected claim and everything under it, to paste into any Because tab or as an outline anywhere else', cmd: 'copy' },
+			{ keys: 'Mod+V', desc: 'Paste copied claims as a reason under the selection', cmd: 'paste' },
 			{ keys: 'Shift+T', desc: 'Dark mode on / off', cmd: 'toggleDarkMode' },
 			{ keys: '?', desc: 'Open this list', cmd: 'showShortcuts' }
 		]

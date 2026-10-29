@@ -9,6 +9,7 @@
 import { GROUP_ATTR } from './drop-policy.js';
 import { isStickyNode } from './numbering.js';
 import { focusChrome } from './a11y.js';
+import { copyIdea, pasteIdea } from './clipboard.js';
 
 const SOURCE = 'ui',
 	FONT_STEP = 1.2,
@@ -34,10 +35,6 @@ const SOURCE = 'ui',
 	};
 
 export function makeCommands(engine, darkMode, shortcutHelp, neutralPref, labelEdit, moveMode) {
-	// in-memory clipboard: the JSON subtree copied by the last Copy. Kept in
-	// the app layer because mapjs exposes clone/paste on content but no
-	// clipboard of its own (MindMup's cut/copy/paste lived in its closed app).
-	let clipboard = null;
 	const mapModel = engine.mapModel,
 		idea = () => mapModel.getIdea(),
 		selectedId = () => mapModel.getSelectedNodeId(),
@@ -164,37 +161,43 @@ export function makeCommands(engine, darkMode, shortcutHelp, neutralPref, labelE
 			mapModel.selectNode(newId);
 			mapModel.editNode(SOURCE, true, true);
 		},
-		// Copy the selected claim and everything beneath it (a deep snapshot,
-		// so it survives the source being edited or deleted). Groups (bare
-		// brackets) and sticky notes are structure/annotation, not portable
-		// argument units, so they are not copied.
+		// Copy the selected claim and everything beneath it to the system
+		// clipboard (clipboard.js), so it pastes into any Because tab and
+		// reads as an outline anywhere else. Groups (bare brackets) and
+		// sticky notes are structure/annotation, not portable argument
+		// units, so they are not copied.
 		copy() {
 			const node = selectedIdea();
 			if (!node || isGroup(node) || isSticky(node)) { return; }
 			const clone = idea().clone(node.id);
-			if (clone) { stripPositions(clone); clipboard = clone; }
+			if (clone) { stripPositions(clone); copyIdea(clone); }
 		},
-		// Paste the clipboard onto the selection, exactly as dragging it there
-		// would (drop-policy grammar): onto a claim it becomes a new reason in
-		// its own fresh green group; onto a bracket it joins as a co-premise.
-		// There is always a selection (the model falls back to the root), so
-		// paste always attaches — detaching is done afterwards by dragging the
-		// pasted subtree to a blank area. One undo reverts the whole paste.
+		// Paste claims from the system clipboard onto the selection, exactly
+		// as dragging them there would (drop-policy grammar): onto a claim
+		// they become a new reason in its own fresh green group; onto a
+		// bracket they join as a co-premise. The paste lands after this
+		// returns (clipboard.js), onto what was selected when it was asked
+		// for. There is always a selection (the model falls back to the
+		// root), so paste always attaches — detaching is done afterwards by
+		// dragging. One undo reverts the whole paste.
 		paste() {
-			const content = idea();
-			if (!clipboard || !content) { return; }
-			const targetId = selectedId(),
-				target = content.findSubIdeaById(targetId) || content;
-			let newId = null;
-			content.batch(function () {
-				if (isGroup(target)) {
-					newId = content.paste(target.id, clipboard);
-				} else if (!isSticky(target)) {
-					const groupId = content.addSubIdea(targetId, 'group', undefined, GROUP_ATTR);
-					if (groupId) { newId = content.paste(groupId, clipboard); }
-				}
+			const targetId = selectedId();
+			pasteIdea(function (clip) {
+				const content = idea();
+				if (!clip || !content) { return; }
+				stripPositions(clip);
+				const target = content.findSubIdeaById(targetId) || content;
+				let newId = null;
+				content.batch(function () {
+					if (isGroup(target)) {
+						newId = content.paste(target.id, clip);
+					} else if (!isSticky(target)) {
+						const groupId = content.addSubIdea(target.id, 'group', undefined, GROUP_ATTR);
+						if (groupId) { newId = content.paste(groupId, clip); }
+					}
+				});
+				if (newId) { mapModel.selectNode(newId); }
 			});
-			if (newId) { mapModel.selectNode(newId); }
 		},
 		editNode() { mapModel.editNode(SOURCE, false, false); },
 		// pick the selection up and attach or place it with a click or Enter

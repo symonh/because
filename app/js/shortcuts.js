@@ -26,8 +26,10 @@
  *   ?      the keyboard reference (shortcut-help.js, which documents this map)
  *   ⌘B / ⌘I / ⌘U  bold / italic / underline the selected claim's title
  *   (inside the text editor the same keys format the text selection)
- *   ⌘C / ⌘V  copy the selected claim + its subtree; paste it as a reason
- *   under the selection (inside the text editor the same keys copy/paste text)
+ *   ⌘C / ⌘V  copy the selected claim + its subtree to the system clipboard;
+ *   paste claims from it as a reason under the selection, from any Because
+ *   tab (inside the text editor the same keys copy/paste text). ⌘V keeps its
+ *   default action, which clipboard.js catches
  *   ⌘⇧. / ⌘⇧,  bigger / smaller claim text (attr.style.fontMultiplier)
  *   ⌘Z / ⌘⇧Z  undo / redo — mapjs never bound these (undo lived in the
  *   MindMup app layer); unconsumed ⌘Z reaches Safari's own Edit > Undo,
@@ -158,7 +160,7 @@ export function bindShortcuts(engine, commands, neutralPref) {
 			command = commands.showShortcuts;
 		}
 		if (command) {
-			e.preventDefault();
+			if (command !== commands.paste) { e.preventDefault(); }
 			e.stopImmediatePropagation();
 			command();
 		}
