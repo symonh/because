@@ -1,4 +1,28 @@
-# Because (formerly ArgumentBase) — status (2026-10-06)
+# Because (formerly ArgumentBase) — status (2026-10-29)
+
+## 2026-10-29 — Inference objections number 2.3; pasted reasons land on the right
+
+- **A claim objecting to an inference was numbered a level too deep.** The
+  Basics lesson's cosmic-law-giver figure says "Claim 2.3 objects to the
+  inference", and MindMup numbered it 2.3, but the editor drew 3.1: the
+  bracket aimed at the inference sat among the premises of its level,
+  took the number 2.3 itself (invisibly, since brackets carry no badge),
+  and pushed its claims to the next level. `numbering.js` now counts the
+  claims of a bracket nested in a bracket on the level of the bracket they
+  answer, after its own claims.
+- **A reason pasted or dropped onto the conclusion landed on the left.**
+  mapjs gives a root node's new children alternating negative and positive
+  ranks, a mind map's two sides. MapModel flips a reason added with Enter
+  back to a positive rank, but paste, drop and sticky notes call the
+  content commands directly, so on the conclusion every second one went to
+  the left of the existing reasons, while everywhere else new reasons go
+  to the right. A new child now always takes the next positive rank
+  (LOCAL-PATCHES.diff, engine/README.md; bundle rebuilt).
+- Both were found while building SwayMaps, which shares this editor.
+- Gates in `features-e2e`: the law-giver numbering (2.1, 2.2, 2.3 for the
+  inference objection, 2.4 for the next reason), and a claim pasted onto
+  the conclusion landing to the right under a positive rank. Both fail
+  against the editor as it was.
 
 ## 2026-10-06 — Gaps from a WCAG 2.2 audit, and a high-contrast view
 

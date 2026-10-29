@@ -10224,17 +10224,7 @@
             return idea.id === id;
           });
         }, nextChildRank = function(parentIdea) {
-          let newRank = 0, counts = 0, childRankSign = 1;
-          if (isRootNode(parentIdea.id)) {
-            counts = _.countBy(parentIdea.ideas, function(v, k) {
-              return k < 0;
-            });
-            if ((counts["true"] || 0) < counts["false"]) {
-              childRankSign = -1;
-            }
-          }
-          newRank = maxKey(parentIdea.ideas, childRankSign) + childRankSign;
-          return newRank;
+          return maxKey(parentIdea.ideas, 1) + 1;
         }, appendSubIdea = function(parentIdea, subIdea) {
           let rank = 0;
           parentIdea.ideas = parentIdea.ideas || {};

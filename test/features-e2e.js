@@ -1831,6 +1831,44 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 	ok(!themeSwap.embeddedLeft && themeSwap.named === 'argMappingHighImpact',
 		'choosing a named theme drops the embedded one from the saved map');
 
+	// ---- an objection to an inference numbers beside the reason it answers ----
+	await page.evaluate(() => window.__because.io.loadJson({ formatVersion: 3, id: 'root', title: 'Law giver',
+		ideas: { 1: { id: 1, title: 'There exists a cosmic law giver.', attr: {}, ideas: {
+			1: { id: 2, title: 'group', attr: { group: 'supporting', contentLocked: true }, ideas: {
+				1: { id: 3, title: 'It is a law of nature that matter cannot reach light speed.', attr: {} },
+				2: { id: 4, title: 'A law implies a law giver.', attr: {} },
+				3: { id: 5, title: 'group', attr: { group: 'opposing', contentLocked: true }, ideas: {
+					1: { id: 6, title: 'The word law means something different in each claim.', attr: {} } } } } },
+			2: { id: 7, title: 'group', attr: { group: 'supporting', contentLocked: true }, ideas: {
+				1: { id: 8, title: 'The universe is orderly.', attr: {} } } } } } } }, 'lawgiver.mup'));
+	await sleep(600);
+	const badgeOf = id => page.evaluate(i => (document.querySelector('#node_' + i + ' .mapjs-label') || {}).textContent, id);
+	ok(await badgeOf(3) === '2.1' && await badgeOf(4) === '2.2' && await badgeOf(6) === '2.3',
+		'an objection to an inference numbers 2.3, beside the claims of the reason it answers, as in MindMup and the Basics lesson');
+	ok(await badgeOf(8) === '2.4', 'and the next reason\'s claim follows it on the same level');
+
+	// ---- a reason pasted onto the conclusion appears after the earlier ones ----
+	// (Enter goes through MapModel, which flips a new child to a positive
+	// rank; paste, drop and sticky notes call the content commands directly)
+	await page.evaluate(() => {
+		const b = window.__because;
+		b.engine.mapModel.selectNode(8);
+		b.commands.copy();
+		b.engine.mapModel.selectNode(1);
+		b.commands.paste();
+	});
+	await sleep(600);
+	const placed = await page.evaluate(() => {
+		const conclusion = window.__because.engine.mapModel.getIdea().ideas[1],
+			ranks = Object.keys(conclusion.ideas).map(Number),
+			pastedRank = ranks.find(r => conclusion.ideas[r].id !== 2 && conclusion.ideas[r].id !== 7),
+			left = id => document.getElementById('node_' + id).getBoundingClientRect().left,
+			pasted = conclusion.ideas[pastedRank];
+		return { rightOf: left(pasted.id) > left(7), positive: pastedRank > 0 };
+	});
+	ok(placed.rightOf && placed.positive,
+		'a reason pasted onto the conclusion lands to the right of the others, under the next positive rank, as a new reason from Enter does');
+
 	if (errors.length) { console.log('PAGE ERRORS:', errors.join(' | ')); failures += 1; }
 	await browser.close();
 	console.log(failures === 0 ? 'ALL PASS' : failures + ' FAILURES');

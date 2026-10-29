@@ -2,6 +2,10 @@
  * Renderer-computed claim numbering: level.index (1.1, 2.1, 2.2, 3.1 …),
  * breadth-first by content depth; brackets of every kind (reason, objection,
  * neutral) and sticky notes are skipped (they are structure, not claims).
+ * The claims of a bracket aimed at an inference number on the same level as
+ * the claims of the bracket they answer, after them, as MindMup numbered
+ * them and as the Basics lesson refers to them ("Claim 2.3 objects to the
+ * inference").
  *
  * A claim may carry its own badge text in attr.claimLabel (set by clicking
  * the badge — see number-edit.js). An override replaces the number on that
@@ -31,12 +35,23 @@ export const labelOverride = function (n) {
 		value.trim().slice(0, MAX_CLAIM_LABEL) : null;
 };
 
-// premises of a claim: the content children inside its reason/objection groups
+// the claims a bracket holds, including those of brackets aimed at its inference
+const bracketClaims = function (group, out) {
+	sortedKids(group).forEach(k => {
+		if (isGroupNode(k)) {
+			bracketClaims(k, out);
+		} else if (!isStickyNode(k)) {
+			out.push(k);
+		}
+	});
+};
+
+// premises of a claim: the claims inside its reason/objection groups
 export function premisesOf(n) {
 	const out = [];
 	sortedKids(n).forEach(k => {
 		if (isGroupNode(k)) {
-			sortedKids(k).forEach(p => { if (!isStickyNode(p)) { out.push(p); } });
+			bracketClaims(k, out);
 		} else if (!isStickyNode(k)) {
 			out.push(k);
 		}

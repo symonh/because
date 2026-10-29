@@ -994,3 +994,34 @@ index a1b5ce7..bbe34ba 100644
  				node.shadowDraggable();
  			},
  			finishEditing = function () {
+diff --git a/engine/vendor/mapjs/src/core/content/content.js b/engine/vendor/mapjs/src/core/content/content.js
+index 3ad14c6..89576f1 100644
+--- a/engine/vendor/mapjs/src/core/content/content.js
++++ b/engine/vendor/mapjs/src/core/content/content.js
+@@ -141,18 +141,13 @@ module.exports = function content(contentAggregate, initialSessionId) {
+ 				return idea.id === id;
+ 			});
+ 		},
++		/* LOCAL PATCH: a new child always takes the next positive rank, so it
++		   appears after its siblings. Upstream alternated a root node's
++		   children between negative and positive ranks (a mind map's left and
++		   right sides). MapModel flips a reason added with Enter back to a
++		   positive rank, but paste, drop and sticky notes call these commands
++		   directly, so a reason pasted or dropped onto the conclusion landed
++		   to the LEFT of the existing ones. */
+ 		nextChildRank = function (parentIdea) {
+-			let newRank = 0, counts = 0, childRankSign = 1;
+-			if (isRootNode(parentIdea.id)) {
+-				counts = _.countBy(parentIdea.ideas, function (v, k) {
+-					return k < 0;
+-				});
+-				if ((counts['true'] || 0) < counts['false']) { //eslint-disable-line dot-notation
+-					childRankSign = -1;
+-				}
+-			}
+-			newRank = maxKey(parentIdea.ideas, childRankSign) + childRankSign;
+-			return newRank;
++			return maxKey(parentIdea.ideas, 1) + 1;
+ 		},
+ 		appendSubIdea = function (parentIdea, subIdea) {
+ 			let rank = 0;

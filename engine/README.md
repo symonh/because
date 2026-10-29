@@ -77,6 +77,13 @@ recorded in `vendor/mapjs/LOCAL-PATCHES.diff`:
   lets `attr_group_supporting.level_1` paint — the MindMup theme's own
   styling for a bracket detached from the tree.
 
+- `core/content/content.js` — a new child always takes the next positive
+  rank. Upstream alternated a root node's children between negative and
+  positive ranks (a mind map's two sides). MapModel flips a reason added
+  with Enter back to a positive rank, but paste, drop and sticky notes call
+  the content commands directly, so a claim pasted or dropped onto the
+  conclusion became a reason to the left of the existing ones.
+
 ## Build
 
 ```
